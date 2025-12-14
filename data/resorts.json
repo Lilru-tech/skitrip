@@ -1,0 +1,572 @@
+[
+  {
+    "id": "grandvalira",
+    "name": "Grandvalira",
+    "country": "AD",
+    "region": "Andorra",
+    "location": {
+      "lat": 42.576571,
+      "lon": 1.668275
+    },
+    "kmTotal": 215,
+    "vibeScore": 9,
+    "apresScore": 10,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 93,
+      "hotelForfaitTop10Avg": 97.95,
+      "rentalAvgPerDay": 38,
+      "openKm": 78,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-grandvalira-130041",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": "https://www.grandvalira.com/es/estado-pistas"
+    }
+  },
+  {
+    "id": "pal-arinsal",
+    "name": "Pal-Arinsal",
+    "country": "AD",
+    "region": "Andorra",
+    "location": {
+      "lat": 42.571443,
+      "lon": 1.488769
+    },
+    "kmTotal": 63,
+    "vibeScore": 7.5,
+    "apresScore": 10,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 33,
+      "hotelForfaitTop10Avg": 37.8,
+      "rentalAvgPerDay": 35,
+      "openKm": 78,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/pal-arinsal-1451",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "ordino-arcalis",
+    "name": "Ordino Arcalís",
+    "country": "AD",
+    "region": "Andorra",
+    "location": {
+      "lat": 42.63,
+      "lon": 1.5
+    },
+    "kmTotal": 30,
+    "vibeScore": 8,
+    "apresScore": 6,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 35,
+      "hotelForfaitTop10Avg": 38.15,
+      "rentalAvgPerDay": 35,
+      "openKm": 78,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/arcalis-1453",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "alp-2500",
+    "name": "La Molina + Masella (Alp 2500)",
+    "country": "ES",
+    "region": "Cataluña",
+    "location": {
+      "lat": 42.343917,
+      "lon": 1.921592
+    },
+    "kmTotal": 145,
+    "vibeScore": 7,
+    "apresScore": 10,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 44.5,
+      "hotelForfaitTop10Avg": 52.1,
+      "rentalAvgPerDay": 32,
+      "openKm": 57,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-la-molina",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "baqueira-beret",
+    "name": "Baqueira Beret",
+    "country": "ES",
+    "region": "Cataluña (Val d'Aran)",
+    "location": {
+      "lat": 42.699167,
+      "lon": 0.946667
+    },
+    "kmTotal": 166,
+    "vibeScore": 8.5,
+    "apresScore": 10,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 41,
+      "hotelForfaitTop10Avg": 52.05,
+      "rentalAvgPerDay": 42,
+      "openKm": 94,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/1-noche-2-dias-de-forfait-baqueira-beret-1305762",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": "https://www.baqueira.es/parte-nieve"
+    }
+  },
+  {
+    "id": "port-aine",
+    "name": "Port Ainé",
+    "country": "ES",
+    "region": "Cataluña",
+    "location": {
+      "lat": 42.42833,
+      "lon": 1.21194
+    },
+    "kmTotal": 32,
+    "vibeScore": 7,
+    "apresScore": 4,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 35,
+      "hotelForfaitTop10Avg": 50.7,
+      "rentalAvgPerDay": 30,
+      "openKm": 8,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-port-aine",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "espot-esqui",
+    "name": "Espot Esquí",
+    "country": "ES",
+    "region": "Cataluña",
+    "location": {
+      "lat": 42.57861,
+      "lon": 1.08862
+    },
+    "kmTotal": 25,
+    "vibeScore": 7.5,
+    "apresScore": 3,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 33.5,
+      "hotelForfaitTop10Avg": 40.6,
+      "rentalAvgPerDay": 30,
+      "openKm": 14,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-espot",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "boi-taull",
+    "name": "Boí Taüll",
+    "country": "ES",
+    "region": "Cataluña",
+    "location": {
+      "lat": 42.47834,
+      "lon": 0.868545
+    },
+    "kmTotal": 45,
+    "vibeScore": 7.5,
+    "apresScore": 0,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 50.5,
+      "hotelForfaitTop10Avg": 60.55,
+      "rentalAvgPerDay": 30,
+      "openKm": 14,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-boi-taull-1300410",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "port-del-comte",
+    "name": "Port del Comte",
+    "country": "ES",
+    "region": "Cataluña",
+    "location": {
+      "lat": 42.169442,
+      "lon": 1.56963
+    },
+    "kmTotal": 50,
+    "vibeScore": 6.5,
+    "apresScore": 0,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 102,
+      "hotelForfaitTop10Avg": 138.5,
+      "rentalAvgPerDay": 28,
+      "openKm": 2,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-port-del-comte",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "vall-de-nuria",
+    "name": "Vall de Núria",
+    "country": "ES",
+    "region": "Cataluña",
+    "location": {
+      "lat": 42.396465,
+      "lon": 2.153968
+    },
+    "kmTotal": 8,
+    "vibeScore": 7,
+    "apresScore": 1,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 41,
+      "hotelForfaitTop10Avg": 61.2,
+      "rentalAvgPerDay": 25,
+      "openKm": 3,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-vall-de-nuria-1300462",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "cerler",
+    "name": "Cerler",
+    "country": "ES",
+    "region": "Aragón",
+    "location": {
+      "lat": 42.5893,
+      "lon": 0.5363
+    },
+    "kmTotal": 81,
+    "vibeScore": 8,
+    "apresScore": 8,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 71,
+      "hotelForfaitTop10Avg": 81.15,
+      "rentalAvgPerDay": 35,
+      "openKm": 65,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/cerler-1418",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "formigal-panticosa",
+    "name": "Formigal - Panticosa",
+    "country": "ES",
+    "region": "Aragón",
+    "location": {
+      "lat": 42.744164,
+      "lon": 0.055364
+    },
+    "kmTotal": 143,
+    "vibeScore": 8,
+    "apresScore": 10,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 75,
+      "hotelForfaitTop10Avg": 91.45,
+      "rentalAvgPerDay": 36,
+      "openKm": 65,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-formigal-panticosa",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "astun",
+    "name": "Astún",
+    "country": "ES",
+    "region": "Aragón",
+    "location": {
+      "lat": 42.80583,
+      "lon": 0.50366
+    },
+    "kmTotal": 50,
+    "vibeScore": 7.5,
+    "apresScore": 6,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 36.5,
+      "hotelForfaitTop10Avg": 40.6,
+      "rentalAvgPerDay": 34,
+      "openKm": 65,
+      "priceSource": "esquiades",
+      "priceUrl": "https://www.esquiades.com/viajes-esqui/astun-1435",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "candanchu",
+    "name": "Candanchú",
+    "country": "ES",
+    "region": "Aragón",
+    "location": {
+      "lat": 42.78065,
+      "lon": -0.53843
+    },
+    "kmTotal": 101,
+    "vibeScore": 7,
+    "apresScore": 5,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 86.5,
+      "hotelForfaitTop10Avg": 111.8,
+      "rentalAvgPerDay": 33,
+      "openKm": 65,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-astun-candanchu",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "valdelinares",
+    "name": "Valdelinares",
+    "country": "ES",
+    "region": "Teruel",
+    "location": {
+      "lat": 40.385007,
+      "lon": -0.632772
+    },
+    "kmTotal": 17,
+    "vibeScore": 7,
+    "apresScore": 4,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 83.5,
+      "hotelForfaitTop10Avg": 94.95,
+      "rentalAvgPerDay": 28,
+      "openKm": 6,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-valdelinares",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "javalambre",
+    "name": "Javalambre",
+    "country": "ES",
+    "region": "Teruel",
+    "location": {
+      "lat": 40.111178,
+      "lon": -1.023617
+    },
+    "kmTotal": 15,
+    "vibeScore": 6.5,
+    "apresScore": 3,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 79.5,
+      "hotelForfaitTop10Avg": 91.95,
+      "rentalAvgPerDay": 27,
+      "openKm": 6,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-javalambre",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "font-romeu-pyrenees-2000",
+    "name": "Font-Romeu Pyrénées 2000",
+    "country": "FR",
+    "region": "Pyrénées-Orientales",
+    "location": {
+      "lat": 42.520876,
+      "lon": 2.034989
+    },
+    "kmTotal": 43,
+    "vibeScore": 7.5,
+    "apresScore": 6,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 57,
+      "hotelForfaitTop10Avg": 72.6,
+      "rentalAvgPerDay": 32,
+      "openKm": 27,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-font-romeu",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "les-angles",
+    "name": "Les Angles",
+    "country": "FR",
+    "region": "Pyrénées-Orientales",
+    "location": {
+      "lat": 42.577282,
+      "lon": 2.073585
+    },
+    "kmTotal": 55,
+    "vibeScore": 7.5,
+    "apresScore": 6,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 83,
+      "hotelForfaitTop10Avg": 135.95,
+      "rentalAvgPerDay": 32,
+      "openKm": 40,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-les-angles",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  },
+  {
+    "id": "ax-3-domaines",
+    "name": "Ax 3 Domaines",
+    "country": "FR",
+    "region": "Ariège",
+    "location": {
+      "lat": 42.70083,
+      "lon": 1.81389
+    },
+    "kmTotal": 80,
+    "vibeScore": 7.5,
+    "apresScore": 6,
+    "defaultRentalPrice": null,
+    "pricing": {
+      "hotelForfaitCheapest": 82.5,
+      "hotelForfaitTop10Avg": 165.63,
+      "rentalAvgPerDay": 32,
+      "openKm": 27,
+      "priceSource": "estiber",
+      "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-ax-3-domaines",
+      "openKmSource": "esquiades_estado_pistas",
+      "openKmUrl": "https://www.esquiades.com/informacion-interes/estado-pistas/"
+    },
+    "notesGeneral": [],
+    "notesSpecific": [],
+    "links": {
+      "official": "",
+      "snowReport": ""
+    }
+  }
+]

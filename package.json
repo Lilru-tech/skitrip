@@ -1,0 +1,18 @@
+{
+  "name": "skitrip",
+  "version": "1.0.0",
+  "description": "Calculate cost of the ski trip",
+  "private": true,
+  "main": "app.js",
+  "scripts": {
+    "update:prices": "node tools/update-esquiades-prices.js ./data/resorts.json",
+    "update:openkm": "node tools/update-open-km.js ./data/resorts.json",
+    "update:all": "npm run update:prices && npm run update:openkm"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "playwright": "^1.57.0"
+  }
+}

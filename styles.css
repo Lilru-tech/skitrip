@@ -1,0 +1,532 @@
+:root{
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+  
+    --primary: #2563eb;
+    --primaryHover: #1d4ed8;
+  
+    --dark: #111827;
+    --shadow: 0 10px 30px rgba(17,24,39,0.06);
+  
+    --radius: 14px;
+  }
+  *{ box-sizing: border-box; }
+  
+  body{
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 28px;
+    background: radial-gradient(1200px 600px at 20% -10%, rgba(37,99,235,0.10), transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, rgba(17,24,39,0.08), transparent 55%),
+                var(--bg);
+    color: var(--text);
+  }
+  
+  h1, h2, h3 { letter-spacing: -0.02em; }
+  
+  h1 { margin-bottom: 4px; }
+  p.subtitle { margin-top: 0; color: #6b7280; }
+  
+  /* Layout */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .title {
+    margin: 0;
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+  }
+
+  .cardTitle{
+    margin: 0 0 12px 0;
+    font-size: 1.05rem;
+    font-weight: 900;
+  }
+  
+  /* Cards */
+  .card{
+    background: var(--card);
+    padding: 18px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin: 16px 0;
+    border: 1px solid rgba(229,231,235,0.9);
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  
+  label{ font-size: 0.82rem; color: #374151; }
+
+select, input{
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  outline: none;
+}
+
+select:focus, input:focus, textarea:focus{
+  border-color: rgba(37,99,235,0.55);
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
+}
+  
+  /* Buttons */
+  button{
+    cursor: pointer;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    transition: transform .06s ease, background .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  
+  button:not(.secondary):not(.segBtn):not(.iconBtn){
+    background: var(--primary);
+    color: white;
+  }
+  button:not(.secondary):not(.segBtn):not(.iconBtn):hover{
+    background: var(--primaryHover);
+    box-shadow: 0 8px 20px rgba(37,99,235,0.20);
+  }
+  
+  button.secondary{
+    background: var(--dark);
+    color: white;
+  }
+  button.secondary:hover{
+    filter: brightness(1.05);
+    box-shadow: 0 10px 22px rgba(17,24,39,0.18);
+  }
+  
+  button:active{ transform: translateY(1px); }
+  
+  #statusText { margin: 12px 0; font-size: 0.9rem; color: #374151; }
+  
+  /* Chips */
+  .summaryBar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0 14px 0;
+  }
+  
+  .chip {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: #374151;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  
+  /* Tables base */
+  table:not(.resultsTable){
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  
+  thead { background: #111827; color: white; }
+  
+  th, td {
+    padding: 10px;
+    text-align: left;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  
+  th { font-weight: 600; white-space: nowrap; }
+  tr:hover td { background: #f9fafb; }
+  
+  td a { color: #2563eb; text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  
+  .muted { color: #6b7280; font-size: 0.85rem; }
+  .right { text-align: right; }
+  .nowrap { white-space: nowrap; }
+  
+  footer {
+    margin-top: 30px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    text-align: center;
+  }
+  
+  /* Sorting */
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th[data-sort]:hover { opacity: 0.9; }
+  
+  td.best {
+    background: #dcfce7 !important;
+    font-weight: 700;
+  }
+  
+  td.worst {
+    background: #fee2e2 !important;
+    font-weight: 700;
+  }
+    
+  /* Columna activa */
+  th.sorted {
+    background: #1f2937;
+  }
+  
+  /* Flechas de orden */
+  th[data-sort]::after {
+    content: " ⇅";
+    font-size: 0.75em;
+    opacity: 0.6;
+  }
+  
+  th.sorted.asc::after { content: " ▲"; }
+  th.sorted.desc::after { content: " ▼"; }
+  
+  tr.winner td {
+    background: #e0f2fe !important;
+    font-weight: 700;
+  }
+  
+  /* ------------------------------
+     RESULTS TABLE (OPCIÓN 1)
+     Que quepa todo sin scroll
+  --------------------------------*/
+  .tableWrap {
+    width: 100%;
+    overflow: hidden; /* ✅ sin scroll */
+    border-radius: var(--radius);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  
+  /* IMPORTANTE: en tu HTML el table debe tener class="resultsTable" */
+  .resultsTable {
+    width: 100%;
+    table-layout: fixed; /* ✅ reparte ancho y obliga a encajar */
+    border-collapse: collapse;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  
+  /* Compactación real */
+  .resultsTable th,
+  .resultsTable td {
+    padding: 5px 6px;
+    font-size: 0.78rem;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /* default: una línea */
+  }
+
+  /* ✅ Solo estas dos columnas pueden hacer wrap */
+.resultsTable th:nth-child(1),
+.resultsTable td:nth-child(1),
+.resultsTable th:nth-child(2),
+.resultsTable td:nth-child(2) {
+  white-space: normal;     /* permite 2 líneas */
+  line-height: 1.15;
+}
+  
+  /* Zebra */
+  .resultsTable tbody tr:nth-child(even) td {
+    background: #fafafa;
+  }
+  
+  /* Números más legibles */
+  .resultsTable td.right {
+    font-variant-numeric: tabular-nums;
+  }
+  
+/* Anchos por columna (más realistas para caber) */
+.resultsTable th:nth-child(1),
+.resultsTable td:nth-child(1) { width: 130px; }  /* Estación */
+
+.resultsTable th:nth-child(2),
+.resultsTable td:nth-child(2) { width: 140px; }  /* País/Región */
+
+.resultsTable th:nth-child(3),
+.resultsTable td:nth-child(3) { width: 72px; }   /* Distancia */
+
+.resultsTable th:nth-child(4),
+.resultsTable td:nth-child(4) { width: 72px; }   /* Km total */
+
+.resultsTable th:nth-child(5),
+.resultsTable td:nth-child(5) { width: 72px; }   /* Km abiertos */
+
+.resultsTable th:nth-child(6),
+.resultsTable td:nth-child(6) { width: 70px; }   /* Ambiente */
+
+.resultsTable th:nth-child(7),
+.resultsTable td:nth-child(7) { width: 60px; }   /* Après */
+
+.resultsTable th:nth-child(8),
+.resultsTable td:nth-child(8),
+.resultsTable th:nth-child(9),
+.resultsTable td:nth-child(9),
+.resultsTable th:nth-child(10),
+.resultsTable td:nth-child(10),
+.resultsTable th:nth-child(11),
+.resultsTable td:nth-child(11),
+.resultsTable th:nth-child(12),
+.resultsTable td:nth-child(12) { width: 86px; }  /* € columnas */
+
+.resultsTable th:nth-child(13),
+.resultsTable td:nth-child(13) { width: 78px; }  /* Puntuación */
+  
+  /* ------------------------------
+     Modal
+  --------------------------------*/
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+  
+  .modal.hidden { display: none; }
+  
+  .modalCard {
+    background: white;
+    padding: 16px;
+    border-radius: 10px;
+    width: min(700px, 100%);
+    max-height: 80vh;
+    overflow: auto;
+  }
+  
+  .modalActions {
+    margin-top: 12px;
+    text-align: right;
+  }
+
+  /* --- Hacer SOLO la tabla full width (rompe el container) --- */
+  .tableFullBleed {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* ------------------------------
+   Comentarios
+--------------------------------*/
+.commentsHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .commentsComposer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  
+  #commentInput,
+  .commentEditArea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    font-size: 0.9rem;
+    resize: vertical;
+  }
+  
+  .commentsList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .commentItem {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+  }
+  
+  .commentMeta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  
+  .commentText {
+    font-size: 0.92rem;
+    line-height: 1.35;
+    color: #111827;
+    margin-bottom: 10px;
+  }
+  
+  .commentActions {
+    display: flex;
+    gap: 8px;
+  }
+
+#commentsView .modalCard {
+    width: min(800px, 100%);
+  }
+
+  /* Click en estación */
+  .resortLink {
+    cursor: pointer;
+    color: #2563eb;
+    text-decoration: underline;
+    text-decoration-color: rgba(37, 99, 235, 0.35);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .resortLink:hover {
+    filter: brightness(0.95);
+  }
+
+  .linkBtn {
+    background: transparent !important;
+    color: #2563eb !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+  }
+  
+  .linkBtn:hover {
+    text-decoration: underline;
+  }
+
+  .commentBadge {
+    margin-left: 6px;
+    font-size: 0.75rem;
+    color: #374151;
+    background: #e5e7eb;
+    padding: 2px 6px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .cardHeaderRow{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  
+  .cardKicker{
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .cardTitleSmall{
+    font-size: 1rem;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+  
+  .segmented{
+    display:flex;
+    background: #f3f4f6;
+    border: 1px solid var(--border);
+    padding: 4px;
+    border-radius: 999px;
+    gap: 4px;
+  }
+  .segBtn{
+    background: transparent;
+    color: #374151;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 999px;
+    font-weight: 800;
+  }
+  .segBtn.isActive{
+    background: white;
+    color: var(--text);
+    box-shadow: 0 6px 18px rgba(17,24,39,0.08);
+    border: 1px solid rgba(229,231,235,0.9);
+  }
+    
+  .resultsTable thead th{
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  
+  .resultsTable td.right{
+    font-variant-numeric: tabular-nums;
+  }
+
+  .modalCard{
+    border-radius: var(--radius);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+    border: 1px solid rgba(229,231,235,0.9);
+  }
+  
+  .modalHeader{
+    position: sticky;
+    top: 0;
+    background: white;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .modalTitle{
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  
+  .iconBtn{
+    background: transparent;
+    color: #111827;
+    border: 1px solid var(--border);
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    padding: 0;
+    display:grid;
+    place-items:center;
+  }
+  .iconBtn:hover{
+    background: #f3f4f6;
+  }

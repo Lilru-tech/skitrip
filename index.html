@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SkiTrip · Comparador de estaciones</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+
+    <header class="header">
+      <div>
+        <h1 class="title">SkiTrip ⛷️</h1>
+        <p class="subtitle">Comparador de estaciones según distancia + coste estimado (€/persona)</p>
+      </div>
+    </header>
+
+  <!-- 1) Origen + filtro -->
+  <div class="card">
+    <div class="grid">
+      <div>
+        <label for="originSelect">Origen</label><br>
+        <select id="originSelect"></select>
+      </div>
+
+      <div>
+        <label for="maxKm">Distancia máxima (km)</label><br>
+        <input id="maxKm" type="number" value="400" min="50" max="1200" step="10">
+      </div>
+
+      <div>
+        <label>&nbsp;</label><br>
+        <button id="applyFilterBtn">Filtrar</button>
+      </div>
+
+      <div>
+        <label>&nbsp;</label><br>
+        <button id="useMyLocationBtn" class="secondary">Usar mi ubicación</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2) Configuración del viaje (€/persona) -->
+  <div class="card">
+    <h3 class="cardTitle">⚙️ Configuración del viaje</h3>
+
+    <div class="grid">
+      <div>
+        <label for="numPeople">Personas</label><br>
+        <input id="numPeople" type="number" value="6" min="1" max="20" step="1">
+      </div>
+
+      <div>
+        <label for="numCars">Coches</label><br>
+        <input id="numCars" type="number" value="2" min="1" max="6" step="1">
+      </div>
+
+      <div>
+        <label for="fuelConsumption">Consumo (L/100km)</label><br>
+        <input id="fuelConsumption" type="number" value="6.8" min="3" max="15" step="0.1">
+      </div>
+
+      <div>
+        <label for="fuelPrice">Precio gasolina (€/L)</label><br>
+        <input id="fuelPrice" type="number" value="1.65" min="0.5" max="3" step="0.01">
+      </div>
+
+      <div>
+        <label for="tollsTotal">Peajes total ida+vuelta (€)</label><br>
+        <input id="tollsTotal" type="number" value="0" min="0" max="300" step="1">
+      </div>
+
+      <div>
+        <label for="parkingPerDay">Parking (€/día)</label><br>
+        <input id="parkingPerDay" type="number" value="0" min="0" max="50" step="1">
+      </div>
+
+      <div>
+        <label for="parkingDays">Días parking</label><br>
+        <input id="parkingDays" type="number" value="2" min="0" max="7" step="1">
+      </div>
+
+      <div>
+        <label for="skiDays">Días de esquí (alquiler)</label><br>
+        <input id="skiDays" type="number" value="2" min="1" max="7" step="1">
+      </div>
+
+      <div>
+        <label for="nights">Noches de hotel</label><br>
+        <input id="nights" type="number" value="2" min="1" max="7" step="1">
+      </div>
+
+      <div>
+        <label>Compra</label><br>
+        <button id="openGroceriesBtn" class="secondary">
+          🛒 Ver / editar lista
+        </button>
+        <div class="muted" id="groceriesSummary">
+          Calculado automáticamente
+        </div>
+      </div>
+
+      <div>
+        <label>Comentarios</label><br>
+        <button id="openCommentsBtn" class="secondary">
+          📝 Ver / editar comentarios
+        </button>
+        <div class="muted" id="commentsSummary">
+          Sin comentarios
+        </div>
+      </div>
+
+      <div>
+        <label for="tripDate">Fecha del viaje</label><br>
+        <input id="tripDate" type="date">
+        <div class="muted">Ajusta el precio según temporada (baja/media/alta/pico).</div>
+      </div>
+
+      <div>
+        <label>&nbsp;</label><br>
+        <button id="recalcBtn" class="secondary">Recalcular</button>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:10px;">
+      La compra se calcula como (€/persona/día × días). El trayecto se reparte entre personas.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cardHeaderRow">
+      <div>
+        <div class="cardKicker">Recomendación</div>
+        <div class="cardTitleSmall">Orden rápido</div>
+      </div>
+  
+      <div class="segmented" role="group" aria-label="Modo recomendación">
+        <button id="topScoreBtn" class="segBtn isActive" type="button">🏆 Puntuación</button>
+        <button id="topCheapBtn" class="segBtn" type="button">💰 Barato</button>
+        <button id="topNearBtn" class="segBtn" type="button">📍 Cerca</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Datos:</strong>
+    <button id="updateDataBtn" class="secondary">🔄 Actualizar datos (GitHub)</button>
+    <span id="updateHint" class="muted" style="margin-left:10px;"></span>
+  </div>
+
+  <!-- Estado -->
+  <div id="statusText">Cargando…</div>
+  <!-- Tabla -->
+  <div class="tableFullBleed">
+    <div class="tableWrap noScroll">
+    <table class="resultsTable">
+    <thead>
+      <tr>
+        <th data-sort="name">Estación</th>
+        <th data-sort="country">País · Región</th>
+        <th data-sort="distanceKm">Distancia</th>
+        <th data-sort="kmTotal">KMs totales</th>
+        <th data-sort="openKm">Km abiertos</th>
+        <th data-sort="vibeScore">Ambiente</th>
+        <th data-sort="apresScore">Après</th>
+        <th class="right" data-sort="tripPerPerson">Gasolina €/p</th>
+        <th class="right" data-sort="groceriesPerPerson">Compra €/p</th>
+        <th class="right" data-sort="rentalPerPerson">Alquiler material €/p</th>
+        <th class="right" data-sort="hotelForfaitPerPerson">Hotel+Forfait €/p</th>
+        <th class="right" data-sort="totalPerPerson">Total €/p</th>
+        <th class="right" data-sort="score">Puntuación</th>
+      </tr>
+    </thead>
+    <tbody id="resultsTbody"></tbody>
+  </table>
+</div>
+</div>
+
+<footer>
+    SkiTrip · Datos aproximados · Distancia estimada · Precios en €/persona
+  </footer>
+  <div id="groceriesView" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle">🛒 Lista de la compra</h3>
+        <button class="iconBtn" id="closeGroceriesBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <table id="groceriesTable">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>€</th>
+            <th>Cantidad</th>
+            <th>Por día</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+  
+      <button id="addGroceryBtn" class="secondary">➕ Añadir producto</button>
+  
+      <div class="modalActions">
+        <button id="closeGroceriesBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="commentsView" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle" id="commentsTitle">📝 Comentarios</h3>
+        <button class="iconBtn" id="closeCommentsBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+
+      <div class="commentsComposer">
+        <textarea id="commentInput" rows="3" placeholder="Escribe un comentario…"></textarea>
+        <button id="addCommentBtn" class="secondary">➕ Añadir</button>
+      </div>
+
+      <div id="commentsList" class="commentsList"></div>
+
+      <div class="modalActions">
+        <button id="closeCommentsBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <script src="groceries.js"></script>
+  <script src="comments.js"></script>
+  <script src="app.js"></script>
+</div>
+</body>
+</html>
