@@ -351,9 +351,10 @@ select:focus, input:focus, textarea:focus{
   
   .commentsComposer {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 160px 1fr auto; /* nombre | comentario | botón */
     gap: 10px;
     margin-bottom: 12px;
+    align-items: start;
   }
   
   #commentInput,
@@ -384,6 +385,14 @@ select:focus, input:focus, textarea:focus{
     justify-content: space-between;
     margin-bottom: 6px;
   }
+
+  /* Composer: que el nombre sea pequeño tipo input normal */
+#commentUserInput {
+  height: 36px;
+  min-height: 36px;
+  padding: 8px 10px;
+  line-height: 20px;
+}
   
   .commentText {
     font-size: 0.92rem;
@@ -530,3 +539,27 @@ select:focus, input:focus, textarea:focus{
   .iconBtn:hover{
     background: #f3f4f6;
   }
+
+  /* ✅ OVERRIDE fuerte: composer de comentarios */
+#commentsView .commentsComposer {
+  display: grid;
+  grid-template-columns: 120px 1fr; /* Nombre pequeño | Comentario grande */
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: start;
+}
+
+/* input de nombre */
+#commentsView #commentUserInput {
+  width: 100%;
+}
+
+/* textarea ocupa la columna grande */
+#commentsView #commentInput {
+  width: 100%;
+}
+
+/* botón abajo ocupando todo el ancho (opcional pero queda bien) */
+#commentsView #addCommentBtn {
+  grid-column: 1 / -1;
+}

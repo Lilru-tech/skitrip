@@ -5,6 +5,17 @@ let currentResortName = "";
 
 function $(id) { return document.getElementById(id); }
 
+function getCommentUser() {
+  const el = $("commentUserInput");
+  const v = (el?.value || localStorage.getItem("skitrip_comment_user") || "").trim();
+  return v;
+}
+
+function saveCommentUserToLocalStorage() {
+  const v = ( $("commentUserInput")?.value || "" ).trim();
+  if (v) localStorage.setItem("skitrip_comment_user", v);
+}
+
 function escapeHtml(str) {
   return (str || "")
     .replaceAll("&", "&amp;")
@@ -118,9 +129,12 @@ async function renderResortComments() {
     const safeText = escapeHtml(c.text).replaceAll("\n", "<br>");
     return `
       <div class="commentItem" data-id="${c.id}">
-        <div class="commentMeta">
-          <span class="muted">Actualizado: ${formatDate(c.updatedAt)}</span>
-        </div>
+<div class="commentMeta">
+  <span class="muted">
+    ${c.user ? `👤 ${escapeHtml(c.user)} · ` : ""}
+    Actualizado: ${formatDate(c.updatedAt)}
+  </span>
+</div>
 
         <div class="commentText">${safeText}</div>
 
@@ -137,7 +151,10 @@ async function addComment(text) {
   const t = (text || "").trim();
   if (!t || !currentResortId) return;
 
-  await apiPost({ action: "add", resort_id: currentResortId, text: t });
+  const user = getCommentUser();
+  saveCommentUserToLocalStorage();
+
+  await apiPost({ action: "add", resort_id: currentResortId, text: t, user });
   await renderResortComments();
 }
 
@@ -179,6 +196,8 @@ function openCommentsModalForResort(resortId, resortName) {
   
     const input = $("commentInput");
     if (input) input.value = "";
+    const userEl = $("commentUserInput");
+if (userEl && !userEl.value) userEl.value = localStorage.getItem("skitrip_comment_user") || "";
   
     renderResortComments();
     $("commentsView")?.classList.remove("hidden");
