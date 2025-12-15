@@ -845,6 +845,28 @@ document.addEventListener("keydown", (e) => {
     $("topCheapBtn")?.addEventListener("click", () => { setActiveSeg("topCheapBtn"); showTopBy("totalPerPerson", "asc"); });
     $("topNearBtn")?.addEventListener("click", () => { setActiveSeg("topNearBtn"); showTopBy("distanceKm", "asc"); });
 
+        // ✅ Drag-to-scroll horizontal (iOS friendly)
+        const scroller = document.querySelector(".tableScrollX");
+        if (scroller) {
+          let isDown = false;
+          let startX = 0;
+          let startScrollLeft = 0;
+    
+          scroller.addEventListener("touchstart", (e) => {
+            isDown = true;
+            startX = e.touches[0].pageX;
+            startScrollLeft = scroller.scrollLeft;
+          }, { passive: true });
+    
+          scroller.addEventListener("touchmove", (e) => {
+            if (!isDown) return;
+            const x = e.touches[0].pageX;
+            scroller.scrollLeft = startScrollLeft - (x - startX);
+          }, { passive: true });
+    
+          scroller.addEventListener("touchend", () => { isDown = false; }, { passive: true });
+        }
+
     applyFilter();
   } catch (e) {
     console.error(e);

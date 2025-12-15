@@ -13,11 +13,11 @@
  *       1) intenta Esquiades (si hay URL)
  *       2) si falla, intenta Estiber (URL por slug auto-generada)
  *   - Lee el texto renderizado (innerText), no HTML
- *   - Extrae precios €/persona con contexto de pack (noches + forfait/skipass)
- *   - Saca top10 precios (€/persona)
- *   - Calcula:
- *       cheapest_unit = cheapest_pack / 2      (€/persona/noche)
- *       top10avg_unit = avg(top10_pack) / 2   (€/persona/noche)
+ *   - Extrae precios €/persona SOLO si el contexto indica “2 días” + “X noches” + forfait/skipass
+ *   - Convierte cada precio de pack a €/persona/noche usando el nº de noches detectado (1/2/3)
+ *   - Saca top10 unidades (€/persona/noche) y calcula:
+ *       hotelForfaitCheapest = min(units)
+ *       hotelForfaitTop10Avg = avg(units)
  *   - Escribe en:
  *       pricing.hotelForfaitCheapest
  *       pricing.hotelForfaitTop10Avg
@@ -164,7 +164,7 @@ async function clickCookieIfPresent(page) {
  * - y cerca: noches + (forfait OR skipass)
  * - y cerca: días/dia (opcional, pero ayuda)
  */
-function extractPricesFromText(bodyText) {
+function extractUnitPrices2DaysFromText(bodyText) {
   if (!bodyText) return [];
 
   const text = bodyText.replace(/\u00A0/g, " ");
@@ -172,7 +172,7 @@ function extractPricesFromText(bodyText) {
 
   const priceRe = /(\d{2,4})(?:[.,](\d{1,2}))?\s*€/g;
 
-  const hits = [];
+  const unitHits = [];
   let m;
 
   while ((m = priceRe.exec(text)) !== null) {
@@ -184,42 +184,55 @@ function extractPricesFromText(bodyText) {
     if (price < 60 || price > 2500) continue;
 
     const idx = m.index;
-    const window = lower.slice(Math.max(0, idx - 280), Math.min(lower.length, idx + 280));
+    const win = lower.slice(Math.max(0, idx - 280), Math.min(lower.length, idx + 280));
 
     const hasPerPerson =
-      window.includes("persona") ||
-      window.includes("pers") ||
-      window.includes("/pers") ||
-      window.includes("€/pers") ||
-      window.includes("/persona") ||
-      window.includes("por persona");
+      win.includes("persona") ||
+      win.includes("pers") ||
+      win.includes("/pers") ||
+      win.includes("€/pers") ||
+      win.includes("/persona") ||
+      win.includes("por persona");
 
     if (!hasPerPerson) continue;
 
-    const hasNights =
-      /\b1\s*noches\b|\b2\s*noches\b|\b3\s*noches\b/.test(window) ||
-      /\b1\s*nits\b|\b2\s*nits\b|\b3\s*nits\b/.test(window) ||
-      /\b1\s*night\b|\b2\s*night\b|\b3\s*night\b/.test(window);
-
     const hasPass =
-      window.includes("forfait") ||
-      window.includes("skipass") ||
-      window.includes("ski pass");
+      win.includes("forfait") ||
+      win.includes("skipass") ||
+      win.includes("ski pass");
 
-    const hasDays =
-      /\b1\s*d[ií]a\b|\b2\s*d[ií]as\b|\b3\s*d[ií]as\b/.test(window) ||
-      /\b1\s*dies\b|\b2\s*dies\b|\b3\s*dies\b/.test(window) ||
-      /\b1\s*day\b|\b2\s*day\b|\b3\s*day\b/.test(window);
-
-    // Mínimo: forfait/skipass y noches (los días ayudan pero no los obligo)
     if (!hasPass) continue;
-    if (!hasNights && !hasDays) continue;
 
-    hits.push(price);
+    // --- detectar Nº de días ---
+    let daysCount = null;
+    const daysMatch =
+      win.match(/\b([123])\s*d[ií]as?\b/) ||
+      win.match(/\b([123])\s*dies\b/) ||
+      win.match(/\b([123])\s*days?\b/)
+
+    if (daysMatch) daysCount = Number(daysMatch[1]);
+
+    // ✅ SOLO 2 días
+    if (daysCount !== 2) continue;
+
+    // --- detectar Nº de noches ---
+    let nightsCount = null;
+    const nightsMatch =
+      win.match(/\b([123])\s*noches?\b/) ||
+      win.match(/\b([123])\s*nits\b/) ||
+      win.match(/\b([123])\s*nights?\b/);
+
+    if (nightsMatch) nightsCount = Number(nightsMatch[1]);
+
+    // Si no encontramos noches, no podemos normalizar a €/noche con fiabilidad
+    if (!nightsCount) continue;
+
+    const unit = price / nightsCount;
+    unitHits.push(unit);
   }
 
-  hits.sort((a, b) => a - b);
-  return hits.slice(0, 10);
+  unitHits.sort((a, b) => a - b);
+  return unitHits.slice(0, 10);
 }
 
 async function gotoWithRetries(page, url, tries = 2) {
@@ -245,7 +258,7 @@ async function scrapeTop10FromUrl(page, providerName, url, resortId) {
   await page.waitForTimeout(1200);
 
   const bodyText = await page.evaluate(() => document.body?.innerText || "");
-  const prices = extractPricesFromText(bodyText);
+  const prices = extractUnitPrices2DaysFromText(bodyText);
 
   if (prices.length === 0) {
     await maybeDebugDump(page, `debug-${providerName}-${resortId}-no-prices`);
@@ -330,20 +343,16 @@ async function scrapeEstiber(page, resortId) {
       continue;
     }
 
-    const cheapestPack = prices[0];
-    const avgTop10Pack = avg(prices);
-
-    // ✅ tu modelo: €/persona/noche (asumiendo pack tipo “2 noches + forfait”)
-    const unitCheapest = cheapestPack / 2;
-    const unitTop10Avg = avgTop10Pack / 2;
-
+    const unitCheapest = prices[0];
+    const unitTop10Avg = avg(prices);
+    
     r.pricing = r.pricing || {};
     r.pricing.hotelForfaitCheapest = round2(unitCheapest);
     r.pricing.hotelForfaitTop10Avg = round2(unitTop10Avg);
     r.pricing.priceSource = used;
     r.pricing.priceUrl = usedUrl;
 
-    console.log(`  ✅ source=${used} | top10 packs: ${prices.map(p => p.toFixed(0)).join(", ")} €`);
+    console.log(`  ✅ source=${used} | top10 unit(€/noche) 2-días: ${prices.map(p => p.toFixed(2)).join(", ")} €`);
     console.log(`  -> cheapest_unit=${r.pricing.hotelForfaitCheapest} | top10avg_unit=${r.pricing.hotelForfaitTop10Avg}`);
   }
 
