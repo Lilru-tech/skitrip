@@ -607,3 +607,14 @@ select:focus, input:focus, textarea:focus{
     color: #6b7280;
     margin-top: 6px;
   }
+
+  /* ===== Price history deltas ===== */
+.delta {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 800;
+}
+
+.delta.up { color: #b91c1c; }     /* rojo */
+.delta.down { color: #15803d; }   /* verde */
+.delta.flat { color: #6b7280; }   /* gris */

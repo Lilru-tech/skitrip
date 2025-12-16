@@ -229,8 +229,37 @@
       </div>
     </div>
   </div>
+  <div id="priceHistoryView" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle" id="priceHistoryTitle">📈 Histórico hotel</h3>
+        <button class="iconBtn" id="closePriceHistoryBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <div class="muted" id="priceHistoryMeta"></div>
+  
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="right">Cheapest (€/noche)</th>
+            <th class="right">Cambio</th>
+            <th class="right">Top10 Avg (€/noche)</th>
+            <th class="right">Cambio</th>
+            <th>Fuente</th>
+          </tr>
+        </thead>
+        <tbody id="priceHistoryTbody"></tbody>
+      </table>
+  
+      <div class="modalActions">
+        <button id="closePriceHistoryBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
   <script src="groceries.js"></script>
   <script src="comments.js"></script>
+  <script src="price-history.js"></script>
   <script src="app.js"></script>
 </div>
 </body>

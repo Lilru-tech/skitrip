@@ -37,6 +37,7 @@ if (!INPUT) {
   console.error("Uso: node tools/update-esquiades-prices.js ./data/resorts.json");
   process.exit(1);
 }
+const HISTORY_PATH = process.argv[3] || "./data/hotel_price_history.json";
 
 const headed = process.argv.includes("--headed");
 const debug  = process.argv.includes("--debug");
@@ -47,6 +48,29 @@ function avg(arr) {
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+function todayYMD() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function loadHistory(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.items)) return { version: 1, items: [] };
+    return data;
+  } catch {
+    return { version: 1, items: [] };
+  }
+}
+
+function saveHistory(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+}
+
+function alreadyRecordedToday(history, resortId, dateYmd) {
+  return history.items.some(it => it.resortId === resortId && it.date === dateYmd);
 }
 
 // ✅ Tus URLs de Esquiades (las que tengas)
@@ -292,6 +316,9 @@ async function scrapeEstiber(page, resortId) {
   const raw = fs.readFileSync(INPUT, "utf8");
   const resorts = JSON.parse(raw);
 
+  const history = loadHistory(HISTORY_PATH);
+  const today = todayYMD();
+
   const browser = await chromium.launch({
     headless: !headed,
     slowMo: headed ? 200 : 0
@@ -352,6 +379,22 @@ async function scrapeEstiber(page, resortId) {
     r.pricing.priceSource = used;
     r.pricing.priceUrl = usedUrl;
 
+    // ✅ histórico (1 entrada por día y estación)
+if (!alreadyRecordedToday(history, r.id, today)) {
+  history.items.push({
+    date: today,
+    ts: new Date().toISOString(),
+    resortId: r.id,
+    provider: used,
+    url: usedUrl,
+    days: 2,
+    nights: null, // no lo guardamos aquí porque tu extractor lo detecta por precio; si quieres lo añadimos
+    cheapestUnit: round2(unitCheapest),
+    top10AvgUnit: round2(unitTop10Avg),
+    samples: prices.slice(0, 10).map(p => round2(p))
+  });
+}
+
     console.log(`  ✅ source=${used} | top10 unit(€/noche) 2-días: ${prices.map(p => p.toFixed(2)).join(", ")} €`);
     console.log(`  -> cheapest_unit=${r.pricing.hotelForfaitCheapest} | top10avg_unit=${r.pricing.hotelForfaitTop10Avg}`);
   }
@@ -359,5 +402,8 @@ async function scrapeEstiber(page, resortId) {
   await browser.close();
 
   fs.writeFileSync(INPUT, JSON.stringify(resorts, null, 2), "utf8");
+  saveHistory(HISTORY_PATH, history);
+  
   console.log(`\n✅ Actualizado: ${path.resolve(INPUT)}`);
-})();
+  console.log(`📈 Histórico actualizado: ${path.resolve(HISTORY_PATH)}`);
+  })();

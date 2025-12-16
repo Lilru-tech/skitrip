@@ -625,6 +625,15 @@ function tdResortClickable(resortId, resortName) {
   nameSpan.textContent = resortName;
   a.appendChild(nameSpan);
 
+  const histBtn = document.createElement("button");
+histBtn.className = "linkBtn";
+histBtn.type = "button";
+histBtn.textContent = " 📈";
+histBtn.setAttribute("data-open-price-history", "1");
+histBtn.setAttribute("data-resort-id", resortId);
+histBtn.setAttribute("data-resort-name", resortName);
+a.appendChild(histBtn);
+
   // Badge (si hay comentarios)
   const count = Number(window.commentsCountMap?.[resortId] ?? 0);
   if (count > 0) {
@@ -743,6 +752,16 @@ async function main() {
     $("closeCommentsBtnX")?.addEventListener("click", () => {
       $("commentsView")?.classList.add("hidden");
     });
+    $("closePriceHistoryBtn")?.addEventListener("click", () => {
+      $("priceHistoryView")?.classList.add("hidden");
+    });
+    $("closePriceHistoryBtnX")?.addEventListener("click", () => {
+      $("priceHistoryView")?.classList.add("hidden");
+    });
+    
+    $("priceHistoryView")?.addEventListener("click", (e) => {
+      if (e.target?.id === "priceHistoryView") $("priceHistoryView")?.classList.add("hidden");
+    });
 
     // ✅ Cerrar modal al hacer click fuera de la tarjeta
 $("groceriesView")?.addEventListener("click", (e) => {
@@ -757,6 +776,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   $("groceriesView")?.classList.add("hidden");
   $("commentsView")?.classList.add("hidden");
+  $("priceHistoryView")?.classList.add("hidden");
 });
 
     $("openCommentsBtn")?.addEventListener("click", () => {
@@ -767,14 +787,19 @@ document.addEventListener("keydown", (e) => {
     $("recalcBtn")?.addEventListener("click", applyFilter);
 
     $("resultsTbody")?.addEventListener("click", (e) => {
+      const hist = e.target.closest("[data-open-price-history]");
+      if (hist) {
+        const resortId = hist.getAttribute("data-resort-id");
+        const resortName = hist.getAttribute("data-resort-name") || "Estación";
+        window.openPriceHistoryForResort?.(resortId, resortName);
+        return;
+      }
+      
       const btn = e.target.closest("[data-open-resort-comments]");
       if (!btn) return;
-    
+      
       const resortId = btn.getAttribute("data-resort-id");
       const resortName = btn.getAttribute("data-resort-name") || "Estación";
-    
-      if (!resortId) return;
-    
       window.openCommentsModalForResort?.(resortId, resortName);
     });
 

@@ -118,63 +118,89 @@ async function scrapeEsquiadesStatus(page) {
   const rows = await page.evaluate(() => {
     const out = [];
 
-    const clean = (s) => (s || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+    const clean = (s) => (s || "")
+    .replace(/\u00A0/g, " ")
+    .replace(/[‐-‒–—―]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
 
-    // Buscamos bloques que parezcan “tarjeta” de estación:
-    // - Contienen un nombre (h3/h4/div fuerte)
-    // - Contienen un patrón "X / Y" en la columna Kms
-    const candidates = Array.from(document.querySelectorAll("body *"))
-      .filter(el => {
-        const t = el.innerText ? el.innerText.trim() : "";
-        return t.length > 0 && /(\d{1,3})\s*\/\s*(\d{1,3})/.test(t) && t.length < 400;
-      });
+// 1) Encontrar “celdas pequeñas” que contengan un X/Y (kms)
+// Ojo: usamos textContent porque innerText a veces te devuelve el contenedor gigante.
+const kmCells = Array.from(document.querySelectorAll("body *"))
+  .map(el => {
+    const t = clean(el.textContent || "");
+    return { el, t };
+  })
+  .filter(x => {
+    if (!/(\d{1,3}|-)\s*\/\s*(\d{1,3})/.test(x.t)) return false;
+    if (x.t.length > 25) return false;
+  
+    const p = x.el.closest("a, div, span");
+    const pt = clean(p?.textContent || "");
+    return /\bKms\b/i.test(pt); // ✅ asegura que es la celda de Kms
+  });
 
-    // Para evitar miles de nodos, nos quedamos con elementos “grandes” razonables:
-    // y luego deduplicamos por innerText
-    const seen = new Set();
+// Para evitar duplicados (mismo kmText repetido en spans)
+const seenRow = new Set();
 
-    for (const el of candidates) {
-      const t = clean(el.innerText || "");
-      if (!t) continue;
-      if (seen.has(t)) continue;
-      seen.add(t);
+// Helpers dentro del evaluate
+const countPairs = (s) => (clean(s).match(/(\d{1,3}|-)\s*\/\s*(\d{1,3})/g) || []).length;
 
-      // Intento: extraer primer "X / Y"
-      const m = t.match(/(\d{1,3})\s*\/\s*(\d{1,3})/);
-      if (!m) continue;
+function climbToBestRow(startEl, kmText) {
+  let cur = startEl;
+  const hits = [];
 
-      const openKm = Number(m[1]);
-      const totalKm = Number(m[2]);
+  for (let i = 0; i < 15 && cur; i++) {
+    const tt = clean(cur.textContent || "");
+    const pairs = countPairs(tt);
+    const hasStatus = /(abiert|cerrad)/i.test(tt);
 
-      // Intento: extraer “nombre estación” de la misma tarjeta:
-      // pillamos la primera línea que NO sea "Abierta/Cerrada" ni números ni región
-      const lines = t.split("\n").map(clean).filter(Boolean);
-      // fallback: primera línea del texto completo
-      let name = lines[0] || "";
+    // Criterio “row”: contiene el mismo kmText, estado y
+    // o bien tiene Kms y Pistas, o al menos 2 pares (kms+pistas)
+    const hasKmText = tt.includes(kmText);
+    const hasLabels = /\bKms\b/i.test(tt) && /\bPistas\b/i.test(tt);
+    const letters = (tt.match(/[a-záéíóúñ]/gi) || []).length;
+    const sizeOk = tt.length <= 260;
+    const isRow = hasKmText && hasStatus && (hasLabels || pairs >= 2) && letters > 10 && sizeOk;
 
-      // Heurística: suele venir como:
-      // [Nombre estación]
-      // [País/Región] o similar
-      // [Abierta/Cerrada] ...
-      // [Kms ...]
-      // Ajuste simple: escoger la primera línea que no contenga "/" numérico
-      for (const line of lines) {
-        if (/(\d{1,3})\s*\/\s*(\d{1,3})/.test(line)) continue;
-        if (/abiert|cerrad/i.test(line)) continue;
-        if (/kms|pistas|ultima nev|espesor/i.test(line.toLowerCase())) continue;
-        // si es demasiado corta tipo "Andorra", la ignoramos
-        if (line.length <= 3) continue;
-        name = line;
-        break;
-      }
+    if (isRow) hits.push({ el: cur, t: tt, len: tt.length });
+    cur = cur.parentElement;
+  }
 
-      // Validaciones básicas
-      if (!Number.isFinite(openKm) || !Number.isFinite(totalKm)) continue;
-      if (openKm < 0 || totalKm <= 0 || totalKm > 500) continue;
-      if (openKm > totalKm) continue;
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.len - b.len); // ✅ “el más pequeño”, como has validado en consola
+  return hits[0];
+}
 
-      out.push({ name, kmsText: `${openKm} / ${totalKm}`, openKm, totalKm });
-    }
+for (const cell of kmCells) {
+  const m = cell.t.match(/(\d{1,3}|-)\s*\/\s*(\d{1,3})/);
+  if (!m) continue;
+
+  const kmText = `${m[1]} / ${m[2]}`;
+
+  const bestRow = climbToBestRow(cell.el, kmText);
+  if (!bestRow) continue;
+
+  const key = kmText; // dedupe por el kmText (evita repetir el mismo 30/63 mil veces)
+  if (seenRow.has(key)) continue;
+  seenRow.add(key);
+
+  // 2) openKm/totalKm salen del kmText (no del primer match del row)
+  const openKm = m[1] === "-" ? 0 : Number(m[1]);
+  const totalKm = Number(m[2]);
+
+  // 3) Extraer nombre: es el inicio del row hasta la región/país
+  // Ej: "Ordino-Arcalís Andorra Abierta Kms ..."
+  let name = bestRow.t;
+  const nameMatch = bestRow.t.match(/^(.+?)\s+(Andorra|Pirineo|Alpes|Otras|Serra|Sierra|Portugal|Suiza|Austria|Italia|Francia|Espana|España)\b/i);
+  if (nameMatch) name = nameMatch[1];
+
+  // Validaciones básicas
+  if (!Number.isFinite(totalKm) || totalKm <= 0 || totalKm > 500) continue;
+  if (openKm < 0 || openKm > totalKm) continue;
+
+  out.push({ name, kmsText: kmText, openKm, totalKm });
+}
 
     return out;
   });
