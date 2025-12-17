@@ -28,12 +28,12 @@ window.openPriceHistoryForResort = async (resortId, resortName) => {
   try {
     const items = await loadPriceHistory();
     const rows = items
-      .filter(it => it.resortId === resortId)
-      .sort((a, b) => (a.ts === b.ts ? 0 : (a.ts < b.ts ? 1 : -1)))
-
-      meta.textContent = rows.length
-      ? `${rows.length} registros`
-      : "Sin histórico aún (ejecuta el update para generarlo)";
+    .filter(it => it.resortId === resortId)
+    .sort((a, b) => (a.ts === b.ts ? 0 : (a.ts < b.ts ? 1 : -1)));
+  
+  meta.textContent = rows.length
+    ? `${rows.length} registros`
+    : "Sin histórico aún (ejecuta el update para generarlo)";
     
     if (!rows.length) return;
 

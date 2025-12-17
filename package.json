@@ -5,7 +5,7 @@
   "private": true,
   "main": "app.js",
   "scripts": {
-    "update:prices": "node tools/update-esquiades-prices.js ./data/resorts.json",
+    "update:prices": "node tools/update-esquiades-prices.js ./data/resorts.json ./data/hotel_price_history.json",
     "update:openkm": "node tools/update-open-km.js ./data/resorts.json",
     "update:all": "npm run update:prices && npm run update:openkm"
   },
