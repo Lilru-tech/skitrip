@@ -13,8 +13,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 97,
-      "hotelForfaitTop10Avg": 101.05,
+      "hotelForfaitCheapest": 103,
+      "hotelForfaitTop10Avg": 106.7,
       "rentalAvgPerDay": 38,
       "openKm": 81,
       "priceSource": "esquiades",
@@ -103,8 +103,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 87.33,
-      "hotelForfaitTop10Avg": 100.8,
+      "hotelForfaitCheapest": 69.33,
+      "hotelForfaitTop10Avg": 95.23,
       "rentalAvgPerDay": 32,
       "openKm": 53,
       "priceSource": "estiber",
@@ -134,7 +134,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 123,
-      "hotelForfaitTop10Avg": 198.45,
+      "hotelForfaitTop10Avg": 192.15,
       "rentalAvgPerDay": 42,
       "openKm": 80,
       "priceSource": "estiber",
@@ -164,7 +164,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 84,
-      "hotelForfaitTop10Avg": 105.88,
+      "hotelForfaitTop10Avg": 104.9,
       "rentalAvgPerDay": 30,
       "openKm": 10,
       "priceSource": "estiber",
@@ -193,8 +193,8 @@
     "apresScore": 3,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 39.33,
-      "hotelForfaitTop10Avg": 58.52,
+      "hotelForfaitCheapest": 50,
+      "hotelForfaitTop10Avg": 65.28,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -224,7 +224,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 55.5,
-      "hotelForfaitTop10Avg": 62.7,
+      "hotelForfaitTop10Avg": 61.85,
       "rentalAvgPerDay": 30,
       "openKm": 11,
       "priceSource": "esquiades",
@@ -254,7 +254,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 102,
-      "hotelForfaitTop10Avg": 139.38,
+      "hotelForfaitTop10Avg": 145.5,
       "rentalAvgPerDay": 28,
       "openKm": 0,
       "priceSource": "estiber",
@@ -283,8 +283,8 @@
     "apresScore": 1,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 41,
-      "hotelForfaitTop10Avg": 59.9,
+      "hotelForfaitCheapest": 53.5,
+      "hotelForfaitTop10Avg": 63.75,
       "rentalAvgPerDay": 25,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -343,8 +343,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 87,
-      "hotelForfaitTop10Avg": 101.1,
+      "hotelForfaitCheapest": 85.33,
+      "hotelForfaitTop10Avg": 97.2,
       "rentalAvgPerDay": 36,
       "openKm": 48,
       "priceSource": "estiber",
@@ -374,7 +374,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 71,
-      "hotelForfaitTop10Avg": 81,
+      "hotelForfaitTop10Avg": 83.45,
       "rentalAvgPerDay": 34,
       "openKm": 36,
       "priceSource": "esquiades",
@@ -403,8 +403,8 @@
     "apresScore": 5,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 61.67,
-      "hotelForfaitTop10Avg": 78.4,
+      "hotelForfaitCheapest": 62.33,
+      "hotelForfaitTop10Avg": 78.6,
       "rentalAvgPerDay": 33,
       "openKm": 36,
       "priceSource": "estiber",
@@ -433,8 +433,8 @@
     "apresScore": 4,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 69.67,
-      "hotelForfaitTop10Avg": 83.52,
+      "hotelForfaitCheapest": 66,
+      "hotelForfaitTop10Avg": 81.68,
       "rentalAvgPerDay": 28,
       "openKm": 6,
       "priceSource": "estiber",
@@ -463,8 +463,8 @@
     "apresScore": 3,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 61.33,
-      "hotelForfaitTop10Avg": 77.07,
+      "hotelForfaitCheapest": 63.33,
+      "hotelForfaitTop10Avg": 75.85,
       "rentalAvgPerDay": 27,
       "openKm": 0,
       "priceSource": "estiber",
@@ -494,9 +494,9 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 38,
-      "hotelForfaitTop10Avg": 54.73,
+      "hotelForfaitTop10Avg": 52.42,
       "rentalAvgPerDay": 32,
-      "openKm": 28,
+      "openKm": 32,
       "priceSource": "estiber",
       "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-font-romeu",
       "openKmSource": "esquiades_estado_pistas",
@@ -524,7 +524,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 67.33,
-      "hotelForfaitTop10Avg": 118.82,
+      "hotelForfaitTop10Avg": 109.72,
       "rentalAvgPerDay": 32,
       "openKm": 40,
       "priceSource": "estiber",
