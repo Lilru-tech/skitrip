@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SkiTrip · Comparador de estaciones</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 
 <body>
@@ -147,6 +147,7 @@
   <div class="card">
     <strong>Datos:</strong>
     <button id="updateDataBtn" class="secondary">🔄 Actualizar datos (GitHub)</button>
+    <button id="priceInsightsBtn" class="secondary" style="margin-left:10px;">🧠 Resumen precios</button>
     <span id="updateHint" class="muted" style="margin-left:10px;"></span>
   </div>
 
@@ -257,9 +258,40 @@
       </div>
     </div>
   </div>
+  <div id="priceInsightsView" class="modal hidden">
+    <div class="modalCard" id="priceInsightsCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle" id="priceInsightsTitle">🧠 Resumen variabilidad precios</h3>
+        <button class="iconBtn" id="closePriceInsightsBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <div class="muted" id="priceInsightsMeta"></div>
+  
+      <div class="summaryBar" id="priceInsightsChips"></div>
+  
+      <table>
+        <thead>
+          <tr>
+            <th>Día</th>
+            <th class="right">Cheapest medio</th>
+            <th class="right">Top10 Avg medio</th>
+            <th class="right">% baja vs día anterior</th>
+            <th class="right">Cambio medio (abs)</th>
+            <th class="right">Muestras</th>
+          </tr>
+        </thead>
+        <tbody id="priceInsightsTbody"></tbody>
+      </table>
+  
+      <div class="modalActions">
+        <button id="closePriceInsightsBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
   <script src="groceries.js"></script>
   <script src="comments.js"></script>
   <script src="price-history.js"></script>
+  <script src="price-insights.js"></script>
   <script src="app.js"></script>
 </div>
 </body>

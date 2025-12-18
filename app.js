@@ -758,6 +758,16 @@ async function main() {
     $("closePriceHistoryBtnX")?.addEventListener("click", () => {
       $("priceHistoryView")?.classList.add("hidden");
     });
+    $("priceInsightsBtn")?.addEventListener("click", () => {
+      window.openPriceInsights?.();
+    });
+    
+    $("closePriceInsightsBtn")?.addEventListener("click", () => {
+      $("priceInsightsView")?.classList.add("hidden");
+    });
+    $("closePriceInsightsBtnX")?.addEventListener("click", () => {
+      $("priceInsightsView")?.classList.add("hidden");
+    });
     
     $("priceHistoryView")?.addEventListener("click", (e) => {
       if (e.target?.id === "priceHistoryView") $("priceHistoryView")?.classList.add("hidden");
@@ -777,6 +787,7 @@ document.addEventListener("keydown", (e) => {
   $("groceriesView")?.classList.add("hidden");
   $("commentsView")?.classList.add("hidden");
   $("priceHistoryView")?.classList.add("hidden");
+  $("priceInsightsView")?.classList.add("hidden");
 });
 
     $("openCommentsBtn")?.addEventListener("click", () => {

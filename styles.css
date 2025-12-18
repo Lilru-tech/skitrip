@@ -618,3 +618,9 @@ select:focus, input:focus, textarea:focus{
 .delta.up { color: #b91c1c; }     /* rojo */
 .delta.down { color: #15803d; }   /* verde */
 .delta.flat { color: #6b7280; }   /* gris */
+
+#priceInsightsCard{
+  width: min(980px, 96vw) !important;
+  max-height: 86vh !important;
+  overflow: auto !important;
+}
