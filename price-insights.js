@@ -82,7 +82,7 @@ window.openPriceInsights = async () => {
     // Guardamos: cheapest values, top10 values, dropCount, comparableCount, absDelta list
     const byDow = new Map(); // dow -> stats
     for (let dow = 0; dow < 7; dow++) {
-      byDow.set(dow, { cheapest: [], top10: [], drop: 0, comparable: 0, absDelta: [] });
+        byDow.set(dow, { cheapest: [], top10: [], drop: 0, comparable: 0, absDelta: [], pctDrops: [] });
     }
 
     // Para “resorts más volátiles”
@@ -103,14 +103,22 @@ window.openPriceInsights = async () => {
         // delta vs día anterior (si existe)
         const prev = series[i - 1];
         if (prev && curr.cheapest != null && prev.cheapest != null) {
-          const diff = curr.cheapest - prev.cheapest;
-          bucket.comparable += 1;
-          if (diff < -0.00001) bucket.drop += 1;
-          bucket.absDelta.push(Math.abs(diff));
-
-          if (!resortAbsDeltas.has(rid)) resortAbsDeltas.set(rid, []);
-          resortAbsDeltas.get(rid).push(Math.abs(diff));
-        }
+            const diff = curr.cheapest - prev.cheapest;
+            bucket.comparable += 1;
+          
+            if (diff < -0.00001) {
+              bucket.drop += 1;
+          
+              // ✅ magnitud real: % de bajada vs día anterior (solo cuando baja)
+              const pct = prev.cheapest === 0 ? null : ((prev.cheapest - curr.cheapest) / prev.cheapest) * 100;
+              if (pct != null && Number.isFinite(pct)) bucket.pctDrops.push(pct);
+            }
+          
+            bucket.absDelta.push(Math.abs(diff));
+          
+            if (!resortAbsDeltas.has(rid)) resortAbsDeltas.set(rid, []);
+            resortAbsDeltas.get(rid).push(Math.abs(diff));
+          }
       }
     }
 
@@ -120,15 +128,17 @@ window.openPriceInsights = async () => {
       const s = byDow.get(dow);
       const avgCheapest = mean(s.cheapest);
       const avgTop10 = mean(s.top10);
-      const dropRate = s.comparable ? (s.drop / s.comparable) * 100 : null;
+      const dropRate = s.comparable ? (s.drop / s.comparable) * 100 : null; // probabilidad
+      const avgPctDrop = mean(s.pctDrops); // magnitud media cuando baja
       const avgAbsDelta = mean(s.absDelta);
-
+      
       return {
         dow,
         day: weekdayLabel(dow),
         avgCheapest,
         avgTop10,
         dropRate,
+        avgPctDrop,
         avgAbsDelta,
         samples: s.cheapest.length
       };
@@ -169,7 +179,7 @@ window.openPriceInsights = async () => {
     if (mostVolatileResort) chip(`Más volátil: ${mostVolatileResort.rid} · Δ medio ${euroNum(mostVolatileResort.m)}`);
 
     // Meta
-    meta.textContent = "Cálculo basado en cheapestUnit y top10AvgUnit. El % baja usa cambio vs día anterior por resort (si existe).";
+    meta.textContent = "Basado en cheapestUnit y top10AvgUnit. Prob. bajar = % de veces que baja vs día anterior (por resort). % bajada media = magnitud media cuando baja.";
 
     // Pintar tabla
     for (const r of rows) {
@@ -189,7 +199,12 @@ window.openPriceInsights = async () => {
       const tdDrop = document.createElement("td");
       tdDrop.className = "right";
       tdDrop.textContent = r.dropRate == null ? "—" : `${r.dropRate.toFixed(0)}%`;
-
+      
+      // ✅ NUEVA COLUMNA: % bajada media cuando baja
+      const tdPctDrop = document.createElement("td");
+      tdPctDrop.className = "right";
+      tdPctDrop.textContent = r.avgPctDrop == null ? "—" : `${r.avgPctDrop.toFixed(1)}%`;
+      
       const tdAbs = document.createElement("td");
       tdAbs.className = "right";
       tdAbs.textContent = r.avgAbsDelta == null ? "—" : euroNum(r.avgAbsDelta);
@@ -202,6 +217,7 @@ window.openPriceInsights = async () => {
       tr.appendChild(tdC);
       tr.appendChild(tdA);
       tr.appendChild(tdDrop);
+      tr.appendChild(tdPctDrop);
       tr.appendChild(tdAbs);
       tr.appendChild(tdN);
 

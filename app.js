@@ -780,6 +780,12 @@ $("groceriesView")?.addEventListener("click", (e) => {
 $("commentsView")?.addEventListener("click", (e) => {
   if (e.target?.id === "commentsView") $("commentsView")?.classList.add("hidden");
 });
+$("priceHistoryView")?.addEventListener("click", (e) => {
+  if (e.target?.id === "priceHistoryView") $("priceHistoryView")?.classList.add("hidden");
+});
+$("priceInsightsView")?.addEventListener("click", (e) => {
+  if (e.target?.id === "priceInsightsView") $("priceInsightsView")?.classList.add("hidden");
+});
 
 // ✅ Escape para cerrar modales
 document.addEventListener("keydown", (e) => {

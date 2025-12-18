@@ -36,7 +36,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add data/resorts.json data/hotel_price_history.json
+          git add data/resorts.json data/hotel_price_history.json data/price_insights.json
 
           if git diff --staged --quiet; then
             echo "No changes to commit."
