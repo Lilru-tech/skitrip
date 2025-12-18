@@ -14,6 +14,27 @@ function euroNum(n) {
   return `${Number(n).toFixed(2)} €`;
 }
 
+async function ensureInsightsCache() {
+  // si ya existe, ok
+  if (window.__priceInsightsCache) return window.__priceInsightsCache;
+
+  // si no existe, intentamos abrir insights "en background" recalculando aquí:
+  // reutilizamos el loader de price-insights si está disponible
+  if (typeof window.openPriceInsights === "function") {
+    // truco: llamamos y cerramos el modal después
+    try {
+      await window.openPriceInsights();
+      document.getElementById("priceInsightsView")?.classList.add("hidden");
+    } catch {}
+  }
+  return window.__priceInsightsCache;
+}
+
+function fmtDowShort(dow){
+  const map = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  return map[dow] || "—";
+}
+
 window.openPriceHistoryForResort = async (resortId, resortName) => {
   const title = document.getElementById("priceHistoryTitle");
   const meta = document.getElementById("priceHistoryMeta");
@@ -36,6 +57,32 @@ window.openPriceHistoryForResort = async (resortId, resortName) => {
     : "Sin histórico aún (ejecuta el update para generarlo)";
     
     if (!rows.length) return;
+
+    // ✅ Contexto global del resort + del día
+const cache = await ensureInsightsCache();
+
+let resortVolText = null;
+if (cache?.resortVol?.length) {
+  const hit = cache.resortVol.find(x => x.rid === resortId);
+  if (hit?.m != null) {
+    resortVolText = `Volatilidad del resort: Δ medio ${euroNum(hit.m)} (cuanto más bajo, más estable)`;
+  }
+}
+
+let globalBest = null;
+if (cache?.rows?.length) {
+  const valid = cache.rows.filter(r => r.avgCheapest != null);
+  valid.sort((a,b) => a.avgCheapest - b.avgCheapest);
+  globalBest = valid[0] || null;
+}
+
+const extraLines = [];
+if (resortVolText) extraLines.push(resortVolText);
+if (globalBest) extraLines.push(`A nivel global, el día más barato suele ser: ${globalBest.day} · ${euroNum(globalBest.avgCheapest)}`);
+
+if (extraLines.length) {
+  meta.textContent = `${meta.textContent} · ${extraLines.join(" · ")}`;
+}
 
     function deltaInfo(curr, prev) {
       const c = Number(curr);
@@ -72,6 +119,18 @@ window.openPriceHistoryForResort = async (resortId, resortName) => {
     
       const tdDate = document.createElement("td");
       tdDate.textContent = it.date;
+
+      const insights = window.__priceInsightsCache;
+if (cache?.rows?.length) {
+  const d = new Date(it.date + "T00:00:00");
+  if (!Number.isNaN(d.getTime())) {
+    const dow = d.getDay();
+    const g = cache.rows.find(x => x.dow === dow);
+    if (g?.dropRate != null || g?.avgAbsDelta != null) {
+      tdDate.title = `${fmtDowShort(dow)} · Prob. bajar: ${g.dropRate?.toFixed(0) ?? "—"}% · Volatilidad: ${g.avgAbsDelta != null ? euroNum(g.avgAbsDelta) : "—"}`;
+    }
+  }
+}
     
       const tdCheapest = document.createElement("td");
       tdCheapest.className = "right";

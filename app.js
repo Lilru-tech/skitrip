@@ -347,10 +347,8 @@ function computeCostsPerPerson(resort, tripCfg) {
   const tripTotal = fuelCostTotal + extraTotal;
   const tripPerPerson = tripTotal / tripCfg.numPeople;
 
-  const groceriesPerPerson = computeGroceriesPerPerson(
-    tripCfg.tripDays,
-    tripCfg.numPeople
-  );
+  const groceriesPerPerson =
+  window.computeGroceriesPerPerson?.(tripCfg.tripDays, tripCfg.numPeople) ?? 0;
 
   const rentalDay = getRentalAvgPerDay(resort);
   const rentalPerPerson = typeof rentalDay === "number" ? rentalDay * tripCfg.skiDays : null;
@@ -728,6 +726,7 @@ async function main() {
     initOriginSelect();
 
     cachedResorts = await loadResorts();
+    window.cachedResorts = cachedResorts; // ✅ expone para otros módulos
     await loadCommentsCount();
     console.log("[app.js] after await loadCommentsCount:", window.commentsCountMap);
     const validCount = cachedResorts.filter(hasValidLocation).length;

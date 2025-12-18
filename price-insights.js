@@ -2,6 +2,41 @@
 
 const PRICE_INSIGHTS_HISTORY_URL = "./data/hotel_price_history.json";
 
+// ✅ cache global para reutilizar en price-history.js
+window.__priceInsightsCache = null;
+
+function resortNameFromId(id) {
+  // intenta mapearlo usando resorts.json si ya está cargado en app.js (cachedResorts)
+  // fallback: devuelve el id
+  const list = window.cachedResorts || window.__cachedResorts || null;
+  if (Array.isArray(list)) {
+    const r = list.find(x => x.id === id);
+    if (r?.name) return r.name;
+  }
+  return id;
+}
+
+function heatClassForDropRate(pct) {
+  if (pct == null) return "";
+  if (pct >= 35) return "heatGood";
+  if (pct >= 20) return "heatMid";
+  return "heatBad";
+}
+
+function heatClassForPctDrop(pct) {
+  if (pct == null) return "";
+  if (pct >= 6) return "heatGood";
+  if (pct >= 3) return "heatMid";
+  return "heatBad";
+}
+
+function heatClassForVolatility(eur) {
+  if (eur == null) return "";
+  if (eur <= 1.0) return "heatGood";
+  if (eur <= 2.5) return "heatMid";
+  return "heatBad";
+}
+
 async function loadPriceHistoryItems() {
     const res = await fetch(`${PRICE_INSIGHTS_HISTORY_URL}?v=${Date.now()}`, { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudo cargar hotel_price_history.json");
@@ -63,6 +98,8 @@ window.openPriceInsights = async () => {
   const meta = document.getElementById("priceInsightsMeta");
   const tbody = document.getElementById("priceInsightsTbody");
   const chips = document.getElementById("priceInsightsChips");
+  const rankingsEl = document.getElementById("priceInsightsRankings");
+if (rankingsEl) rankingsEl.innerHTML = "";
 
   document.getElementById("priceInsightsView")?.classList.remove("hidden");
   meta.textContent = "Cargando…";
@@ -140,7 +177,9 @@ window.openPriceInsights = async () => {
         dropRate,
         avgPctDrop,
         avgAbsDelta,
-        samples: s.cheapest.length
+        samples: s.cheapest.length,
+        comparable: s.comparable,
+        drop: s.drop
       };
     });
 
@@ -161,6 +200,66 @@ window.openPriceInsights = async () => {
         mostVolatileResort = { rid, m };
       }
     }
+
+    // ✅ Ranking: media de volatilidad por resort (abs delta)
+const resortVol = [];
+for (const [rid, deltas] of resortAbsDeltas.entries()) {
+  const m = mean(deltas);
+  if (m == null) continue;
+  resortVol.push({ rid, m });
+}
+resortVol.sort((a,b) => a.m - b.m);
+
+const topStable = resortVol.slice(0, 5);
+const topVolatile = [...resortVol].reverse().slice(0, 5);
+
+function renderRankCard(title, items, fmtValue) {
+  if (!rankingsEl) return;
+
+  const card = document.createElement("div");
+  card.className = "rankCard";
+
+  const h = document.createElement("div");
+  h.className = "rankTitle";
+  h.textContent = title;
+  card.appendChild(h);
+
+  const list = document.createElement("div");
+  list.className = "rankList";
+
+  items.forEach((it, idx) => {
+    const row = document.createElement("div");
+    row.className = "rankItem";
+
+    const left = document.createElement("div");
+    left.className = "left";
+
+    const badge = document.createElement("span");
+    badge.className = "rankBadge";
+    badge.textContent = `#${idx + 1}`;
+    left.appendChild(badge);
+
+    const name = document.createElement("span");
+    name.className = "rankName";
+    name.textContent = resortNameFromId(it.rid);
+    left.appendChild(name);
+
+    const value = document.createElement("span");
+    value.className = "rankValue";
+    value.textContent = fmtValue(it);
+
+    row.appendChild(left);
+    row.appendChild(value);
+
+    list.appendChild(row);
+  });
+
+  card.appendChild(list);
+  rankingsEl.appendChild(card);
+}
+
+renderRankCard("🟢 Más estables (menor volatilidad)", topStable, (it) => `Δ ${euroNum(it.m)}`);
+renderRankCard("🔴 Más volátiles (mayor volatilidad)", topVolatile, (it) => `Δ ${euroNum(it.m)}`);
 
     // Chips resumen
     const chip = (text) => {
@@ -199,15 +298,21 @@ window.openPriceInsights = async () => {
       const tdDrop = document.createElement("td");
       tdDrop.className = "right";
       tdDrop.textContent = r.dropRate == null ? "—" : `${r.dropRate.toFixed(0)}%`;
+      const clsDrop = heatClassForDropRate(r.dropRate);
+      if (clsDrop) tdDrop.classList.add(clsDrop);
       
       // ✅ NUEVA COLUMNA: % bajada media cuando baja
       const tdPctDrop = document.createElement("td");
       tdPctDrop.className = "right";
       tdPctDrop.textContent = r.avgPctDrop == null ? "—" : `${r.avgPctDrop.toFixed(1)}%`;
+      const clsPct = heatClassForPctDrop(r.avgPctDrop);
+      if (clsPct) tdPctDrop.classList.add(clsPct);
       
       const tdAbs = document.createElement("td");
       tdAbs.className = "right";
       tdAbs.textContent = r.avgAbsDelta == null ? "—" : euroNum(r.avgAbsDelta);
+      const clsVol = heatClassForVolatility(r.avgAbsDelta);
+      if (clsVol) tdAbs.classList.add(clsVol);
 
       const tdN = document.createElement("td");
       tdN.className = "right";
@@ -223,6 +328,13 @@ window.openPriceInsights = async () => {
 
       tbody.appendChild(tr);
     }
+    // ✅ Guardamos cache global para que el histórico lo use sin recalcular todo
+window.__priceInsightsCache = {
+    byResort,        // series por resort (para stats por resort)
+    byDow,           // stats por día
+    rows,            // filas agregadas ya calculadas
+    resortVol        // volatilidad por resort
+  };
   } catch (e) {
     meta.textContent = `Error: ${e.message}`;
   }
