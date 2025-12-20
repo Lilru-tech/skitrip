@@ -258,6 +258,31 @@
       </div>
     </div>
   </div>
+  <div id="openKmHistoryView" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle" id="openKmHistoryTitle">📊 Histórico km abiertos</h3>
+        <button class="iconBtn" id="closeOpenKmHistoryBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <div class="muted" id="openKmHistoryMeta"></div>
+  
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="right">Km abiertos</th>
+            <th class="right">Cambio</th>
+          </tr>
+        </thead>
+        <tbody id="openKmHistoryTbody"></tbody>
+      </table>
+  
+      <div class="modalActions">
+        <button id="closeOpenKmHistoryBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
   <div id="priceInsightsView" class="modal hidden">
     <div class="modalCard" id="priceInsightsCard">
       <div class="modalHeader">
@@ -287,13 +312,14 @@
   
       <div class="modalActions">
         <button id="closePriceInsightsBtn">Cerrar</button>
-      </div>
+          </div>
     </div>
   </div>
   <script src="groceries.js"></script>
   <script src="comments.js"></script>
   <script src="price-history.js"></script>
   <script src="price-insights.js"></script>
+  <script src="open-km-history.js"></script>
   <script src="app.js"></script>
 </div>
 </body>

@@ -26,21 +26,21 @@
  *       pricing.priceUrl = <url usada>
  */
 
-"use strict";
+'use strict';
 
-const fs = require("fs");
-const path = require("path");
-const { chromium } = require("playwright");
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
 
 const INPUT = process.argv[2];
 if (!INPUT) {
-  console.error("Uso: node tools/update-esquiades-prices.js ./data/resorts.json");
+  console.error('Uso: node tools/update-esquiades-prices.js ./data/resorts.json');
   process.exit(1);
 }
-const HISTORY_PATH = process.argv[3] || "./data/hotel_price_history.json";
+const HISTORY_PATH = process.argv[3] || './data/hotel_price_history.json';
 
-const headed = process.argv.includes("--headed");
-const debug  = process.argv.includes("--debug");
+const headed = process.argv.includes('--headed');
+const debug = process.argv.includes('--debug');
 
 function avg(arr) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -56,7 +56,7 @@ function todayYMD() {
 
 function loadHistory(filePath) {
   try {
-    const raw = fs.readFileSync(filePath, "utf8");
+    const raw = fs.readFileSync(filePath, 'utf8');
     const data = JSON.parse(raw);
     if (!data || !Array.isArray(data.items)) return { version: 1, items: [] };
     return data;
@@ -66,48 +66,53 @@ function loadHistory(filePath) {
 }
 
 function saveHistory(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
 function alreadyRecordedToday(history, resortId, dateYmd) {
-  return history.items.some(it => it.resortId === resortId && it.date === dateYmd);
+  return history.items.some((it) => it.resortId === resortId && it.date === dateYmd);
 }
 
 // ✅ Tus URLs de Esquiades (las que tengas)
 const ESQUIADES_URL = {
   // --- Andorra ---
-  "grandvalira": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-grandvalira-130041",
-  "pal-arinsal": "https://www.esquiades.com/viajes-esqui/pal-arinsal-1451",
-  "ordino-arcalis": "https://www.esquiades.com/viajes-esqui/arcalis-1453",
+  grandvalira: 'https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-grandvalira-130041',
+  'pal-arinsal': 'https://www.esquiades.com/viajes-esqui/pal-arinsal-1451',
+  'ordino-arcalis': 'https://www.esquiades.com/viajes-esqui/arcalis-1453',
 
   // --- Cataluña ---
-  "alp-2500": "https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-alp2500-1305769",
-  "baqueira-beret": "https://www.esquiades.com/viajes-esqui/1-noche-2-dias-de-forfait-baqueira-beret-1305762",
-  "port-aine": "https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-port-aine-1305766",
-  "espot-esqui": "https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-espot-1305765",
-  "port-del-comte": "https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-port-del-comte-1305764",
-  "boi-taull": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-boi-taull-1300410",
+  'alp-2500': 'https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-alp2500-1305769',
+  'baqueira-beret':
+    'https://www.esquiades.com/viajes-esqui/1-noche-2-dias-de-forfait-baqueira-beret-1305762',
+  'port-aine': 'https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-port-aine-1305766',
+  'espot-esqui': 'https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-espot-1305765',
+  'port-del-comte':
+    'https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-port-del-comte-1305764',
+  'boi-taull': 'https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-boi-taull-1300410',
 
-  "vallter-2000": null,
-  "vall-de-nuria": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-vall-de-nuria-1300462",
-  "tuixent-la-vansa": null,
-  "tavascan": null,
+  'vallter-2000': null,
+  'vall-de-nuria':
+    'https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-vall-de-nuria-1300462',
+  'tuixent-la-vansa': null,
+  tavascan: null,
 
   // --- Aragón ---
-  "cerler": "https://www.esquiades.com/viajes-esqui/cerler-1418",
-  "formigal-panticosa": "https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-formigal-1305761",
-  "astun": "https://www.esquiades.com/viajes-esqui/astun-1435",
-  "candanchu": null,
-  "valdelinares": "https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-valdelinares-1305760",
-  "javalambre": null,
+  cerler: 'https://www.esquiades.com/viajes-esqui/cerler-1418',
+  'formigal-panticosa':
+    'https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-formigal-1305761',
+  astun: 'https://www.esquiades.com/viajes-esqui/astun-1435',
+  candanchu: null,
+  valdelinares:
+    'https://www.esquiades.com/viajes-esqui/2-noches-1-dia-de-forfait-valdelinares-1305760',
+  javalambre: null,
 
   // --- Francia ---
-  "font-romeu-pyrenees-2000": null,
-  "les-angles": null,
-  "formigueres": null,
-  "porte-puymorens": null,
-  "ax-3-domaines": null,
-  "cambre-d-aze": null
+  'font-romeu-pyrenees-2000': null,
+  'les-angles': null,
+  formigueres: null,
+  'porte-puymorens': null,
+  'ax-3-domaines': null,
+  'cambre-d-aze': null,
 };
 
 /**
@@ -117,65 +122,70 @@ const ESQUIADES_URL = {
  */
 const ESTIBER_SLUG = {
   // Andorra
-  "grandvalira": ["grandvalira"],
-  "pal-arinsal": ["pal-arinsal", "pal-arinsal-andorra"],
-  "ordino-arcalis": ["arcalis", "ordino-arcalis"],
+  grandvalira: ['grandvalira'],
+  'pal-arinsal': ['pal-arinsal', 'pal-arinsal-andorra'],
+  'ordino-arcalis': ['arcalis', 'ordino-arcalis'],
 
   // Cataluña
-  "alp-2500": ["alp-2500", "alp2500", "la-molina", "masella"],
-  "baqueira-beret": ["baqueira-beret", "baqueira"],
-  "port-aine": ["port-aine"],
-  "espot-esqui": ["espot", "espot-esqui"],
-  "port-del-comte": ["port-del-comte"],
-  "boi-taull": ["boi-taull"],
-  "vallter-2000": ["vallter-2000", "vallter"],
-  "vall-de-nuria": ["vall-de-nuria", "nuria", "vall-nuria"],
-  "tuixent-la-vansa": ["tuixent-la-vansa", "tuixent"],
-  "tavascan": ["tavascan"],
+  'alp-2500': ['alp-2500', 'alp2500', 'la-molina', 'masella'],
+  'baqueira-beret': ['baqueira-beret', 'baqueira'],
+  'port-aine': ['port-aine'],
+  'espot-esqui': ['espot', 'espot-esqui'],
+  'port-del-comte': ['port-del-comte'],
+  'boi-taull': ['boi-taull'],
+  'vallter-2000': ['vallter-2000', 'vallter'],
+  'vall-de-nuria': ['vall-de-nuria', 'nuria', 'vall-nuria'],
+  'tuixent-la-vansa': ['tuixent-la-vansa', 'tuixent'],
+  tavascan: ['tavascan'],
 
   // Aragón
-  "cerler": ["cerler"],
-  "formigal-panticosa": ["formigal", "formigal-panticosa", "panticosa"],
-  "astun": ["astun-candanchu", "astun"],
-  "candanchu": ["astun-candanchu", "candanchu"],
-  "valdelinares": ["valdelinares"],
-  "javalambre": ["javalambre"],
+  cerler: ['cerler'],
+  'formigal-panticosa': ['formigal', 'formigal-panticosa', 'panticosa'],
+  astun: ['astun-candanchu', 'astun'],
+  candanchu: ['astun-candanchu', 'candanchu'],
+  valdelinares: ['valdelinares'],
+  javalambre: ['javalambre'],
 
   // Francia
-  "font-romeu-pyrenees-2000": ["font-romeu", "font-romeu-pyrenees-2000"],
-  "les-angles": ["les-angles"],
-  "formigueres": ["formigueres"],
-  "porte-puymorens": ["porte-puymorens", "porte"],
-  "ax-3-domaines": ["ax-3-domaines", "ax-les-thermes"],
-  "cambre-d-aze": ["cambre-d-aze"]
+  'font-romeu-pyrenees-2000': ['font-romeu', 'font-romeu-pyrenees-2000'],
+  'les-angles': ['les-angles'],
+  formigueres: ['formigueres'],
+  'porte-puymorens': ['porte-puymorens', 'porte'],
+  'ax-3-domaines': ['ax-3-domaines', 'ax-les-thermes'],
+  'cambre-d-aze': ['cambre-d-aze'],
 };
 
 function buildEstiberUrls(resortId) {
   const slugs = ESTIBER_SLUG[resortId] || [resortId];
   const arr = Array.isArray(slugs) ? slugs : [slugs];
-  return arr.map(s => `https://www.estiber.com/es_ES/ofertas-esqui-${s}`);
+  return arr.map((s) => `https://www.estiber.com/es_ES/ofertas-esqui-${s}`);
 }
 
 async function maybeDebugDump(page, prefix) {
   if (!debug) return;
-  try { await page.screenshot({ path: `${prefix}.png`, fullPage: true }); } catch {}
-  try { fs.writeFileSync(`${prefix}.html`, await page.content(), "utf8"); } catch {}
   try {
-    const t = await page.evaluate(() => document.body?.innerText || "");
-    fs.writeFileSync(`${prefix}.txt`, t, "utf8");
+    await page.screenshot({ path: `${prefix}.png`, fullPage: true });
+  } catch {}
+  try {
+    fs.writeFileSync(`${prefix}.html`, await page.content(), 'utf8');
+  } catch {}
+  try {
+    const t = await page.evaluate(() => document.body?.innerText || '');
+    fs.writeFileSync(`${prefix}.txt`, t, 'utf8');
   } catch {}
 }
 
 async function clickCookieIfPresent(page) {
-  const candidates = [
-    /aceptar/i, /accept/i, /entendido/i, /de acuerdo/i, /consent/i, /allow/i
-  ];
+  const candidates = [/aceptar/i, /accept/i, /entendido/i, /de acuerdo/i, /consent/i, /allow/i];
   for (const re of candidates) {
-    const btn = page.getByRole("button", { name: re });
+    const btn = page.getByRole('button', { name: re });
     try {
       const c = await btn.count();
       if (c > 0) {
-        await btn.first().click({ timeout: 1500 }).catch(() => {});
+        await btn
+          .first()
+          .click({ timeout: 1500 })
+          .catch(() => {});
         return;
       }
     } catch {}
@@ -191,7 +201,7 @@ async function clickCookieIfPresent(page) {
 function extractUnitPrices2DaysFromText(bodyText) {
   if (!bodyText) return [];
 
-  const text = bodyText.replace(/\u00A0/g, " ");
+  const text = bodyText.replace(/\u00A0/g, ' ');
   const lower = text.toLowerCase();
 
   const priceRe = /(\d{2,4})(?:[.,](\d{1,2}))?\s*€/g;
@@ -201,7 +211,7 @@ function extractUnitPrices2DaysFromText(bodyText) {
 
   while ((m = priceRe.exec(text)) !== null) {
     const euros = Number(m[1]);
-    const cents = m[2] ? Number((m[2] + "0").slice(0, 2)) : 0;
+    const cents = m[2] ? Number((m[2] + '0').slice(0, 2)) : 0;
     const price = euros + cents / 100;
 
     if (!Number.isFinite(price)) continue;
@@ -211,19 +221,16 @@ function extractUnitPrices2DaysFromText(bodyText) {
     const win = lower.slice(Math.max(0, idx - 280), Math.min(lower.length, idx + 280));
 
     const hasPerPerson =
-      win.includes("persona") ||
-      win.includes("pers") ||
-      win.includes("/pers") ||
-      win.includes("€/pers") ||
-      win.includes("/persona") ||
-      win.includes("por persona");
+      win.includes('persona') ||
+      win.includes('pers') ||
+      win.includes('/pers') ||
+      win.includes('€/pers') ||
+      win.includes('/persona') ||
+      win.includes('por persona');
 
     if (!hasPerPerson) continue;
 
-    const hasPass =
-      win.includes("forfait") ||
-      win.includes("skipass") ||
-      win.includes("ski pass");
+    const hasPass = win.includes('forfait') || win.includes('skipass') || win.includes('ski pass');
 
     if (!hasPass) continue;
 
@@ -232,7 +239,7 @@ function extractUnitPrices2DaysFromText(bodyText) {
     const daysMatch =
       win.match(/\b([123])\s*d[ií]as?\b/) ||
       win.match(/\b([123])\s*dies\b/) ||
-      win.match(/\b([123])\s*days?\b/)
+      win.match(/\b([123])\s*days?\b/);
 
     if (daysMatch) daysCount = Number(daysMatch[1]);
 
@@ -263,7 +270,7 @@ async function gotoWithRetries(page, url, tries = 2) {
   let lastErr = null;
   for (let i = 0; i < tries; i++) {
     try {
-      await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       return true;
     } catch (e) {
       lastErr = e;
@@ -278,10 +285,10 @@ async function scrapeTop10FromUrl(page, providerName, url, resortId) {
   await gotoWithRetries(page, url, 2);
   await clickCookieIfPresent(page);
 
-  await page.waitForSelector("body", { timeout: 15000 });
+  await page.waitForSelector('body', { timeout: 15000 });
   await page.waitForTimeout(1200);
 
-  const bodyText = await page.evaluate(() => document.body?.innerText || "");
+  const bodyText = await page.evaluate(() => document.body?.innerText || '');
   const prices = extractUnitPrices2DaysFromText(bodyText);
 
   if (prices.length === 0) {
@@ -294,7 +301,7 @@ async function scrapeTop10FromUrl(page, providerName, url, resortId) {
 async function scrapeEsquiades(page, resortId) {
   const url = ESQUIADES_URL[resortId];
   if (!url) return { prices: [], url: null };
-  const prices = await scrapeTop10FromUrl(page, "esquiades", url, resortId);
+  const prices = await scrapeTop10FromUrl(page, 'esquiades', url, resortId);
   return { prices, url };
 }
 
@@ -302,7 +309,7 @@ async function scrapeEstiber(page, resortId) {
   const urls = buildEstiberUrls(resortId);
   for (const url of urls) {
     try {
-      const prices = await scrapeTop10FromUrl(page, "estiber", url, resortId);
+      const prices = await scrapeTop10FromUrl(page, 'estiber', url, resortId);
       if (prices.length >= 3) return { prices, url };
       // si devuelve 1-2 precios, seguimos probando otro slug
     } catch (e) {
@@ -313,7 +320,7 @@ async function scrapeEstiber(page, resortId) {
 }
 
 (async () => {
-  const raw = fs.readFileSync(INPUT, "utf8");
+  const raw = fs.readFileSync(INPUT, 'utf8');
   const resorts = JSON.parse(raw);
 
   const history = loadHistory(HISTORY_PATH);
@@ -321,13 +328,13 @@ async function scrapeEstiber(page, resortId) {
 
   const browser = await chromium.launch({
     headless: !headed,
-    slowMo: headed ? 200 : 0
+    slowMo: headed ? 200 : 0,
   });
 
   const context = await browser.newContext({
-    locale: "es-ES",
+    locale: 'es-ES',
     userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   });
 
   const page = await context.newPage();
@@ -344,8 +351,8 @@ async function scrapeEstiber(page, resortId) {
       const res = await scrapeEsquiades(page, r.id);
       prices = res.prices;
       usedUrl = res.url;
-      if (prices.length >= 3) used = "esquiades";
-      console.log(`  Esquiades: ${res.url ?? "MISSING"} -> ${prices.length} precios`);
+      if (prices.length >= 3) used = 'esquiades';
+      console.log(`  Esquiades: ${res.url ?? 'MISSING'} -> ${prices.length} precios`);
     } catch (e) {
       console.log(`  Esquiades ERROR: ${e.message}`);
       if (debug) await maybeDebugDump(page, `debug-esquiades-${r.id}-error`);
@@ -357,8 +364,8 @@ async function scrapeEstiber(page, resortId) {
         const res2 = await scrapeEstiber(page, r.id);
         prices = res2.prices;
         usedUrl = res2.url;
-        if (prices.length >= 3) used = "estiber";
-        console.log(`  Estiber: ${res2.url ?? "MISSING"} -> ${prices.length} precios`);
+        if (prices.length >= 3) used = 'estiber';
+        console.log(`  Estiber: ${res2.url ?? 'MISSING'} -> ${prices.length} precios`);
       } catch (e) {
         console.log(`  Estiber ERROR: ${e.message}`);
         if (debug) await maybeDebugDump(page, `debug-estiber-${r.id}-error`);
@@ -366,13 +373,15 @@ async function scrapeEstiber(page, resortId) {
     }
 
     if (!used) {
-      console.log(`  ⚠️ No encontré suficientes precios (solo ${prices.length}). Mantengo valores actuales.`);
+      console.log(
+        `  ⚠️ No encontré suficientes precios (solo ${prices.length}). Mantengo valores actuales.`
+      );
       continue;
     }
 
     const unitCheapest = prices[0];
     const unitTop10Avg = avg(prices);
-    
+
     r.pricing = r.pricing || {};
     r.pricing.hotelForfaitCheapest = round2(unitCheapest);
     r.pricing.hotelForfaitTop10Avg = round2(unitTop10Avg);
@@ -380,30 +389,34 @@ async function scrapeEstiber(page, resortId) {
     r.pricing.priceUrl = usedUrl;
 
     // ✅ histórico (1 entrada por día y estación)
-if (!alreadyRecordedToday(history, r.id, today)) {
-  history.items.push({
-    date: today,
-    ts: new Date().toISOString(),
-    resortId: r.id,
-    provider: used,
-    url: usedUrl,
-    days: 2,
-    nights: null, // no lo guardamos aquí porque tu extractor lo detecta por precio; si quieres lo añadimos
-    cheapestUnit: round2(unitCheapest),
-    top10AvgUnit: round2(unitTop10Avg),
-    samples: prices.slice(0, 10).map(p => round2(p))
-  });
-}
+    if (!alreadyRecordedToday(history, r.id, today)) {
+      history.items.push({
+        date: today,
+        ts: new Date().toISOString(),
+        resortId: r.id,
+        provider: used,
+        url: usedUrl,
+        days: 2,
+        nights: null, // no lo guardamos aquí porque tu extractor lo detecta por precio; si quieres lo añadimos
+        cheapestUnit: round2(unitCheapest),
+        top10AvgUnit: round2(unitTop10Avg),
+        samples: prices.slice(0, 10).map((p) => round2(p)),
+      });
+    }
 
-    console.log(`  ✅ source=${used} | top10 unit(€/noche) 2-días: ${prices.map(p => p.toFixed(2)).join(", ")} €`);
-    console.log(`  -> cheapest_unit=${r.pricing.hotelForfaitCheapest} | top10avg_unit=${r.pricing.hotelForfaitTop10Avg}`);
+    console.log(
+      `  ✅ source=${used} | top10 unit(€/noche) 2-días: ${prices.map((p) => p.toFixed(2)).join(', ')} €`
+    );
+    console.log(
+      `  -> cheapest_unit=${r.pricing.hotelForfaitCheapest} | top10avg_unit=${r.pricing.hotelForfaitTop10Avg}`
+    );
   }
 
   await browser.close();
 
-  fs.writeFileSync(INPUT, JSON.stringify(resorts, null, 2), "utf8");
+  fs.writeFileSync(INPUT, JSON.stringify(resorts, null, 2), 'utf8');
   saveHistory(HISTORY_PATH, history);
-  
+
   console.log(`\n✅ Actualizado: ${path.resolve(INPUT)}`);
   console.log(`📈 Histórico actualizado: ${path.resolve(HISTORY_PATH)}`);
-  })();
+})();

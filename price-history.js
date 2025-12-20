@@ -1,16 +1,16 @@
-"use strict";
+'use strict';
 
-const PRICE_HISTORY_URL = "./data/hotel_price_history.json";
+const PRICE_HISTORY_URL = './data/hotel_price_history.json';
 
 async function loadPriceHistory() {
-  const res = await fetch(`${PRICE_HISTORY_URL}?v=${Date.now()}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("No se pudo cargar hotel_price_history.json");
+  const res = await fetch(`${PRICE_HISTORY_URL}?v=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('No se pudo cargar hotel_price_history.json');
   const data = await res.json();
   return Array.isArray(data.items) ? data.items : [];
 }
 
 function euroNum(n) {
-  if (n == null || Number.isNaN(n)) return "—";
+  if (n == null || Number.isNaN(n)) return '—';
   return `${Number(n).toFixed(2)} €`;
 }
 
@@ -20,179 +20,182 @@ async function ensureInsightsCache() {
 
   // si no existe, intentamos abrir insights "en background" recalculando aquí:
   // reutilizamos el loader de price-insights si está disponible
-  if (typeof window.openPriceInsights === "function") {
+  if (typeof window.openPriceInsights === 'function') {
     // truco: llamamos y cerramos el modal después
     try {
       await window.openPriceInsights();
-      document.getElementById("priceInsightsView")?.classList.add("hidden");
+      document.getElementById('priceInsightsView')?.classList.add('hidden');
     } catch {}
   }
   return window.__priceInsightsCache;
 }
 
-function fmtDowShort(dow){
-  const map = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-  return map[dow] || "—";
+function fmtDowShort(dow) {
+  const map = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  return map[dow] || '—';
 }
 
 window.openPriceHistoryForResort = async (resortId, resortName) => {
-  const title = document.getElementById("priceHistoryTitle");
-  const meta = document.getElementById("priceHistoryMeta");
-  const tbody = document.getElementById("priceHistoryTbody");
+  const title = document.getElementById('priceHistoryTitle');
+  const meta = document.getElementById('priceHistoryMeta');
+  const tbody = document.getElementById('priceHistoryTbody');
 
   title.textContent = `📈 Histórico hotel · ${resortName}`;
-  meta.textContent = "Cargando…";
-  tbody.innerHTML = "";
+  meta.textContent = 'Cargando…';
+  tbody.innerHTML = '';
 
-  document.getElementById("priceHistoryView")?.classList.remove("hidden");
+  document.getElementById('priceHistoryView')?.classList.remove('hidden');
 
   try {
     const items = await loadPriceHistory();
     const rows = items
-    .filter(it => it.resortId === resortId)
-    .sort((a, b) => (a.ts === b.ts ? 0 : (a.ts < b.ts ? 1 : -1)));
-  
-  meta.textContent = rows.length
-    ? `${rows.length} registros`
-    : "Sin histórico aún (ejecuta el update para generarlo)";
-    
+      .filter((it) => it.resortId === resortId)
+      .sort((a, b) => (a.ts === b.ts ? 0 : a.ts < b.ts ? 1 : -1));
+
+    meta.textContent = rows.length
+      ? `${rows.length} registros`
+      : 'Sin histórico aún (ejecuta el update para generarlo)';
+
     if (!rows.length) return;
 
     // ✅ Contexto global del resort + del día
-const cache = await ensureInsightsCache();
+    const cache = await ensureInsightsCache();
 
-let resortVolText = null;
-if (cache?.resortVol?.length) {
-  const hit = cache.resortVol.find(x => x.rid === resortId);
-  if (hit?.m != null) {
-    resortVolText = `Volatilidad del resort: Δ medio ${euroNum(hit.m)} (cuanto más bajo, más estable)`;
-  }
-}
+    let resortVolText = null;
+    if (cache?.resortVol?.length) {
+      const hit = cache.resortVol.find((x) => x.rid === resortId);
+      if (hit?.m != null) {
+        resortVolText = `Volatilidad del resort: Δ medio ${euroNum(hit.m)} (cuanto más bajo, más estable)`;
+      }
+    }
 
-let globalBest = null;
-if (cache?.rows?.length) {
-  const valid = cache.rows.filter(r => r.avgCheapest != null);
-  valid.sort((a,b) => a.avgCheapest - b.avgCheapest);
-  globalBest = valid[0] || null;
-}
+    let globalBest = null;
+    if (cache?.rows?.length) {
+      const valid = cache.rows.filter((r) => r.avgCheapest != null);
+      valid.sort((a, b) => a.avgCheapest - b.avgCheapest);
+      globalBest = valid[0] || null;
+    }
 
-const extraLines = [];
-if (resortVolText) extraLines.push(resortVolText);
-if (globalBest) extraLines.push(`A nivel global, el día más barato suele ser: ${globalBest.day} · ${euroNum(globalBest.avgCheapest)}`);
+    const extraLines = [];
+    if (resortVolText) extraLines.push(resortVolText);
+    if (globalBest)
+      extraLines.push(
+        `A nivel global, el día más barato suele ser: ${globalBest.day} · ${euroNum(globalBest.avgCheapest)}`
+      );
 
-if (extraLines.length) {
-  meta.textContent = `${meta.textContent} · ${extraLines.join(" · ")}`;
-}
+    if (extraLines.length) {
+      meta.textContent = `${meta.textContent} · ${extraLines.join(' · ')}`;
+    }
 
     function deltaInfo(curr, prev) {
       const c = Number(curr);
       const p = Number(prev);
-    
+
       if (!Number.isFinite(c) || !Number.isFinite(p)) return null;
-    
+
       const diff = c - p; // >0 sube, <0 baja
       const pct = p === 0 ? null : (diff / p) * 100;
-    
-      let cls = "flat";
-      if (diff > 0.00001) cls = "up";
-      else if (diff < -0.00001) cls = "down";
-    
+
+      let cls = 'flat';
+      if (diff > 0.00001) cls = 'up';
+      else if (diff < -0.00001) cls = 'down';
+
       return { diff, pct, cls };
     }
-    
+
     function fmtEuroDiff(diff) {
-      const sign = diff > 0 ? "+" : "";
+      const sign = diff > 0 ? '+' : '';
       return `${sign}${diff.toFixed(2)} €`;
     }
-    
+
     function fmtPct(pct) {
-      if (pct == null || !Number.isFinite(pct)) return "—";
-      const sign = pct > 0 ? "+" : "";
+      if (pct == null || !Number.isFinite(pct)) return '—';
+      const sign = pct > 0 ? '+' : '';
       return `${sign}${pct.toFixed(1)}%`;
     }
 
     for (let i = 0; i < rows.length; i++) {
       const it = rows[i];
       const prevIt = rows[i + 1] || null; // el “anterior en el tiempo” (más viejo)
-    
-      const tr = document.createElement("tr");
-    
-      const tdDate = document.createElement("td");
+
+      const tr = document.createElement('tr');
+
+      const tdDate = document.createElement('td');
       tdDate.textContent = it.date;
 
       const insights = window.__priceInsightsCache;
-if (cache?.rows?.length) {
-  const d = new Date(it.date + "T00:00:00");
-  if (!Number.isNaN(d.getTime())) {
-    const dow = d.getDay();
-    const g = cache.rows.find(x => x.dow === dow);
-    if (g?.dropRate != null || g?.avgAbsDelta != null) {
-      tdDate.title = `${fmtDowShort(dow)} · Prob. bajar: ${g.dropRate?.toFixed(0) ?? "—"}% · Volatilidad: ${g.avgAbsDelta != null ? euroNum(g.avgAbsDelta) : "—"}`;
-    }
-  }
-}
-    
-      const tdCheapest = document.createElement("td");
-      tdCheapest.className = "right";
+      if (cache?.rows?.length) {
+        const d = new Date(it.date + 'T00:00:00');
+        if (!Number.isNaN(d.getTime())) {
+          const dow = d.getDay();
+          const g = cache.rows.find((x) => x.dow === dow);
+          if (g?.dropRate != null || g?.avgAbsDelta != null) {
+            tdDate.title = `${fmtDowShort(dow)} · Prob. bajar: ${g.dropRate?.toFixed(0) ?? '—'}% · Volatilidad: ${g.avgAbsDelta != null ? euroNum(g.avgAbsDelta) : '—'}`;
+          }
+        }
+      }
+
+      const tdCheapest = document.createElement('td');
+      tdCheapest.className = 'right';
       tdCheapest.textContent = euroNum(it.cheapestUnit);
-    
+
       // ✅ Cambio cheapest
-      const tdCheapestDelta = document.createElement("td");
-      tdCheapestDelta.className = "right";
+      const tdCheapestDelta = document.createElement('td');
+      tdCheapestDelta.className = 'right';
       if (prevIt) {
         const d = deltaInfo(it.cheapestUnit, prevIt.cheapestUnit);
         if (d) {
-          const span = document.createElement("span");
+          const span = document.createElement('span');
           span.className = `delta ${d.cls}`;
           span.textContent = `${fmtEuroDiff(d.diff)} (${fmtPct(d.pct)})`;
           tdCheapestDelta.appendChild(span);
         } else {
-          tdCheapestDelta.textContent = "—";
+          tdCheapestDelta.textContent = '—';
         }
       } else {
-        tdCheapestDelta.textContent = "—";
+        tdCheapestDelta.textContent = '—';
       }
-    
-      const tdAvg = document.createElement("td");
-      tdAvg.className = "right";
+
+      const tdAvg = document.createElement('td');
+      tdAvg.className = 'right';
       tdAvg.textContent = euroNum(it.top10AvgUnit);
-    
+
       // ✅ Cambio top10 avg
-      const tdAvgDelta = document.createElement("td");
-      tdAvgDelta.className = "right";
+      const tdAvgDelta = document.createElement('td');
+      tdAvgDelta.className = 'right';
       if (prevIt) {
         const d = deltaInfo(it.top10AvgUnit, prevIt.top10AvgUnit);
         if (d) {
-          const span = document.createElement("span");
+          const span = document.createElement('span');
           span.className = `delta ${d.cls}`;
           span.textContent = `${fmtEuroDiff(d.diff)} (${fmtPct(d.pct)})`;
           tdAvgDelta.appendChild(span);
         } else {
-          tdAvgDelta.textContent = "—";
+          tdAvgDelta.textContent = '—';
         }
       } else {
-        tdAvgDelta.textContent = "—";
+        tdAvgDelta.textContent = '—';
       }
-    
-      const tdSrc = document.createElement("td");
+
+      const tdSrc = document.createElement('td');
       if (it.url) {
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = it.url;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = it.provider || "link";
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = it.provider || 'link';
         tdSrc.appendChild(a);
       } else {
-        tdSrc.textContent = it.provider || "—";
+        tdSrc.textContent = it.provider || '—';
       }
-    
+
       tr.appendChild(tdDate);
       tr.appendChild(tdCheapest);
       tr.appendChild(tdCheapestDelta);
       tr.appendChild(tdAvg);
       tr.appendChild(tdAvgDelta);
       tr.appendChild(tdSrc);
-    
+
       tbody.appendChild(tr);
     }
   } catch (e) {
