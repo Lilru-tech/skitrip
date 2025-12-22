@@ -231,7 +231,7 @@ function normalize(value, min, max, higherIsBetter) {
   return clamp01(n);
 }
 
-// Calcula score 0..100 usando pesos
+// Calcula score 0..100 y devuelve desglose
 function computeScore(row, ranges) {
   // Pesos (ajústalos cuando quieras)
   const W = {
@@ -245,6 +245,17 @@ function computeScore(row, ranges) {
     rental: 0.03,
   };
 
+  const labels = {
+    total: 'Total €/persona',
+    distance: 'Distancia (km)',
+    kmTotal: 'KMs totales',
+    openKm: 'Km abiertos',
+    vibe: 'Ambiente',
+    apres: 'Après',
+    hotelForfait: 'Hotel+Forfait €/p',
+    rental: 'Alquiler material €/p',
+  };
+
   const nTotal = normalize(row.totalPerPerson, ranges.totalMin, ranges.totalMax, false);
   const nDist = normalize(row.distanceKm, ranges.distMin, ranges.distMax, false);
   const nKm = normalize(row.kmTotal, ranges.kmMin, ranges.kmMax, true);
@@ -254,30 +265,50 @@ function computeScore(row, ranges) {
   const nHF = normalize(row.hotelForfaitPerPerson, ranges.hfMin, ranges.hfMax, false);
   const nRent = normalize(row.rentalPerPerson, ranges.rentMin, ranges.rentMax, false);
 
-  // Si algún dato falta, lo ignoramos sin penalizar (repartimos peso entre los disponibles)
   const parts = [
-    ['total', nTotal],
-    ['distance', nDist],
-    ['kmTotal', nKm],
-    ['openKm', nOpenKm],
-    ['vibe', nVibe],
-    ['apres', nApres],
-    ['hotelForfait', nHF],
-    ['rental', nRent],
+    ['total', nTotal, row.totalPerPerson],
+    ['distance', nDist, row.distanceKm],
+    ['kmTotal', nKm, row.kmTotal],
+    ['openKm', nOpenKm, row.openKm],
+    ['vibe', nVibe, row.vibeScore],
+    ['apres', nApres, row.apresScore],
+    ['hotelForfait', nHF, row.hotelForfaitPerPerson],
+    ['rental', nRent, row.rentalPerPerson],
   ];
 
   let weightSum = 0;
   let acc = 0;
+  const breakdown = [];
 
-  for (const [k, v] of parts) {
+  for (const [k, v, raw] of parts) {
     if (v == null) continue;
     const w = W[k];
     weightSum += w;
     acc += v * w;
+
+    breakdown.push({
+      key: k,
+      label: labels[k] || k,
+      raw,
+      norm: v,
+      weight: w,
+      contrib01: v * w, // contribución en escala 0..1 (antes de dividir por weightSum)
+    });
   }
 
-  if (weightSum === 0) return null;
-  return (acc / weightSum) * 100; // 0..100
+  if (weightSum === 0) return { score: null, breakdown: [], weightSum: 0 };
+
+  const score01 = acc / weightSum;
+  const score100 = score01 * 100;
+
+  // contribución final ya “normalizada” al score total (suma aprox = score01)
+  const breakdownFinal = breakdown.map((x) => ({
+    ...x,
+    contrib01Final: x.contrib01 / weightSum,
+    contrib100: (x.contrib01 / weightSum) * 100,
+  }));
+
+  return { score: score100, breakdown: breakdownFinal, weightSum };
 }
 
 function parseDateYMD(s) {
@@ -447,10 +478,16 @@ function buildRows(filteredResorts, tripCfg) {
   });
 
   const ranges = computeRanges(base);
-  return base.map((row) => ({
-    ...row,
-    score: computeScore(row, ranges),
-  }));
+  return base.map((row) => {
+    const out = computeScore(row, ranges);
+    return {
+      ...row,
+      score: out.score,
+      scoreBreakdown: out.breakdown,
+      scoreWeightSum: out.weightSum,
+      scoreRanges: ranges, // opcional (por si lo quieres mostrar más adelante)
+    };
+  });
 }
 
 function sortRows(rows) {
@@ -584,9 +621,7 @@ function renderRows(rows) {
       )
     );
     tr.appendChild(tdRightMetric(euro(r.totalPerPerson), r.totalPerPerson, bw.totalPerPerson));
-    tr.appendChild(
-      tdRightMetric(r.score == null ? '—' : `${round2(r.score).toFixed(1)}`, r.score, bw.score)
-    );
+    tr.appendChild(tdScoreClickable(r.id, r.name, r.score, bw.score));
 
     tbody.appendChild(tr);
   }
@@ -663,6 +698,129 @@ function tdRightMetric(text, value, bwEntry) {
 
   return td;
 }
+
+function tdScoreClickable(resortId, resortName, score, bwEntry) {
+  const td = document.createElement('td');
+  td.style.textAlign = 'right';
+  td.style.whiteSpace = 'nowrap';
+
+  const wrap = document.createElement('span');
+  wrap.className = 'scoreLink';
+  wrap.setAttribute('data-open-score-breakdown', '1');
+  wrap.setAttribute('data-resort-id', resortId);
+  wrap.setAttribute('data-resort-name', resortName);
+
+  wrap.textContent = score == null ? '—' : `${round2(score).toFixed(1)}`;
+  td.appendChild(wrap);
+
+  if (bwEntry && typeof score === 'number' && !Number.isNaN(score)) {
+    if (almostEqual(score, bwEntry.bestValue)) td.classList.add('best');
+    if (almostEqual(score, bwEntry.worstValue)) td.classList.add('worst');
+  }
+
+  return td;
+}
+
+function fmtRawValue(key, raw) {
+  if (raw == null || Number.isNaN(raw)) return '—';
+  if (key === 'total' || key === 'hotelForfait' || key === 'rental') return euro(raw);
+  if (key === 'distance') return `${Math.round(raw)} km`;
+  if (key === 'kmTotal' || key === 'openKm') return `${Math.round(raw)}`;
+  return String(raw);
+}
+
+window.openScoreBreakdownForResort = function openScoreBreakdownForResort(resortId, resortName) {
+  const view = $('scoreBreakdownView');
+  const tbody = $('scoreBreakdownTbody');
+  const title = $('scoreBreakdownTitle');
+  const meta = $('scoreBreakdownMeta');
+  if (!view || !tbody) return;
+
+  const row = (currentRows || []).find((r) => r.id === resortId);
+  if (!row) return;
+
+  title.textContent = `🧮 Desglose de puntuación · ${resortName}`;
+  meta.textContent =
+    row.score == null
+      ? 'No hay suficiente información para calcular la puntuación.'
+      : `Puntuación final: ${round2(row.score).toFixed(1)} / 100`;
+
+  // ✅ Contexto extra para “Km abiertos” (último registro + delta)
+  const dObj = window.openKmDeltaByResortId?.[resortId];
+  if (dObj && typeof row.openKm === 'number' && Number.isFinite(row.openKm)) {
+    const sign = (dObj.delta ?? 0) > 0 ? '+' : '';
+    const deltaTxt =
+      typeof dObj.delta === 'number' && Number.isFinite(dObj.delta) ? `${sign}${dObj.delta}` : '—';
+
+    meta.textContent += ` · Km abiertos (último): ${Math.round(row.openKm)} · Δ vs ayer: ${deltaTxt}`;
+  }
+
+  tbody.innerHTML = '';
+
+  const items = Array.isArray(row.scoreBreakdown) ? row.scoreBreakdown : [];
+  if (!items.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.textContent = 'Sin desglose disponible.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    view.classList.remove('hidden');
+    return;
+  }
+
+  // Orden: contribución mayor primero (más útil para entender el score)
+  const sorted = [...items].sort((a, b) => (b.contrib100 ?? 0) - (a.contrib100 ?? 0));
+
+  for (const it of sorted) {
+    const tr = document.createElement('tr');
+
+    const tdLabel = document.createElement('td');
+    tdLabel.textContent = it.label || it.key;
+
+    const tdRaw = document.createElement('td');
+    tdRaw.className = 'right';
+
+    let rawTxt = fmtRawValue(it.key, it.raw);
+
+    // ✅ Si es “Km abiertos”, añadimos delta del histórico (si existe)
+    if (it.key === 'openKm') {
+      const dObj = window.openKmDeltaByResortId?.[resortId];
+      if (dObj && typeof dObj.delta === 'number' && Number.isFinite(dObj.delta)) {
+        const sign = dObj.delta > 0 ? '+' : '';
+        rawTxt = `${rawTxt} (${sign}${dObj.delta})`;
+      }
+    }
+
+    tdRaw.textContent = rawTxt;
+
+    const tdNorm = document.createElement('td');
+    tdNorm.className = 'right';
+    tdNorm.textContent =
+      typeof it.norm === 'number' && Number.isFinite(it.norm) ? it.norm.toFixed(3) : '—';
+
+    const tdW = document.createElement('td');
+    tdW.className = 'right';
+    tdW.textContent =
+      typeof it.weight === 'number' && Number.isFinite(it.weight) ? it.weight.toFixed(2) : '—';
+
+    const tdC = document.createElement('td');
+    tdC.className = 'right';
+    tdC.textContent =
+      typeof it.contrib100 === 'number' && Number.isFinite(it.contrib100)
+        ? it.contrib100.toFixed(1)
+        : '—';
+
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdRaw);
+    tr.appendChild(tdNorm);
+    tr.appendChild(tdW);
+    tr.appendChild(tdC);
+    tbody.appendChild(tr);
+  }
+
+  view.classList.remove('hidden');
+};
 
 // Celdas derecha sin colores (para Compra)
 function tdRightPlain(text) {
@@ -845,6 +1003,13 @@ async function main() {
       $('openKmHistoryView')?.classList.add('hidden');
     });
 
+    $('closeScoreBreakdownBtn')?.addEventListener('click', () => {
+      $('scoreBreakdownView')?.classList.add('hidden');
+    });
+    $('closeScoreBreakdownBtnX')?.addEventListener('click', () => {
+      $('scoreBreakdownView')?.classList.add('hidden');
+    });
+
     // ✅ Cerrar modal al hacer click fuera de la tarjeta
     $('groceriesView')?.addEventListener('click', (e) => {
       if (e.target?.id === 'groceriesView') $('groceriesView')?.classList.add('hidden');
@@ -861,6 +1026,9 @@ async function main() {
     $('openKmHistoryView')?.addEventListener('click', (e) => {
       if (e.target?.id === 'openKmHistoryView') $('openKmHistoryView')?.classList.add('hidden');
     });
+    $('scoreBreakdownView')?.addEventListener('click', (e) => {
+      if (e.target?.id === 'scoreBreakdownView') $('scoreBreakdownView')?.classList.add('hidden');
+    });
 
     // ✅ Escape para cerrar modales
     document.addEventListener('keydown', (e) => {
@@ -870,6 +1038,7 @@ async function main() {
       $('priceHistoryView')?.classList.add('hidden');
       $('priceInsightsView')?.classList.add('hidden');
       $('openKmHistoryView')?.classList.add('hidden');
+      $('scoreBreakdownView')?.classList.add('hidden');
     });
 
     $('openCommentsBtn')?.addEventListener('click', () => {
@@ -896,6 +1065,14 @@ async function main() {
         const resortId = okm.getAttribute('data-resort-id');
         const resortName = okm.getAttribute('data-resort-name') || 'Estación';
         window.openOpenKmHistoryForResort?.(resortId, resortName);
+        return;
+      }
+
+      const sb = e.target.closest('[data-open-score-breakdown]');
+      if (sb) {
+        const resortId = sb.getAttribute('data-resort-id');
+        const resortName = sb.getAttribute('data-resort-name') || 'Estación';
+        window.openScoreBreakdownForResort?.(resortId, resortName);
         return;
       }
 

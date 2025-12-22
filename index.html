@@ -283,6 +283,33 @@
       </div>
     </div>
   </div>
+  <div id="scoreBreakdownView" class="modal hidden">
+    <div class="modalCard" id="scoreBreakdownCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle" id="scoreBreakdownTitle">🧮 Desglose de puntuación</h3>
+        <button class="iconBtn" id="closeScoreBreakdownBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+
+      <div class="muted" id="scoreBreakdownMeta"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Factor</th>
+            <th class="right">Valor</th>
+            <th class="right">Normalizado</th>
+            <th class="right">Peso</th>
+            <th class="right">Contribución</th>
+          </tr>
+        </thead>
+        <tbody id="scoreBreakdownTbody"></tbody>
+      </table>
+
+      <div class="modalActions">
+        <button id="closeScoreBreakdownBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
   <div id="priceInsightsView" class="modal hidden">
     <div class="modalCard" id="priceInsightsCard">
       <div class="modalHeader">

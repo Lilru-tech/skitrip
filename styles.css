@@ -838,3 +838,13 @@ body {
 .openKmLink:hover {
   filter: brightness(0.95);
 }
+
+/* Click en puntuación */
+.scoreLink {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(17, 24, 39, 0.25);
+}
+.scoreLink:hover {
+  filter: brightness(0.95);
+}
