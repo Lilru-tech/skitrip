@@ -15,6 +15,11 @@
         "date": "2025-12-23",
         "openKm": 125,
         "totalKm": 215
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 125,
+        "totalKm": 215
       }
     ],
     "pal-arinsal": [
@@ -30,6 +35,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 56,
+        "totalKm": 63
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 56,
         "totalKm": 63
       }
@@ -49,6 +59,11 @@
         "date": "2025-12-23",
         "openKm": 30,
         "totalKm": 30
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 30,
+        "totalKm": 30
       }
     ],
     "alp-2500": [
@@ -64,6 +79,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 26,
+        "totalKm": 71
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 26,
         "totalKm": 71
       }
@@ -83,6 +103,11 @@
         "date": "2025-12-23",
         "openKm": 100,
         "totalKm": 173
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 100,
+        "totalKm": 173
       }
     ],
     "port-aine": [
@@ -98,6 +123,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 22,
+        "totalKm": 27
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 22,
         "totalKm": 27
       }
@@ -117,6 +147,11 @@
         "date": "2025-12-23",
         "openKm": 23,
         "totalKm": 25
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 23,
+        "totalKm": 25
       }
     ],
     "boi-taull": [
@@ -132,6 +167,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 34,
+        "totalKm": 45
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 34,
         "totalKm": 45
       }
@@ -151,6 +191,11 @@
         "date": "2025-12-23",
         "openKm": 4,
         "totalKm": 40
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 4,
+        "totalKm": 40
       }
     ],
     "vall-de-nuria": [
@@ -166,6 +211,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 6,
+        "totalKm": 8
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 6,
         "totalKm": 8
       }
@@ -185,6 +235,11 @@
         "date": "2025-12-23",
         "openKm": 38,
         "totalKm": 81
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 38,
+        "totalKm": 81
       }
     ],
     "formigal-panticosa": [
@@ -200,6 +255,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 67,
+        "totalKm": 143
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 67,
         "totalKm": 143
       }
@@ -219,6 +279,11 @@
         "date": "2025-12-23",
         "openKm": 45,
         "totalKm": 101
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 45,
+        "totalKm": 101
       }
     ],
     "candanchu": [
@@ -234,6 +299,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 45,
+        "totalKm": 101
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 45,
         "totalKm": 101
       }
@@ -253,6 +323,11 @@
         "date": "2025-12-23",
         "openKm": 6,
         "totalKm": 17
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 6,
+        "totalKm": 17
       }
     ],
     "javalambre": [
@@ -268,6 +343,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 0,
+        "totalKm": 15
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 0,
         "totalKm": 15
       }
@@ -287,6 +367,11 @@
         "date": "2025-12-23",
         "openKm": 36,
         "totalKm": 43
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 36,
+        "totalKm": 43
       }
     ],
     "les-angles": [
@@ -304,6 +389,11 @@
         "date": "2025-12-23",
         "openKm": 44,
         "totalKm": 55
+      },
+      {
+        "date": "2025-12-24",
+        "openKm": 44,
+        "totalKm": 55
       }
     ],
     "ax-3-domaines": [
@@ -319,6 +409,11 @@
       },
       {
         "date": "2025-12-23",
+        "openKm": 42,
+        "totalKm": 80
+      },
+      {
+        "date": "2025-12-24",
         "openKm": 42,
         "totalKm": 80
       }
