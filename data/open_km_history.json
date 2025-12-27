@@ -30,6 +30,11 @@
         "date": "2025-12-26",
         "openKm": 164,
         "totalKm": 215
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 172,
+        "totalKm": 215
       }
     ],
     "pal-arinsal": [
@@ -60,6 +65,11 @@
       },
       {
         "date": "2025-12-26",
+        "openKm": 60,
+        "totalKm": 63
+      },
+      {
+        "date": "2025-12-27",
         "openKm": 60,
         "totalKm": 63
       }
@@ -94,6 +104,11 @@
         "date": "2025-12-26",
         "openKm": 30,
         "totalKm": 30
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 30,
+        "totalKm": 30
       }
     ],
     "alp-2500": [
@@ -125,6 +140,11 @@
       {
         "date": "2025-12-26",
         "openKm": 45,
+        "totalKm": 71
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 35,
         "totalKm": 71
       }
     ],
@@ -158,6 +178,11 @@
         "date": "2025-12-26",
         "openKm": 132,
         "totalKm": 173
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 134,
+        "totalKm": 173
       }
     ],
     "port-aine": [
@@ -190,6 +215,11 @@
         "date": "2025-12-26",
         "openKm": 27,
         "totalKm": 27
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 22,
+        "totalKm": 27
       }
     ],
     "espot-esqui": [
@@ -220,6 +250,11 @@
       },
       {
         "date": "2025-12-26",
+        "openKm": 23,
+        "totalKm": 25
+      },
+      {
+        "date": "2025-12-27",
         "openKm": 23,
         "totalKm": 25
       }
@@ -254,6 +289,11 @@
         "date": "2025-12-26",
         "openKm": 45,
         "totalKm": 45
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 37,
+        "totalKm": 45
       }
     ],
     "port-del-comte": [
@@ -286,6 +326,11 @@
         "date": "2025-12-26",
         "openKm": 24,
         "totalKm": 40
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 42,
+        "totalKm": 42
       }
     ],
     "vall-de-nuria": [
@@ -317,6 +362,11 @@
       {
         "date": "2025-12-26",
         "openKm": 7,
+        "totalKm": 8
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 0,
         "totalKm": 8
       }
     ],
@@ -350,6 +400,11 @@
         "date": "2025-12-26",
         "openKm": 40,
         "totalKm": 81
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 60,
+        "totalKm": 81
       }
     ],
     "formigal-panticosa": [
@@ -381,6 +436,11 @@
       {
         "date": "2025-12-26",
         "openKm": 74,
+        "totalKm": 143
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 76,
         "totalKm": 143
       }
     ],
@@ -414,6 +474,11 @@
         "date": "2025-12-26",
         "openKm": 0,
         "totalKm": 101
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 53,
+        "totalKm": 101
       }
     ],
     "candanchu": [
@@ -445,6 +510,11 @@
       {
         "date": "2025-12-26",
         "openKm": 0,
+        "totalKm": 101
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 53,
         "totalKm": 101
       }
     ],
@@ -478,6 +548,11 @@
         "date": "2025-12-26",
         "openKm": 10,
         "totalKm": 17
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 13,
+        "totalKm": 17
       }
     ],
     "javalambre": [
@@ -508,6 +583,11 @@
       },
       {
         "date": "2025-12-26",
+        "openKm": 6,
+        "totalKm": 15
+      },
+      {
+        "date": "2025-12-27",
         "openKm": 6,
         "totalKm": 15
       }
@@ -542,6 +622,11 @@
         "date": "2025-12-26",
         "openKm": 37,
         "totalKm": 43
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 41,
+        "totalKm": 43
       }
     ],
     "les-angles": [
@@ -572,6 +657,11 @@
       },
       {
         "date": "2025-12-26",
+        "openKm": 47,
+        "totalKm": 55
+      },
+      {
+        "date": "2025-12-27",
         "openKm": 47,
         "totalKm": 55
       }
@@ -605,6 +695,11 @@
       {
         "date": "2025-12-26",
         "openKm": 57,
+        "totalKm": 80
+      },
+      {
+        "date": "2025-12-27",
+        "openKm": 59,
         "totalKm": 80
       }
     ]
