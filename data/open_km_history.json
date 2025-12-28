@@ -35,6 +35,11 @@
         "date": "2025-12-27",
         "openKm": 172,
         "totalKm": 215
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 192,
+        "totalKm": 215
       }
     ],
     "pal-arinsal": [
@@ -72,6 +77,11 @@
         "date": "2025-12-27",
         "openKm": 60,
         "totalKm": 63
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 63,
+        "totalKm": 63
       }
     ],
     "ordino-arcalis": [
@@ -107,6 +117,11 @@
       },
       {
         "date": "2025-12-27",
+        "openKm": 30,
+        "totalKm": 30
+      },
+      {
+        "date": "2025-12-28",
         "openKm": 30,
         "totalKm": 30
       }
@@ -146,6 +161,11 @@
         "date": "2025-12-27",
         "openKm": 35,
         "totalKm": 71
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 50,
+        "totalKm": 71
       }
     ],
     "baqueira-beret": [
@@ -182,6 +202,11 @@
       {
         "date": "2025-12-27",
         "openKm": 134,
+        "totalKm": 173
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 146,
         "totalKm": 173
       }
     ],
@@ -220,6 +245,11 @@
         "date": "2025-12-27",
         "openKm": 22,
         "totalKm": 27
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 27,
+        "totalKm": 27
       }
     ],
     "espot-esqui": [
@@ -256,6 +286,11 @@
       {
         "date": "2025-12-27",
         "openKm": 23,
+        "totalKm": 25
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 24,
         "totalKm": 25
       }
     ],
@@ -294,6 +329,11 @@
         "date": "2025-12-27",
         "openKm": 37,
         "totalKm": 45
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 36,
+        "totalKm": 45
       }
     ],
     "port-del-comte": [
@@ -329,6 +369,11 @@
       },
       {
         "date": "2025-12-27",
+        "openKm": 42,
+        "totalKm": 42
+      },
+      {
+        "date": "2025-12-28",
         "openKm": 42,
         "totalKm": 42
       }
@@ -368,6 +413,11 @@
         "date": "2025-12-27",
         "openKm": 0,
         "totalKm": 8
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 0,
+        "totalKm": 8
       }
     ],
     "cerler": [
@@ -404,6 +454,11 @@
       {
         "date": "2025-12-27",
         "openKm": 60,
+        "totalKm": 81
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 63,
         "totalKm": 81
       }
     ],
@@ -442,6 +497,11 @@
         "date": "2025-12-27",
         "openKm": 76,
         "totalKm": 143
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 84,
+        "totalKm": 143
       }
     ],
     "astun": [
@@ -478,6 +538,11 @@
       {
         "date": "2025-12-27",
         "openKm": 53,
+        "totalKm": 101
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 51,
         "totalKm": 101
       }
     ],
@@ -516,6 +581,11 @@
         "date": "2025-12-27",
         "openKm": 53,
         "totalKm": 101
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 51,
+        "totalKm": 101
       }
     ],
     "valdelinares": [
@@ -552,6 +622,11 @@
       {
         "date": "2025-12-27",
         "openKm": 13,
+        "totalKm": 17
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 14,
         "totalKm": 17
       }
     ],
@@ -590,6 +665,11 @@
         "date": "2025-12-27",
         "openKm": 6,
         "totalKm": 15
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 7,
+        "totalKm": 15
       }
     ],
     "font-romeu-pyrenees-2000": [
@@ -625,6 +705,11 @@
       },
       {
         "date": "2025-12-27",
+        "openKm": 41,
+        "totalKm": 43
+      },
+      {
+        "date": "2025-12-28",
         "openKm": 41,
         "totalKm": 43
       }
@@ -664,6 +749,11 @@
         "date": "2025-12-27",
         "openKm": 47,
         "totalKm": 55
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 47,
+        "totalKm": 55
       }
     ],
     "ax-3-domaines": [
@@ -700,6 +790,11 @@
       {
         "date": "2025-12-27",
         "openKm": 59,
+        "totalKm": 80
+      },
+      {
+        "date": "2025-12-28",
+        "openKm": 74,
         "totalKm": 80
       }
     ]
