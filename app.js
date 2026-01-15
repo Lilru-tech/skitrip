@@ -1039,6 +1039,7 @@ async function main() {
       $('priceInsightsView')?.classList.add('hidden');
       $('openKmHistoryView')?.classList.add('hidden');
       $('scoreBreakdownView')?.classList.add('hidden');
+      $('availabilityView')?.classList.add('hidden');
     });
 
     $('openCommentsBtn')?.addEventListener('click', () => {

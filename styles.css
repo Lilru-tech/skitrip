@@ -527,8 +527,12 @@ body {
 .cardHeaderRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start; /* antes space-between */
   gap: 12px;
+}
+
+.cardHeaderRow .segmented {
+  margin-left: auto; /* empuja el segmented a la derecha, pero sin “hueco raro” */
 }
 
 .cardKicker {
@@ -847,4 +851,230 @@ body {
 }
 .scoreLink:hover {
   filter: brightness(0.95);
+}
+
+/* =========================
+   DISPONIBILIDAD (CALENDARIO)
+   ========================= */
+
+   #availabilityView .modalCard {
+    width: min(900px, 96vw);
+    max-height: 86vh;
+    overflow: auto;
+  }
+  
+  /* ✅ Inputs más compactos SOLO en Disponibilidad */
+  #availabilityView label { font-size: 0.75rem; }
+  #availabilityView input, 
+  #availabilityView select {
+    padding: 8px 10px;
+    font-size: 0.84rem;
+    border-radius: 10px;
+  }
+  
+  /* ✅ Textos de ayuda más pequeños */
+  #availabilityView .muted { font-size: 0.75rem; }
+  #availabilityView .availabilityLegend .legendItem {
+    font-size: 0.78rem;
+    padding: 5px 9px;
+    gap: 7px;
+  }
+  
+  .availabilityLegend {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 8px 0 12px 0;
+    flex-wrap: wrap;
+  }
+  
+  .legendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #374151;
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+  
+  .legendDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .legendDot.busy { background: #111827; }
+  .legendDot.free { background: #e5e7eb; }
+  .legendDot.other { background: #2563eb; }
+  
+  .availabilityCalendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  /* ✅ El contenedor real (#availabilityCalendar) NO debe ser grid.
+   El grid lo aplica el div interno .availabilityCalendar que renderiza JS. */
+#availabilityCalendar {
+  display: block;
+}
+  
+  .calDayHeader {
+    font-size: 0.78rem;
+    color: #6b7280;
+    text-align: center;
+    padding: 6px 0;
+    font-weight: 800;
+  }
+  
+  .calCell {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 10px;
+    min-height: 86px;
+    background: #fff;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.05s ease, background 0.12s ease, box-shadow 0.12s ease;
+  }
+  
+  .calCell:hover {
+    box-shadow: 0 10px 22px rgba(17, 24, 39, 0.10);
+    transform: translateY(-1px);
+  }
+  
+  .calCell.isEmpty {
+    background: transparent;
+    border: none;
+    cursor: default;
+    box-shadow: none;
+  }
+  
+  .calNum {
+    font-weight: 900;
+    font-size: 0.92rem;
+  }
+  
+  .calTags {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .calTag {
+    font-size: 0.72rem;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f9fafb;
+    color: #374151;
+  }
+  
+  .calTag.meBusy {
+    background: #b91c1c;
+    color: white;
+    border-color: transparent;
+  }
+  
+  .calTag.otherBusy {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    border-color: rgba(37, 99, 235, 0.25);
+  }
+
+  /* ✅ Celda roja si el usuario actual está ocupado */
+.calCell.isMeBusy {
+  background: rgba(185, 28, 28, 0.12);
+  border-color: rgba(185, 28, 28, 0.35);
+}
+
+/* ✅ Si hay “otros” ocupados (pero tú no), marcamos suave */
+.calCell.isOtherBusyOnly {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.dataRow{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.dataLeft{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.dataRight{
+  display:flex;
+  align-items:center;
+}
+
+/* Ocultar contadores al lado de los botones */
+#commentsSummary,
+#availabilitySummary {
+  display: none !important;
+}
+
+/* 2 cards en fila (50% / 50%) */
+.rowTwoCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+/* Quitar márgenes extra de las cards dentro del grid */
+.rowTwoCards > .card {
+  margin: 0;
+}
+
+/* Responsive: en móvil se apilan */
+@media (max-width: 980px) {
+  .rowTwoCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ✅ Card "Datos" + "Orden rápido" en la misma fila */
+.cardsRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 50% / 50% */
+  gap: 16px;
+  margin: 16px 0;
+}
+
+/* Quitar el margin vertical que ya tiene .card para que el gap mande */
+.cardsRow2 > .card {
+  margin: 0;
+}
+
+/* Responsive: en pantallas pequeñas se apilan */
+@media (max-width: 980px) {
+  .cardsRow2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ✅ Botones compactos SOLO en la card de Datos */
+.dataLeft button.secondary {
+  padding: 7px 9px;      /* antes 10px 12px */
+  font-size: 0.80rem;    /* antes hereda ~0.92rem */
+  border-radius: 10px;   /* ligeramente menor */
+  line-height: 1;
+}
+
+/* Opcional: reduce el gap entre botones */
+.dataLeft {
+  gap: 8px; /* antes 10px */
 }

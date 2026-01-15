@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SkiTrip · Comparador de estaciones</title>
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 
 <body>
@@ -103,16 +103,6 @@
       </div>
 
       <div>
-        <label>Comentarios</label><br>
-        <button id="openCommentsBtn" class="secondary">
-          📝 Ver / editar comentarios
-        </button>
-        <div class="muted" id="commentsSummary">
-          Sin comentarios
-        </div>
-      </div>
-
-      <div>
         <label for="tripDate">Fecha del viaje</label><br>
         <input id="tripDate" type="date">
         <div class="muted">Ajusta el precio según temporada (baja/media/alta/pico).</div>
@@ -129,13 +119,33 @@
     </div>
   </div>
 
+<!-- ✅ FILA DOBLE: Datos (izq) + Orden rápido (der) -->
+<div class="cardsRow2">
   <div class="card">
+    <!-- TU CARD DE DATOS TAL CUAL -->
+    <div class="dataRow">
+      <div class="dataLeft">
+        <strong>Datos:</strong>
+        <button id="updateDataBtn" class="secondary">🔄 Actualizar datos</button>
+        <button id="priceInsightsBtn" class="secondary">🧠 Resumen precios</button>
+        <button id="openCommentsBtn" class="secondary">📝 Comentarios</button>
+        <button id="openAvailabilityBtn" class="secondary">📅 Disponibilidad</button>
+      </div>
+
+      <div class="dataRight">
+        <span id="updateHint" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <!-- TU CARD DE ORDEN RÁPIDO TAL CUAL -->
     <div class="cardHeaderRow">
       <div>
         <div class="cardKicker">Recomendación</div>
         <div class="cardTitleSmall">Orden rápido</div>
       </div>
-  
+
       <div class="segmented" role="group" aria-label="Modo recomendación">
         <button id="topScoreBtn" class="segBtn isActive" type="button">🏆 Puntuación</button>
         <button id="topCheapBtn" class="segBtn" type="button">💰 Barato</button>
@@ -143,13 +153,7 @@
       </div>
     </div>
   </div>
-
-  <div class="card">
-    <strong>Datos:</strong>
-    <button id="updateDataBtn" class="secondary">🔄 Actualizar datos (GitHub)</button>
-    <button id="priceInsightsBtn" class="secondary" style="margin-left:10px;">🧠 Resumen precios</button>
-    <span id="updateHint" class="muted" style="margin-left:10px;"></span>
-  </div>
+</div>
 
   <!-- Estado -->
   <div id="statusText">Cargando…</div>
@@ -342,12 +346,55 @@
           </div>
     </div>
   </div>
+  <div id="availabilityView" class="modal hidden">
+    <div class="modalCard" id="availabilityCard">
+      <div class="modalHeader">
+        <h3 class="modalTitle">📅 Disponibilidad</h3>
+        <button class="iconBtn" id="closeAvailabilityBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <div class="grid" style="grid-template-columns: 220px 1fr 160px; gap: 10px; align-items:end;">
+        <div>
+          <label for="availabilityName">Nombre</label><br>
+          <input id="availabilityName" type="text" placeholder="Ej: David" maxlength="30">
+          <div class="muted" style="margin-top:6px;">
+            Escribe tu nombre y pulsa “Cargar” para ver/editar tus días. Para poder marcar un día, primero pon el nombre y luego dale a “Cargar”.
+          </div>
+        </div>
+  
+        <div>
+          <label for="availabilityMonth">Mes</label><br>
+          <input id="availabilityMonth" type="month">
+        </div>
+  
+        <div>
+          <label>&nbsp;</label><br>
+          <button id="availabilityReloadBtn" class="secondary">🔄 Cargar</button>
+        </div>
+      </div>
+  
+      <div class="muted" id="availabilityHint" style="margin: 10px 0 8px 0;"></div>
+  
+      <div class="availabilityLegend">
+        <span class="legendItem"><span class="legendDot busy"></span>Ocupado</span>
+        <span class="legendItem"><span class="legendDot free"></span>Libre</span>
+        <span class="legendItem"><span class="legendDot other"></span>Ocupado (otros)</span>
+      </div>
+  
+      <div id="availabilityCalendar"></div>
+  
+      <div class="modalActions">
+        <button id="closeAvailabilityBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
   <script src="groceries.js"></script>
   <script src="comments.js"></script>
   <script src="price-history.js"></script>
   <script src="price-insights.js"></script>
   <script src="open-km-history.js"></script>
   <script src="app.js"></script>
+  <script src="availability.js"></script>
 </div>
 </body>
 </html>
