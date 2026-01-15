@@ -1041,6 +1041,8 @@ async function main() {
       $('scoreBreakdownView')?.classList.add('hidden');
       $('availabilityView')?.classList.add('hidden');
       $('skierPhotoView')?.classList.add('hidden');
+      $('tripConfigPhotoView')?.classList.add('hidden');
+      $('datosPhotoView')?.classList.add('hidden');
     });
 
     $('openCommentsBtn')?.addEventListener('click', () => {
@@ -1228,6 +1230,62 @@ async function main() {
   // Click fuera para cerrar
   view.addEventListener('click', (e) => {
     if (e.target?.id === 'skierPhotoView') close();
+  });
+})();
+
+// ------------------------------
+// Modal foto configuración del viaje (click en ⚙️)
+// ------------------------------
+(function wireTripConfigPhotoModal() {
+  const openBtn = document.getElementById('openTripConfigPhotoBtn');
+  const view = document.getElementById('tripConfigPhotoView');
+  const closeBtn = document.getElementById('closeTripConfigPhotoBtn');
+  const closeBtnX = document.getElementById('closeTripConfigPhotoBtnX');
+
+  if (!openBtn || !view) return;
+  console.log('[trip config modal] wired ✅', { openBtn, view });
+
+  const open = () => {
+    console.log('[trip config modal] open click ✅');
+    view.classList.remove('hidden');
+  };
+  const close = () => view.classList.add('hidden');
+
+  openBtn.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  closeBtnX?.addEventListener('click', close);
+
+  // Click fuera para cerrar
+  view.addEventListener('click', (e) => {
+    if (e.target?.id === 'tripConfigPhotoView') close();
+  });
+})();
+
+// ------------------------------
+// Modal foto "Datos:" (click en el texto)
+// ------------------------------
+(function wireDatosPhotoModal() {
+  const openBtn = document.getElementById('openDatosPhotoBtn');
+  const view = document.getElementById('datosPhotoView');
+  const closeBtn = document.getElementById('closeDatosPhotoBtn');
+  const closeBtnX = document.getElementById('closeDatosPhotoBtnX');
+
+  if (!openBtn || !view) return;
+  console.log('[datos modal] wired ✅', { openBtn, view });
+
+  const open = () => {
+    console.log('[datos modal] open click ✅');
+    view.classList.remove('hidden');
+  };
+  const close = () => view.classList.add('hidden');
+
+  openBtn.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  closeBtnX?.addEventListener('click', close);
+
+  // Click fuera para cerrar
+  view.addEventListener('click', (e) => {
+    if (e.target?.id === 'datosPhotoView') close();
   });
 })();
 

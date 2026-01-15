@@ -49,7 +49,10 @@
 
   <!-- 2) Configuración del viaje (€/persona) -->
   <div class="card">
-    <h3 class="cardTitle">⚙️ Configuración del viaje</h3>
+    <h3 class="cardTitle">
+      <span id="openTripConfigPhotoBtn" aria-label="Ver foto configuración">⚙️</span>
+      Configuración del viaje
+    </h3>
 
     <div class="grid">
       <div>
@@ -130,7 +133,7 @@
     <!-- TU CARD DE DATOS TAL CUAL -->
     <div class="dataRow">
       <div class="dataLeft">
-        <strong>Datos:</strong>
+        <strong><span id="openDatosPhotoBtn" aria-label="Ver foto datos">Datos:</span></strong>
         <button id="updateDataBtn" class="secondary">🔄 Actualizar datos</button>
         <button id="priceInsightsBtn" class="secondary">🧠 Resumen precios</button>
         <button id="openCommentsBtn" class="secondary">📝 Comentarios</button>
@@ -408,6 +411,42 @@
   
       <div class="modalActions">
         <button id="closeSkierPhotoBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="tripConfigPhotoView" class="modal hidden">
+    <div class="modalCard skierPhotoCard">
+      <div class="modalHeader">
+        <button class="iconBtn" id="closeTripConfigPhotoBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <img
+        src="resources/73995744-842a-49d2-a872-9bdbbef58b0b.jpg"
+        alt="Foto configuración del viaje"
+        class="skierPhotoImg"
+        loading="lazy"
+      />
+  
+      <div class="modalActions">
+        <button id="closeTripConfigPhotoBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="datosPhotoView" class="modal hidden">
+    <div class="modalCard skierPhotoCard">
+      <div class="modalHeader">
+        <button class="iconBtn" id="closeDatosPhotoBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <img
+        src="resources/8c101040-b0e6-4b0f-9f4d-98e30a364d7c.jpg"
+        alt="Foto Datos"
+        class="skierPhotoImg"
+        loading="lazy"
+      />
+  
+      <div class="modalActions">
+        <button id="closeDatosPhotoBtn">Cerrar</button>
       </div>
     </div>
   </div>

@@ -1114,3 +1114,12 @@ body {
     border-radius: 14px;
     border: 1px solid var(--border);
   }
+
+  /* ⚙️ clickable pero sin cambios visuales */
+#openTripConfigPhotoBtn {
+  cursor: pointer;
+}
+
+#openDatosPhotoBtn {
+  cursor: pointer;
+}
