@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SkiTrip · Comparador de estaciones</title>
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 
 <body>
@@ -12,7 +12,12 @@
 
     <header class="header">
       <div>
-        <h1 class="title">SkiTrip ⛷️</h1>
+        <h1 class="title">
+          SkiTrip
+          <button id="openSkierPhotoBtn" class="skierBtn" type="button" aria-label="Ver foto">
+            ⛷️
+          </button>
+        </h1>
         <p class="subtitle">Comparador de estaciones según distancia + coste estimado (€/persona)</p>
       </div>
     </header>
@@ -388,12 +393,30 @@
       </div>
     </div>
   </div>
+  <div id="skierPhotoView" class="modal hidden">
+    <div class="modalCard skierPhotoCard">
+      <div class="modalHeader">
+        <button class="iconBtn" id="closeSkierPhotoBtnX" aria-label="Cerrar" type="button">✕</button>
+      </div>
+  
+      <img
+        src="resources/1756c03f-a81f-432e-b955-6802afe0c93f.jpg"
+        alt="Foto SkiTrip"
+        class="skierPhotoImg"
+        loading="lazy"
+      />
+  
+      <div class="modalActions">
+        <button id="closeSkierPhotoBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
   <script src="groceries.js"></script>
   <script src="comments.js"></script>
   <script src="price-history.js"></script>
   <script src="price-insights.js"></script>
   <script src="open-km-history.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=9"></script>
   <script src="availability.js"></script>
 </div>
 </body>

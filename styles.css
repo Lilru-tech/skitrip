@@ -1078,3 +1078,39 @@ body {
 .dataLeft {
   gap: 8px; /* antes 10px */
 }
+
+/* =========================
+   BOTÓN ICONO ESQUIADOR
+   ========================= */
+   .skierBtn {
+    background: transparent;
+    border: none;
+    padding: 0 6px;
+    margin-left: 6px;
+    cursor: pointer;
+    font-size: 1.2em;
+    line-height: 1;
+    transform: translateY(2px);
+  }
+  
+  .skierBtn:hover {
+    filter: brightness(0.95);
+    transform: translateY(1px);
+  }
+  
+  /* =========================
+     MODAL FOTO ESQUIADOR
+     ========================= */
+  #skierPhotoView .skierPhotoCard {
+    width: min(960px, 96vw);
+    max-height: 86vh;
+    overflow: auto;
+  }
+  
+  .skierPhotoImg {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+  }

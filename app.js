@@ -1040,6 +1040,7 @@ async function main() {
       $('openKmHistoryView')?.classList.add('hidden');
       $('scoreBreakdownView')?.classList.add('hidden');
       $('availabilityView')?.classList.add('hidden');
+      $('skierPhotoView')?.classList.add('hidden');
     });
 
     $('openCommentsBtn')?.addEventListener('click', () => {
@@ -1202,6 +1203,34 @@ async function main() {
     console.error(e);
     setStatus(`Error: ${e.message}`);
   }
+
+  // ------------------------------
+// Modal foto esquiador
+// ------------------------------
+(function wireSkierPhotoModal() {
+  const openBtn = document.getElementById('openSkierPhotoBtn');
+  const view = document.getElementById('skierPhotoView');
+  const closeBtn = document.getElementById('closeSkierPhotoBtn');
+  const closeBtnX = document.getElementById('closeSkierPhotoBtnX');
+
+  if (!openBtn || !view) return;
+  console.log('[skier modal] wired ✅', { openBtn, view });
+  const open = () => {
+    console.log('[skier modal] open click ✅');
+    view.classList.remove('hidden');
+  };
+  const close = () => view.classList.add('hidden');
+
+  openBtn.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  closeBtnX?.addEventListener('click', close);
+
+  // Click fuera para cerrar
+  view.addEventListener('click', (e) => {
+    if (e.target?.id === 'skierPhotoView') close();
+  });
+})();
+
 }
 
 document.addEventListener('DOMContentLoaded', main);
