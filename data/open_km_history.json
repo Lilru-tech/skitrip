@@ -180,6 +180,11 @@
         "date": "2026-01-25",
         "openKm": 211,
         "totalKm": 215
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 198,
+        "totalKm": 215
       }
     ],
     "pal-arinsal": [
@@ -361,6 +366,11 @@
       {
         "date": "2026-01-25",
         "openKm": 63,
+        "totalKm": 63
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 54,
         "totalKm": 63
       }
     ],
@@ -544,6 +554,11 @@
         "date": "2026-01-25",
         "openKm": 26,
         "totalKm": 30
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 0,
+        "totalKm": 30
       }
     ],
     "alp-2500": [
@@ -725,6 +740,11 @@
       {
         "date": "2026-01-25",
         "openKm": 128,
+        "totalKm": 145
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 103,
         "totalKm": 145
       }
     ],
@@ -908,6 +928,11 @@
         "date": "2026-01-25",
         "openKm": 155,
         "totalKm": 173
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 137,
+        "totalKm": 173
       }
     ],
     "port-aine": [
@@ -1090,6 +1115,11 @@
         "date": "2026-01-25",
         "openKm": 0,
         "totalKm": 27
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 27,
+        "totalKm": 27
       }
     ],
     "espot-esqui": [
@@ -1270,6 +1300,11 @@
       },
       {
         "date": "2026-01-25",
+        "openKm": 8,
+        "totalKm": 25
+      },
+      {
+        "date": "2026-01-26",
         "openKm": 8,
         "totalKm": 25
       }
@@ -1454,6 +1489,11 @@
         "date": "2026-01-25",
         "openKm": 35,
         "totalKm": 45
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 35,
+        "totalKm": 45
       }
     ],
     "port-del-comte": [
@@ -1624,6 +1664,11 @@
       },
       {
         "date": "2026-01-25",
+        "openKm": 42,
+        "totalKm": 42
+      },
+      {
+        "date": "2026-01-26",
         "openKm": 42,
         "totalKm": 42
       }
@@ -1808,6 +1853,11 @@
         "date": "2026-01-25",
         "openKm": 8,
         "totalKm": 8
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 5,
+        "totalKm": 8
       }
     ],
     "cerler": [
@@ -1989,6 +2039,11 @@
       {
         "date": "2026-01-25",
         "openKm": 64,
+        "totalKm": 81
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 65,
         "totalKm": 81
       }
     ],
@@ -2172,6 +2227,11 @@
         "date": "2026-01-25",
         "openKm": 67,
         "totalKm": 143
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 115,
+        "totalKm": 143
       }
     ],
     "astun": [
@@ -2353,6 +2413,11 @@
       {
         "date": "2026-01-25",
         "openKm": 9,
+        "totalKm": 101
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 60,
         "totalKm": 101
       }
     ],
@@ -2536,6 +2601,11 @@
         "date": "2026-01-25",
         "openKm": 9,
         "totalKm": 101
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 60,
+        "totalKm": 101
       }
     ],
     "valdelinares": [
@@ -2718,6 +2788,11 @@
         "date": "2026-01-25",
         "openKm": 15,
         "totalKm": 17
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 17,
+        "totalKm": 17
       }
     ],
     "javalambre": [
@@ -2898,6 +2973,11 @@
       },
       {
         "date": "2026-01-25",
+        "openKm": 15,
+        "totalKm": 15
+      },
+      {
+        "date": "2026-01-26",
         "openKm": 15,
         "totalKm": 15
       }
@@ -3082,6 +3162,11 @@
         "date": "2026-01-25",
         "openKm": 43,
         "totalKm": 43
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 35,
+        "totalKm": 43
       }
     ],
     "les-angles": [
@@ -3262,6 +3347,11 @@
       },
       {
         "date": "2026-01-25",
+        "openKm": 51,
+        "totalKm": 55
+      },
+      {
+        "date": "2026-01-26",
         "openKm": 51,
         "totalKm": 55
       }
@@ -3445,6 +3535,11 @@
       {
         "date": "2026-01-25",
         "openKm": 78,
+        "totalKm": 80
+      },
+      {
+        "date": "2026-01-26",
+        "openKm": 80,
         "totalKm": 80
       }
     ]
