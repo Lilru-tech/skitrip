@@ -515,6 +515,11 @@
         "date": "2026-04-02",
         "openKm": 150,
         "totalKm": 215
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 189,
+        "totalKm": 215
       }
     ],
     "pal-arinsal": [
@@ -1030,6 +1035,11 @@
       },
       {
         "date": "2026-04-02",
+        "openKm": 61,
+        "totalKm": 63
+      },
+      {
+        "date": "2026-04-03",
         "openKm": 61,
         "totalKm": 63
       }
@@ -1549,6 +1559,11 @@
         "date": "2026-04-02",
         "openKm": 0,
         "totalKm": 30
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 30,
+        "totalKm": 30
       }
     ],
     "alp-2500": [
@@ -2065,6 +2080,11 @@
       {
         "date": "2026-04-02",
         "openKm": 18,
+        "totalKm": 71
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 46,
         "totalKm": 71
       }
     ],
@@ -2583,6 +2603,11 @@
         "date": "2026-04-02",
         "openKm": 57,
         "totalKm": 173
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 95,
+        "totalKm": 173
       }
     ],
     "port-aine": [
@@ -3099,6 +3124,11 @@
       {
         "date": "2026-04-02",
         "openKm": 7,
+        "totalKm": 27
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 27,
         "totalKm": 27
       }
     ],
@@ -3617,6 +3647,11 @@
         "date": "2026-04-02",
         "openKm": 6,
         "totalKm": 25
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 24,
+        "totalKm": 25
       }
     ],
     "boi-taull": [
@@ -4134,6 +4169,11 @@
         "date": "2026-04-02",
         "openKm": 0,
         "totalKm": 45
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 31,
+        "totalKm": 45
       }
     ],
     "port-del-comte": [
@@ -4640,6 +4680,11 @@
       {
         "date": "2026-04-02",
         "openKm": 37,
+        "totalKm": 42
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 35,
         "totalKm": 42
       }
     ],
@@ -5158,6 +5203,11 @@
         "date": "2026-04-02",
         "openKm": 0,
         "totalKm": 8
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 1,
+        "totalKm": 8
       }
     ],
     "cerler": [
@@ -5674,6 +5724,11 @@
       {
         "date": "2026-04-02",
         "openKm": 34,
+        "totalKm": 81
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 50,
         "totalKm": 81
       }
     ],
@@ -6192,6 +6247,11 @@
         "date": "2026-04-02",
         "openKm": 91,
         "totalKm": 143
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 127,
+        "totalKm": 143
       }
     ],
     "astun": [
@@ -6708,6 +6768,11 @@
       {
         "date": "2026-04-02",
         "openKm": 59,
+        "totalKm": 101
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 77,
         "totalKm": 101
       }
     ],
@@ -7226,6 +7291,11 @@
         "date": "2026-04-02",
         "openKm": 59,
         "totalKm": 101
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 77,
+        "totalKm": 101
       }
     ],
     "valdelinares": [
@@ -7743,6 +7813,11 @@
         "date": "2026-04-02",
         "openKm": 10,
         "totalKm": 17
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 11,
+        "totalKm": 17
       }
     ],
     "javalambre": [
@@ -8258,6 +8333,11 @@
       },
       {
         "date": "2026-04-02",
+        "openKm": 0,
+        "totalKm": 15
+      },
+      {
+        "date": "2026-04-03",
         "openKm": 0,
         "totalKm": 15
       }
@@ -8777,6 +8857,11 @@
         "date": "2026-04-02",
         "openKm": 26,
         "totalKm": 43
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 37,
+        "totalKm": 43
       }
     ],
     "les-angles": [
@@ -9294,6 +9379,11 @@
         "date": "2026-04-02",
         "openKm": 34,
         "totalKm": 55
+      },
+      {
+        "date": "2026-04-03",
+        "openKm": 34,
+        "totalKm": 55
       }
     ],
     "ax-3-domaines": [
@@ -9809,6 +9899,11 @@
       },
       {
         "date": "2026-04-02",
+        "openKm": 0,
+        "totalKm": 80
+      },
+      {
+        "date": "2026-04-03",
         "openKm": 0,
         "totalKm": 80
       }
