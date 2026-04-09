@@ -13,8 +13,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 84.5,
-      "hotelForfaitTop10Avg": 97.92,
+      "hotelForfaitCheapest": 84,
+      "hotelForfaitTop10Avg": 93.35,
       "rentalAvgPerDay": 38,
       "openKm": 0,
       "priceSource": "estiber",
@@ -76,7 +76,7 @@
       "hotelForfaitCheapest": 23,
       "hotelForfaitTop10Avg": 52.2,
       "rentalAvgPerDay": 35,
-      "openKm": 30,
+      "openKm": 27,
       "priceSource": "esquiades",
       "priceUrl": "https://www.esquiades.com/viajes-esqui/arcalis-1453",
       "openKmSource": "esquiades_estado_pistas",
@@ -104,7 +104,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 70.67,
-      "hotelForfaitTop10Avg": 82.68,
+      "hotelForfaitTop10Avg": 84.42,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
@@ -164,7 +164,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 61.5,
-      "hotelForfaitTop10Avg": 146.71,
+      "hotelForfaitTop10Avg": 146.57,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -344,7 +344,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 79.33,
-      "hotelForfaitTop10Avg": 99.65,
+      "hotelForfaitTop10Avg": 101.3,
       "rentalAvgPerDay": 36,
       "openKm": 0,
       "priceSource": "estiber",
@@ -373,8 +373,8 @@
     "apresScore": 6,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 26.33,
-      "hotelForfaitTop10Avg": 75.28,
+      "hotelForfaitCheapest": 24.67,
+      "hotelForfaitTop10Avg": 71.82,
       "rentalAvgPerDay": 34,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -404,7 +404,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 63,
-      "hotelForfaitTop10Avg": 81.33,
+      "hotelForfaitTop10Avg": 83.32,
       "rentalAvgPerDay": 33,
       "openKm": 0,
       "priceSource": "estiber",
