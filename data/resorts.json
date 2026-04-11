@@ -13,8 +13,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 92,
-      "hotelForfaitTop10Avg": 99.57,
+      "hotelForfaitCheapest": 84,
+      "hotelForfaitTop10Avg": 100.72,
       "rentalAvgPerDay": 38,
       "openKm": 0,
       "priceSource": "estiber",
@@ -74,7 +74,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 23,
-      "hotelForfaitTop10Avg": 52.2,
+      "hotelForfaitTop10Avg": 83.6,
       "rentalAvgPerDay": 35,
       "openKm": 27,
       "priceSource": "esquiades",
@@ -104,7 +104,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 70.67,
-      "hotelForfaitTop10Avg": 81.12,
+      "hotelForfaitTop10Avg": 85.13,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
@@ -164,7 +164,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 61.5,
-      "hotelForfaitTop10Avg": 137.75,
+      "hotelForfaitTop10Avg": 151.38,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -194,7 +194,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 53.5,
-      "hotelForfaitTop10Avg": 65.88,
+      "hotelForfaitTop10Avg": 63.82,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -344,7 +344,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 79.33,
-      "hotelForfaitTop10Avg": 99.65,
+      "hotelForfaitTop10Avg": 101.3,
       "rentalAvgPerDay": 36,
       "openKm": 0,
       "priceSource": "estiber",
@@ -374,9 +374,9 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 24.67,
-      "hotelForfaitTop10Avg": 67.27,
+      "hotelForfaitTop10Avg": 71.77,
       "rentalAvgPerDay": 34,
-      "openKm": 0,
+      "openKm": 35,
       "priceSource": "esquiades",
       "priceUrl": "https://www.esquiades.com/viajes-esqui/astun-1435",
       "openKmSource": "esquiades_estado_pistas",
@@ -404,9 +404,9 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 63,
-      "hotelForfaitTop10Avg": 82.87,
+      "hotelForfaitTop10Avg": 81.33,
       "rentalAvgPerDay": 33,
-      "openKm": 0,
+      "openKm": 35,
       "priceSource": "estiber",
       "priceUrl": "https://www.estiber.com/es_ES/ofertas-esqui-astun-candanchu",
       "openKmSource": "esquiades_estado_pistas",
