@@ -45987,6 +45987,250 @@
         97.33,
         97.33
       ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:02:40.337Z",
+      "resortId": "grandvalira",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-grandvalira",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 83,
+      "top10AvgUnit": 96.35,
+      "samples": [
+        83,
+        92,
+        93.5,
+        93.5,
+        94.5,
+        97.5,
+        98,
+        99.5,
+        106,
+        106
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:02:44.939Z",
+      "resortId": "pal-arinsal",
+      "provider": "esquiades",
+      "url": "https://www.esquiades.com/viajes-esqui/pal-arinsal-1451",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 52.67,
+      "top10AvgUnit": 64.48,
+      "samples": [
+        52.67,
+        57.33,
+        59,
+        64,
+        64.5,
+        65.33,
+        65.5,
+        70,
+        71,
+        75.5
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:02:49.555Z",
+      "resortId": "ordino-arcalis",
+      "provider": "esquiades",
+      "url": "https://www.esquiades.com/viajes-esqui/arcalis-1453",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 51.33,
+      "top10AvgUnit": 66.02,
+      "samples": [
+        51.33,
+        57.33,
+        64,
+        64.5,
+        65.5,
+        66,
+        69,
+        70,
+        75.5,
+        77
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:03:01.880Z",
+      "resortId": "alp-2500",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-la-molina",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 70.67,
+      "top10AvgUnit": 84.52,
+      "samples": [
+        70.67,
+        71,
+        75,
+        77.5,
+        84.5,
+        85.5,
+        94,
+        94.5,
+        96,
+        96.5
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:03:20.035Z",
+      "resortId": "port-aine",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-port-aine",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 61.5,
+      "top10AvgUnit": 140.56,
+      "samples": [
+        61.5,
+        69.5,
+        73,
+        75,
+        85.5,
+        99.5,
+        105.5,
+        555
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:03:27.886Z",
+      "resortId": "espot-esqui",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-espot",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 53.5,
+      "top10AvgUnit": 62.27,
+      "samples": [
+        53.5,
+        53.67,
+        60,
+        61.67,
+        62.67,
+        63.67,
+        64.5,
+        67.33,
+        67.67,
+        68
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:03:35.246Z",
+      "resortId": "boi-taull",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-boi-taull",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 76,
+      "top10AvgUnit": 83.83,
+      "samples": [
+        76,
+        79.5,
+        96
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:03:57.806Z",
+      "resortId": "cerler",
+      "provider": "esquiades",
+      "url": "https://www.esquiades.com/viajes-esqui/cerler-1418",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 59.33,
+      "top10AvgUnit": 97.43,
+      "samples": [
+        59.33,
+        80,
+        98.5,
+        102.5,
+        102.5,
+        105.5,
+        105.5,
+        106.5,
+        106.5,
+        107.5
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:04:08.177Z",
+      "resortId": "formigal-panticosa",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-formigal-panticosa",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 79.33,
+      "top10AvgUnit": 100.75,
+      "samples": [
+        79.33,
+        93,
+        97.5,
+        100.67,
+        103,
+        103.5,
+        106,
+        106.5,
+        107,
+        111
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:04:11.974Z",
+      "resortId": "astun",
+      "provider": "esquiades",
+      "url": "https://www.esquiades.com/viajes-esqui/astun-1435",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 79.5,
+      "top10AvgUnit": 87.65,
+      "samples": [
+        79.5,
+        80,
+        84,
+        87.5,
+        89.5,
+        89.5,
+        89.5,
+        90,
+        93,
+        94
+      ]
+    },
+    {
+      "date": "2026-04-19",
+      "ts": "2026-04-19T08:04:15.959Z",
+      "resortId": "candanchu",
+      "provider": "estiber",
+      "url": "https://www.estiber.com/es_ES/ofertas-esqui-astun-candanchu",
+      "days": 2,
+      "nights": null,
+      "cheapestUnit": 68,
+      "top10AvgUnit": 85.82,
+      "samples": [
+        68,
+        75.67,
+        76.67,
+        77,
+        89.5,
+        92,
+        92.5,
+        92.5,
+        97,
+        97.33
+      ]
     }
   ]
 }
