@@ -73,8 +73,8 @@
     "apresScore": 6,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 101.67,
-      "hotelForfaitTop10Avg": 127.27,
+      "hotelForfaitCheapest": 104.33,
+      "hotelForfaitTop10Avg": 126.3,
       "rentalAvgPerDay": 35,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -104,7 +104,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 94,
-      "hotelForfaitTop10Avg": 116.65,
+      "hotelForfaitTop10Avg": 112.33,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
@@ -133,8 +133,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 110,
-      "hotelForfaitTop10Avg": 164.05,
+      "hotelForfaitCheapest": 130.5,
+      "hotelForfaitTop10Avg": 165.5,
       "rentalAvgPerDay": 42,
       "openKm": 0,
       "priceSource": "estiber",
@@ -163,8 +163,8 @@
     "apresScore": 4,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 115.5,
-      "hotelForfaitTop10Avg": 156,
+      "hotelForfaitCheapest": 62.5,
+      "hotelForfaitTop10Avg": 80.9,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -194,7 +194,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 38.67,
-      "hotelForfaitTop10Avg": 54.38,
+      "hotelForfaitTop10Avg": 60.33,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -284,7 +284,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 33.67,
-      "hotelForfaitTop10Avg": 71.97,
+      "hotelForfaitTop10Avg": 70.52,
       "rentalAvgPerDay": 25,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -314,7 +314,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 78,
-      "hotelForfaitTop10Avg": 110.6,
+      "hotelForfaitTop10Avg": 108.4,
       "rentalAvgPerDay": 35,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -343,8 +343,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 98,
-      "hotelForfaitTop10Avg": 107.77,
+      "hotelForfaitCheapest": 86.67,
+      "hotelForfaitTop10Avg": 105.58,
       "rentalAvgPerDay": 36,
       "openKm": 0,
       "priceSource": "estiber",
@@ -374,7 +374,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 79.5,
-      "hotelForfaitTop10Avg": 85.65,
+      "hotelForfaitTop10Avg": 86.3,
       "rentalAvgPerDay": 34,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -404,7 +404,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 68.33,
-      "hotelForfaitTop10Avg": 84.03,
+      "hotelForfaitTop10Avg": 84.33,
       "rentalAvgPerDay": 33,
       "openKm": 0,
       "priceSource": "estiber",
@@ -433,8 +433,8 @@
     "apresScore": 4,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 60.33,
-      "hotelForfaitTop10Avg": 68.4,
+      "hotelForfaitCheapest": 61.33,
+      "hotelForfaitTop10Avg": 68.63,
       "rentalAvgPerDay": 28,
       "openKm": 0,
       "priceSource": "estiber",
@@ -464,7 +464,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 58,
-      "hotelForfaitTop10Avg": 74.73,
+      "hotelForfaitTop10Avg": 77.27,
       "rentalAvgPerDay": 27,
       "openKm": 0,
       "priceSource": "estiber",
@@ -494,7 +494,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 62.67,
-      "hotelForfaitTop10Avg": 67.35,
+      "hotelForfaitTop10Avg": 67.4,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
@@ -523,8 +523,8 @@
     "apresScore": 6,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 72.67,
-      "hotelForfaitTop10Avg": 80.85,
+      "hotelForfaitCheapest": 73.33,
+      "hotelForfaitTop10Avg": 82.75,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
