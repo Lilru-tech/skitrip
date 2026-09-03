@@ -14,7 +14,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 82,
-      "hotelForfaitTop10Avg": 89.75,
+      "hotelForfaitTop10Avg": 90.2,
       "rentalAvgPerDay": 38,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -73,8 +73,8 @@
     "apresScore": 6,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 68.5,
-      "hotelForfaitTop10Avg": 111.48,
+      "hotelForfaitCheapest": 70,
+      "hotelForfaitTop10Avg": 110.93,
       "rentalAvgPerDay": 35,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -103,8 +103,8 @@
     "apresScore": 10,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 93.67,
-      "hotelForfaitTop10Avg": 112.47,
+      "hotelForfaitCheapest": 70,
+      "hotelForfaitTop10Avg": 112.2,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
@@ -164,7 +164,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 131,
-      "hotelForfaitTop10Avg": 160.05,
+      "hotelForfaitTop10Avg": 160.45,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -193,8 +193,8 @@
     "apresScore": 3,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 38.67,
-      "hotelForfaitTop10Avg": 57.95,
+      "hotelForfaitCheapest": 39,
+      "hotelForfaitTop10Avg": 57.32,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "estiber",
@@ -224,7 +224,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 56.5,
-      "hotelForfaitTop10Avg": 72.35,
+      "hotelForfaitTop10Avg": 71.45,
       "rentalAvgPerDay": 30,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -314,7 +314,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 77.5,
-      "hotelForfaitTop10Avg": 109.45,
+      "hotelForfaitTop10Avg": 109.2,
       "rentalAvgPerDay": 35,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -344,7 +344,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 92,
-      "hotelForfaitTop10Avg": 105.52,
+      "hotelForfaitTop10Avg": 105.67,
       "rentalAvgPerDay": 36,
       "openKm": 0,
       "priceSource": "estiber",
@@ -374,7 +374,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 79.5,
-      "hotelForfaitTop10Avg": 86.15,
+      "hotelForfaitTop10Avg": 86.2,
       "rentalAvgPerDay": 34,
       "openKm": 0,
       "priceSource": "esquiades",
@@ -404,7 +404,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 68.33,
-      "hotelForfaitTop10Avg": 84.03,
+      "hotelForfaitTop10Avg": 83.88,
       "rentalAvgPerDay": 33,
       "openKm": 0,
       "priceSource": "estiber",
@@ -433,8 +433,8 @@
     "apresScore": 4,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 61.33,
-      "hotelForfaitTop10Avg": 72.5,
+      "hotelForfaitCheapest": 65,
+      "hotelForfaitTop10Avg": 72.85,
       "rentalAvgPerDay": 28,
       "openKm": 0,
       "priceSource": "estiber",
@@ -463,8 +463,8 @@
     "apresScore": 3,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 56.67,
-      "hotelForfaitTop10Avg": 77.3,
+      "hotelForfaitCheapest": 62.67,
+      "hotelForfaitTop10Avg": 80.5,
       "rentalAvgPerDay": 27,
       "openKm": 0,
       "priceSource": "estiber",
@@ -494,7 +494,7 @@
     "defaultRentalPrice": null,
     "pricing": {
       "hotelForfaitCheapest": 62.67,
-      "hotelForfaitTop10Avg": 65.98,
+      "hotelForfaitTop10Avg": 66.68,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
@@ -523,8 +523,8 @@
     "apresScore": 6,
     "defaultRentalPrice": null,
     "pricing": {
-      "hotelForfaitCheapest": 73.33,
-      "hotelForfaitTop10Avg": 83.28,
+      "hotelForfaitCheapest": 72.67,
+      "hotelForfaitTop10Avg": 81.55,
       "rentalAvgPerDay": 32,
       "openKm": 0,
       "priceSource": "estiber",
