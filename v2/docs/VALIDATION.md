@@ -18,7 +18,12 @@ Fecha: 30/09/2026. Rama `rebuild/v2`. Todo lo que aparece aquí se ha ejecutado 
 | Typecheck (`tsc`) | — | ✔ |
 | Recorrido mínimo (`npm run demo:e2e`): emulador Auth + `wrangler dev` + D1 local | 12 comprobaciones | ✔ |
 
-<!-- UI_RESULTS -->
+| Playwright (`npm run e2e`) a 360 px, 390 px y 1280 px contra emulador Auth + Worker + D1 local | 27 (9 por tamaño) | ✔ 27/27 |
+| Build de la SPA (`vite build`) | — | ✔ (405 kB JS, 121 kB gzip; sin scripts ni estilos en línea) |
+
+Recorridos e2e: registro y alias, amistad, compartir, marcar días, crear viaje e invitar, ventana común con ambos libres, proponer y votar fechas; contraseña errónea; ausencia de emails ajenos; sin desbordamiento horizontal en 14 páginas; calendario usable solo con teclado; foco devuelto al cerrar diálogos; patrón semanal con excepción.
+
+Sin probar en la interfaz: lector de pantalla real (sí nombres y roles ARIA), restablecimiento de contraseña con Firebase real, acciones de administración de miembros y el diálogo de conflicto de versión (el 409 sí está probado en la API).
 
 ## Implementado y probado
 
