@@ -87,8 +87,8 @@ catalogRoutes.get('/areas/:id', async (c) => {
     db.prepare(`SELECT c.id, c.body, c.created_at, c.updated_at, u.id AS author_id, u.alias AS author_alias FROM comments c JOIN users u ON u.id = c.author_id
                 WHERE c.scope = 'area_public' AND c.area_id = ?1 AND c.hidden = 0 AND c.deleted_at IS NULL ORDER BY c.created_at DESC LIMIT 100`).bind(id),
     // Ofertas orientativas recientes (sin escenario): fechas/ocupación del proveedor, con enlace para consultar.
-    db.prepare(`SELECT o.id, o.provider_id, o.hotel_name_raw, o.modality, o.board, o.nights, o.forfait_days, o.adults, o.check_in, o.check_out, o.url,
-                       ob.observed_at, ob.amount_cents, ob.unit, ob.price_kind, ob.availability
+    db.prepare(`SELECT o.id, o.provider_id, o.hotel_name_raw, o.modality, o.forfait_included, o.board, o.nights, o.forfait_days, o.adults, o.children_ages, o.rooms,
+                       o.check_in, o.check_out, o.url, ob.observed_at, ob.amount_cents, ob.unit, ob.price_kind, ob.availability, ob.warnings
                 FROM offers o JOIN offer_observations ob ON ob.offer_id = o.id
                 WHERE o.area_id = ?1 AND ob.scenario_id IS NULL AND ob.observed_at >= ?2
                   AND ob.observed_at = (SELECT MAX(observed_at) FROM offer_observations x WHERE x.offer_id = o.id AND x.scenario_id IS NULL)
@@ -112,7 +112,10 @@ catalogRoutes.get('/areas/:id', async (c) => {
     comments: comments.results,
     legacyComments: (legacyComments.results as any[]).map((l) => ({ id: l.id, body: l.body, legacyAuthorName: l.legacy_author_name, dateText: l.created_at_text, linkedAlias: l.linked_alias ?? null })),
     legacyCommentsNote: 'Comentarios de la hoja antigua. El autor es el nombre escrito en la hoja (texto libre): no identifica una cuenta salvo vinculación explícita de administración.',
-    offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.', items: offers.results },
+    // «modality» es técnica; lo visible es forfaitIncluded: 'unknown' nunca se presenta como «solo alojamiento».
+    offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.',
+      items: (offers.results as any[]).map(({ forfait_included, warnings, children_ages, ...o }) => ({ ...o, forfaitIncluded: forfait_included ?? 'unknown',
+        childrenAges: children_ages ? JSON.parse(children_ages) : null, warnings: warnings ? JSON.parse(warnings) : [] })) },
   });
 });
 

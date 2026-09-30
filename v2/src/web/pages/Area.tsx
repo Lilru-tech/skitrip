@@ -2,16 +2,21 @@ import { get } from '../api';
 import { Freshness } from '../components/Badges';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
-import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, instant, kmText, MODALITY_LABEL, OP_STATUS_LABEL, PRICE_KIND_LABEL, RUN_STATUS_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
+import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, instant, kmText, OP_STATUS_LABEL, PRICE_KIND_LABEL, RUN_STATUS_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { useSession } from '../session';
 import type { AreaDetail, Snow } from '../catalog';
 import { SnowKm } from './Compare';
 
+type Forfait = 'yes' | 'no' | 'unknown';
+const FORFAIT_LABEL: Record<Forfait, string> = { no: 'Solo alojamiento', yes: 'Alojamiento + forfait', unknown: 'Forfait sin confirmar' };
+const FORFAIT_PARAM: Record<Forfait, string | null> = { no: null, yes: 'lodging_forfait', unknown: 'sin-confirmar' };
+
 export function AreaPage({ areaId }: { areaId: string }) {
   const { query } = useLocation();
-  const mode = query.get('modalidad') === 'lodging_forfait' ? 'lodging_forfait' : 'lodging';
+  const q = query.get('modalidad');
+  const mode: Forfait = q === 'lodging_forfait' ? 'yes' : q === 'sin-confirmar' ? 'unknown' : 'no';
   const { state } = useSession();
   const profile = state.status === 'ready' ? state.profile : null;
   const d = useResource(() => get<AreaDetail>(`/api/public/areas/${encodeURIComponent(areaId)}`), [areaId]);
@@ -23,7 +28,8 @@ export function AreaPage({ areaId }: { areaId: string }) {
   const parents = links.filter((l) => l.child_id === area.id);
   const children = links.filter((l) => l.parent_id === area.id);
   const latest = snow.at(-1) ?? null;
-  const items = offers.items.filter((o) => o.modality === mode);
+  const count = (f: Forfait) => offers.items.filter((o) => o.forfaitIncluded === f).length;
+  const items = offers.items.filter((o) => o.forfaitIncluded === mode);
 
   return (
     <div className="page page-wide">
@@ -70,12 +76,15 @@ export function AreaPage({ areaId }: { areaId: string }) {
         <h2 id="a-offers">Ofertas orientativas</h2>
         <p className="notice notice-warn"><strong>{offers.note}</strong></p>
         <fieldset className="radio-group">
-          <legend>Modalidad</legend>
-          {(['lodging', 'lodging_forfait'] as const).map((m) => (
-            <label key={m} className="radio"><input type="radio" name="area-mode" checked={mode === m} onChange={() => setQuery('modalidad', m === 'lodging' ? null : m)} /> {MODALITY_LABEL[m]}</label>
+          <legend>Forfait</legend>
+          {(['no', 'yes', 'unknown'] as const).map((f) => (
+            <label key={f} className="radio">
+              <input type="radio" name="area-mode" checked={mode === f} onChange={() => setQuery('modalidad', FORFAIT_PARAM[f])} /> {FORFAIT_LABEL[f]} <span className="muted">({count(f)})</span>
+            </label>
           ))}
         </fieldset>
-        {items.length === 0 ? <p className="muted">No hay ofertas recientes (14 días) en modo «{MODALITY_LABEL[mode]}».</p> : (
+        {mode === 'unknown' && <p className="small muted">La tarjeta del proveedor no indica si incluye forfait, o lo indica de forma contradictoria. No se asume «solo alojamiento».</p>}
+        {items.length === 0 ? <p className="muted">No hay ofertas recientes (14 días) en «{FORFAIT_LABEL[mode]}».</p> : (
           <ul className="list">
             {items.map((o) => (
               <li key={o.id} className="offer-row">
@@ -83,11 +92,14 @@ export function AreaPage({ areaId }: { areaId: string }) {
                 <p>
                   {o.amount_cents == null ? 'Sin precio' : <strong>{euros(o.amount_cents)}</strong>} <span>{UNIT_LABEL[o.unit] ?? o.unit}</span>{' '}
                   <span className="tag tag-quiet">{PRICE_KIND_LABEL[o.price_kind] ?? o.price_kind}</span>
+                  {o.forfaitIncluded === 'unknown' && <> <span className="tag tag-warn">Forfait sin confirmar</span></>}
                 </p>
                 <p className="small muted">
                   Condiciones del proveedor: {o.check_in && o.check_out ? `${o.check_in} → ${o.check_out}` : 'fechas no indicadas'}{o.nights != null && ` · ${o.nights} noches`}{o.adults != null && ` · ${o.adults} adultos`}
+                  {o.childrenAges && (o.childrenAges.length ? ` · menores de ${o.childrenAges.join(', ')} años` : ' · sin menores')}{o.rooms != null && ` · ${o.rooms} hab.`}
                   {o.forfait_days != null && ` · ${o.forfait_days} días de forfait`} · {AVAILABILITY_LABEL[o.availability] ?? o.availability} · visto {instant(o.observed_at)}
                 </p>
+                {o.warnings.length > 0 && <ul className="small text-warn offer-warnings">{o.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
                 {o.url && <a href={o.url} target="_blank" rel="noopener noreferrer nofollow" className="small">Consultar en el proveedor<span className="visually-hidden"> (se abre en otra pestaña)</span></a>}
               </li>
             ))}

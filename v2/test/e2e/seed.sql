@@ -46,12 +46,16 @@ INSERT INTO legacy_snow_observations (file_id, legacy_resort_id, obs_date, open_
   ('e2e-legacy', 'beta', '2026-02-10', 0, 90, '["cero posiblemente «-»"]', 'e2e-beta');
 
 INSERT OR IGNORE INTO providers (id, name, base_url, enabled) VALUES ('esquiades', 'Esquiades', 'https://example.invalid', 0), ('estiber', 'Estiber', 'https://example.invalid', 0);
-INSERT INTO offers (id, provider_id, hotel_name_raw, area_id, modality, check_in, check_out, nights, adults, board, url, identity_hash, first_seen_at) VALUES
-  ('e2e-o1', 'esquiades', 'Hotel Uno (sintético)', 'e2e-beta', 'lodging', '2027-01-15', '2027-01-17', 2, 2, 'AD', 'https://example.invalid/o1', 'e2e-o1', 0),
-  ('e2e-o2', 'estiber', 'Apartamentos Dos (sintético)', 'e2e-beta', 'lodging_forfait', '2027-02-05', '2027-02-07', 2, 4, 'SA', 'https://example.invalid/o2', 'e2e-o2', 0);
-INSERT INTO offer_observations (id, offer_id, scenario_id, observed_at, price_kind, amount_cents, unit, availability, extractor, content_hash) VALUES
-  ('e2e-ob1', 'e2e-o1', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 8900, 'per_person', 'available', 'e2e', 'c1'),
-  ('e2e-ob2', 'e2e-o2', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 31000, 'per_room', 'unknown', 'e2e', 'c2');
+INSERT INTO offers (id, provider_id, hotel_name_raw, area_id, modality, forfait_included, check_in, check_out, nights, adults, board, url, identity_hash, first_seen_at) VALUES
+  ('e2e-o1', 'esquiades', 'Hotel Uno (sintético)', 'e2e-beta', 'lodging', 'no', '2027-01-15', '2027-01-17', 2, 2, 'AD', 'https://example.invalid/o1', 'e2e-o1', 0),
+  ('e2e-o2', 'estiber', 'Apartamentos Dos (sintético)', 'e2e-beta', 'lodging_forfait', 'yes', '2027-02-05', '2027-02-07', 2, 4, 'SA', 'https://example.invalid/o2', 'e2e-o2', 0),
+  ('e2e-o3', 'estiber', 'Hostal Tres (sintético)', 'e2e-beta', 'lodging', 'unknown', NULL, NULL, 2, 2, NULL, 'https://example.invalid/o3', 'e2e-o3', 0),
+  ('e2e-o4', 'estiber', 'Hotel Cuatro (sintético)', 'e2e-beta', 'lodging', 'unknown', NULL, NULL, 2, 2, NULL, 'https://example.invalid/o4', 'e2e-o4', 0);
+INSERT INTO offer_observations (id, offer_id, scenario_id, observed_at, price_kind, amount_cents, unit, availability, extractor, content_hash, warnings) VALUES
+  ('e2e-ob1', 'e2e-o1', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 8900, 'per_person', 'available', 'e2e', 'c1', NULL),
+  ('e2e-ob2', 'e2e-o2', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 31000, 'per_room', 'unknown', 'e2e', 'c2', NULL),
+  ('e2e-ob3', 'e2e-o3', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 7000, 'per_person', 'available', 'e2e', 'c3', '["Precio orientativo aunque no diga «desde»: la tarjeta no declara fechas y ocupación completas."]'),
+  ('e2e-ob4', 'e2e-o4', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 9500, 'per_person', 'available', 'e2e', 'c4', '["La tarjeta menciona forfait y «solo alojamiento/sin forfait» a la vez: forfait desconocido."]');
 
 -- Hoja antigua (sintético): compra recuperable y un comentario publicado por administración.
 INSERT INTO legacy_shopping_items (id, file_id, row_hash, name, quantity_text, price_text, legacy_person_name, extra_json) VALUES

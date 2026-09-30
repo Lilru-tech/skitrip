@@ -3,6 +3,7 @@
 // leía precios tachados, exigía «2 días» de forfait, dividía mal por noches y promediaba un «top 10».
 import { classes, findAll, findOutermost, parseHtml, textContent, type El } from './html';
 import { findMoney, parseAmount, type Money } from './money';
+import { offerConditionsKey } from '../offer-identity';
 
 export type Provider = 'esquiades' | 'estiber';
 export type PriceUnit = 'per_person' | 'per_room' | 'per_night' | 'per_person_night' | 'per_stay' | 'unknown';
@@ -268,14 +269,10 @@ export function parseOfferCardsHtml(html: string, provider: Provider): OfferCard
 
 // ---------- deduplicado y resumen ----------
 
-const norm = (s: string | null) =>
-  s === null ? null : s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-
-/** Clave de identidad + condiciones. El precio NUNCA forma parte de la clave. null = no deduplicable. */
+/** Clave de identidad + condiciones (compartida con la ingesta, ver core/offer-identity). El precio NUNCA forma parte. null = no deduplicable. */
 export function cardKey(c: OfferCard): string | null {
-  const who = c.providerOfferId ? `id:${c.provider}:${c.providerOfferId}` : c.hotelName ? `h:${norm(c.hotelName)}` : null;
-  if (!who) return null;
-  return JSON.stringify([who, c.board, c.nights, c.forfaitDays, c.unit, c.adults, c.cancellation]);
+  const k = offerConditionsKey(c);
+  return k ? JSON.stringify([c.provider, ...k]) : null;
 }
 
 export function dedupeCards(cards: readonly OfferCard[]): OfferCard[] {

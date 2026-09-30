@@ -1,3 +1,4 @@
+import { forfaitState, offerConditionsKey } from '../../core/offer-identity';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { classifySnow } from '../../core/parsers/snow';
@@ -199,7 +200,6 @@ const zOfferIn = z.object({
 type OfferIn = z.infer<typeof zOfferIn>;
 type ScenarioRow = { id: string; provider_id: string; area_id: string; modality: string; check_in: string; check_out: string; nights: number; adults: number; children_ages: string; rooms: number | null; forfait_days: number | null };
 
-const norm = (s?: string | null) => (s ?? '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
 const sameAges = (a: number[] | null | undefined, b: number[]) => a != null && JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
 /**
@@ -216,11 +216,6 @@ export function verifyConditions(o: OfferIn, sc: ScenarioRow): { verified: boole
   if (sc.modality === 'lodging_forfait' && (o.forfaitIncluded !== 'yes' || o.forfaitDays !== sc.forfait_days)) missing.push('forfait');
   if (sc.modality === 'lodging' && o.forfaitIncluded !== 'no') missing.push('sin forfait');
   return { verified: missing.length === 0, missing };
-}
-
-function forfaitOf(o: OfferIn): 'yes' | 'no' | 'unknown' {
-  if (o.forfaitIncluded) return o.forfaitIncluded;
-  return o.forfaitDays && o.forfaitDays > 0 ? 'yes' : 'unknown'; // null NO significa «sin forfait»
 }
 
 // Ofertas: 2 lecturas + 1 batch de 10 sentencias = 12 sentencias por POST (≤ MAX_ITEMS ofertas en total).
@@ -269,12 +264,11 @@ ingestRoutes.post('/offers', async (c) => {
     } else if (o.priceKind === 'quoted_for_search') {
       warnings.push('Página de catálogo: precio orientativo aunque no diga «desde».');
     }
-    const forfait = forfaitOf(o);
-    const key = o.providerOfferId ?? norm(o.hotelName);
+    const forfait = forfaitState(o);
+    const key = offerConditionsKey(o);
     if (!key) { rejected++; return; }
-    // Identidad = contexto + proveedor + ámbito + oferta/hotel + condiciones declaradas (+ escenario). El precio NO forma parte.
-    const identity = await sha256Hex(JSON.stringify([context, provider, areaId, sc?.id ?? null, key, o.board ?? null, o.cancellation ?? null, o.unit,
-      o.nights ?? null, o.checkIn ?? null, o.checkOut ?? null, o.adults ?? null, o.childrenAges ? [...o.childrenAges].sort() : null, o.rooms ?? null, forfait, o.forfaitDays ?? null]));
+    // Identidad = contexto + proveedor + ámbito + escenario + la misma clave de condiciones que usa el recolector. El precio NO forma parte.
+    const identity = await sha256Hex(JSON.stringify([context, provider, areaId, sc?.id ?? null, ...key]));
     offers.push({ id: crypto.randomUUID(), provider, offerId: o.providerOfferId, hotel: o.hotelName, areaId, modality: forfait === 'yes' ? 'lodging_forfait' : 'lodging',
       checkIn: o.checkIn ?? null, checkOut: o.checkOut ?? null, nights: o.nights ?? null, adults: o.adults ?? null, childrenAges: o.childrenAges ? JSON.stringify(o.childrenAges) : null,
       rooms: o.rooms ?? null, board: o.board ?? null, cancellation: o.cancellation ?? null, forfaitDays: o.forfaitDays ?? null, forfait, url: o.url ?? null, identity,

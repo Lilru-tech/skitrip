@@ -157,3 +157,5 @@
 .basket-chart .gap { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
 .cost-figure { font-family: var(--font-serif); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .cost-card.is-incomplete { border-style: dashed; }
+.text-warn { color: var(--st-maybe-fg); }
+.offer-warnings { margin: 0.25rem 0 0; padding-left: 1.1rem; }

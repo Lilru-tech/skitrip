@@ -142,7 +142,16 @@ test('ficha de estación: ofertas por modalidad con su nota y unidades', async (
   await expect(page.locator('main')).not.toContainText('Apartamentos Dos');
   await page.getByRole('radio', { name: 'Alojamiento + forfait' }).check();
   await expect(page.locator('main')).toContainText('Apartamentos Dos');
-  await expect(page.locator('main')).not.toContainText('Hotel Uno');
+  await expect(page.locator('main')).not.toContainText('Hotel Uno');  // Forfait desconocido o contradictorio: ni en «Solo alojamiento» ni perdida; grupo propio con su aviso.
+  await expect(page.locator('main')).not.toContainText('Hostal Tres');
+  await page.getByRole('radio', { name: /Forfait sin confirmar/ }).check();
+  await expect(page.locator('main')).toContainText('Hostal Tres');
+  await expect(page.locator('main')).toContainText('Hotel Cuatro');
+  await expect(page.locator('main')).toContainText('menciona forfait y «solo alojamiento/sin forfait» a la vez');
+  await expect(page.locator('main')).not.toContainText('Apartamentos Dos');
+  await page.getByRole('radio', { name: /Solo alojamiento/ }).check();
+  await expect(page.locator('main')).toContainText('Hotel Uno');
+  await expect(page.locator('main')).not.toContainText('Hostal Tres');
 });
 
 test('sin desbordamiento horizontal en las páginas nuevas', async ({ page, request }, info) => {

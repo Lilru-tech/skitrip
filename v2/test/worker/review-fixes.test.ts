@@ -3,6 +3,8 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { api, signup } from './helpers';
 import { parseGrandvalira } from '../../src/core/parsers/official-snow';
+import { dedupeCards, parseOfferCardsHtml } from '../../src/core/parsers/offers';
+import { cardToOffer } from '../../tools/collectors/offer-payload';
 import grandvaliraReal from '../fixtures/real/grandvalira-estado-pistas.2026-09-30.txt?raw';
 
 const INGEST = 'test-ingest-token';
@@ -434,5 +436,33 @@ describe('7 · fuente oficial de nieve (Grandvalira) con texto real', () => {
     expect(row).toEqual({ op_status: 'unknown', open_km: 0, total_km: 215, open_lifts: 4, source_date: '2026-09-23' });
     const cat = await SELF.fetch('http://localhost/api/public/catalog').then((x) => x.json<any>());
     expect(cat.areas.find((a: any) => a.id === 'rv-gv').snow.rank.excluded).toBe('estado_desconocido');
+  });
+});
+
+describe('revisión final 1–2 · extracción → ingesta → ficha pública', () => {
+  const art = (id: string, cond: string, price = '200 €') => `<article data-offer-id="${id}"><h3>Hotel ${id}</h3><p>${cond}</p><span class="price">${price} por persona</span></article>`;
+  it('dos fechas con la misma duración llegan como dos ofertas; forfait sí/no/desconocido/contradictorio se conserva con avisos', async () => {
+    const html = art('f1', 'del 10/12/2026 al 12/12/2026, 2 adultos, sin menores, 1 habitación, 2 noches, sin forfait')
+      + art('f1', 'del 10/02/2027 al 12/02/2027, 2 adultos, sin menores, 1 habitación, 2 noches, sin forfait')
+      + art('f2', '2 noches, forfait 2 días incluido, 2 adultos')
+      + art('f3', '2 noches, 2 adultos')
+      + art('f4', '2 noches, forfait 1 día, solo alojamiento, 2 adultos');
+    const offers = dedupeCards(parseOfferCardsHtml(html, 'estiber')).map((c) => cardToOffer(c, 'estiber-cards@1'));
+    expect(offers).toHaveLength(5);
+    const t = Date.now() - 60_000;
+    const r = await ingest('offers', { run: run('rv-final-offers', { expected: 1, ok: 1 }), observedAt: t, results: [], catalog: [{ sourceId: 'rv-off-cer', outcome: 'results', offers }] });
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ accepted: 5, written: 5 });
+    const area = await SELF.fetch('http://localhost/api/public/areas/rv-cerler').then((x) => x.json<any>());
+    const mine = area.offers.items.filter((o: any) => /^Hotel f[1-4]$/.test(o.hotel_name_raw));
+    expect(mine).toHaveLength(5);
+    const by = (h: string) => mine.filter((o: any) => o.hotel_name_raw === h);
+    expect(by('Hotel f1').map((o: any) => o.check_in).sort()).toEqual(['2026-12-10', '2027-02-10']);
+    expect(by('Hotel f1')[0].forfaitIncluded).toBe('no');
+    expect(by('Hotel f2')[0].forfaitIncluded).toBe('yes');
+    expect(by('Hotel f3')[0]).toMatchObject({ forfaitIncluded: 'unknown' });
+    expect(by('Hotel f4')[0].forfaitIncluded).toBe('unknown');
+    expect(by('Hotel f4')[0].warnings.join(' ')).toMatch(/forfait/i);
+    expect(by('Hotel f3')[0].warnings.join(' ')).toMatch(/orientativo/i);
   });
 });

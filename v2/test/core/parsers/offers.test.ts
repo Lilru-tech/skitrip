@@ -144,3 +144,27 @@ describe('revisión 5 · tipo de precio y modalidad', () => {
     expect(c.warnings.join(' ')).toMatch(/120/);
   });
 });
+
+describe('revisión final 1 · el deduplicado conserva las condiciones que distinguen una serie', () => {
+  const art = (cond: string, id = 'hotel1') => `<article data-offer-id="${id}"><h3>Hotel Uno</h3><p>${cond}</p><span class="price">200 € por persona</span></article>`;
+  const base = 'del 10/12/2026 al 12/12/2026, 2 adultos, sin menores, 1 habitación, 2 noches, sin forfait';
+  const kept = (a: string, b: string) => dedupeCards(parseOfferCardsHtml(art(a) + art(b), 'esquiades')).length;
+  it('reproducción de la revisión: mismas noches, otras fechas → dos ofertas', () => {
+    expect(kept(base, 'del 10/02/2027 al 12/02/2027, 2 adultos, sin menores, 1 habitación, 2 noches, sin forfait')).toBe(2);
+  });
+  it('edades de menores distintas, habitaciones distintas y forfait desconocido frente a «sin forfait» → dos ofertas', () => {
+    expect(kept('del 10/12/2026 al 12/12/2026, 2 adultos y 2 niños de 6 y 9 años, 2 noches', 'del 10/12/2026 al 12/12/2026, 2 adultos y 2 niños de 4 y 9 años, 2 noches')).toBe(2);
+    expect(kept(base, base.replace('1 habitación', '2 habitaciones'))).toBe(2);
+    expect(kept(base, base.replace(', sin forfait', ''))).toBe(2);
+  });
+  it('un duplicado real sigue sin duplicarse (también con edades en otro orden)', () => {
+    expect(kept(base, base)).toBe(1);
+    expect(kept('2 adultos y 2 niños de 9 y 10 años, 2 noches', '2 adultos y 2 niños de 10 y 9 años, 2 noches')).toBe(1);
+  });
+  it('la carga que envía el recolector conserva las dos ofertas y sus condiciones', async () => {
+    const { cardToOffer } = await import('../../../tools/collectors/offer-payload');
+    const cards = dedupeCards(parseOfferCardsHtml(art(base) + art(base.replace('10/12/2026 al 12/12/2026', '10/02/2027 al 12/02/2027')), 'esquiades'));
+    const sent = cards.map((c) => cardToOffer(c, 't@1'));
+    expect(sent.map((o) => [o.checkIn, o.checkOut, o.forfaitIncluded, o.rooms])).toEqual([['2026-12-10', '2026-12-12', 'no', 1], ['2027-02-10', '2027-02-12', 'no', 1]]);
+  });
+});

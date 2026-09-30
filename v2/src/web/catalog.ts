@@ -25,6 +25,8 @@ export interface SourceRow {
 export interface AreaOffer {
   id: string; provider_id: string; hotel_name_raw: string | null; modality: 'lodging' | 'lodging_forfait'; board: string | null; nights: number | null; forfait_days: number | null;
   adults: number | null; check_in: string | null; check_out: string | null; url: string | null; observed_at: number; amount_cents: number | null; unit: string; price_kind: string; availability: string;
+  /** Lo visible: 'unknown' nunca se presenta como «solo alojamiento». */
+  forfaitIncluded: 'yes' | 'no' | 'unknown'; rooms: number | null; childrenAges: number[] | null; warnings: string[];
 }
 export interface LegacyComment { id: string; body: string; legacyAuthorName: string | null; dateText: string | null; linkedAlias: string | null }
 export interface AreaComment { id: string; body: string; created_at: number; updated_at: number; author_id: string; author_alias: string }

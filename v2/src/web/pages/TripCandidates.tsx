@@ -104,7 +104,7 @@ function Candidates({ tripId, detail }: { tripId: string; detail: TripDetail }) 
             return (
               <li key={c.id} className={`card ${c.status === 'discarded' ? 'is-muted' : ''} ${c.price_kind === 'manual_estimate' ? 'is-estimate' : ''}`}>
                 <div className="card-head"><h3>{c.title}</h3><span className={`tag ${c.status === 'booked' ? 'tag-ok' : c.status === 'discarded' ? 'tag-quiet' : ''}`}>{STATUS_LABEL[c.status]}</span></div>
-                <p className="small">{MODALITY_LABEL[c.modality] ?? c.modality} · propone {c.proposed_by_alias}</p>
+                <p className="small">{c.forfait_included === 'unknown' ? 'Alojamiento (forfait sin confirmar)' : MODALITY_LABEL[c.modality] ?? c.modality} · propone {c.proposed_by_alias}</p>
                 <p>{c.amount_cents != null ? <><strong>{c.price_kind === 'manual_estimate' ? '≈ ' : ''}{euros(c.amount_cents)}</strong> {c.unit ? UNIT_LABEL[c.unit] ?? c.unit : ''} {c.price_kind === 'manual_estimate'
                   ? <span className="tag tag-estimate">Estimación manual, no es una cotización</span>
                   : c.price_kind && <span className="tag tag-quiet">{PRICE_KIND_LABEL[c.price_kind] ?? c.price_kind}</span>}</> : <span className="muted">Sin precio</span>}</p>
