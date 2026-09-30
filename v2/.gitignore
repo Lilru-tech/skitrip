@@ -6,3 +6,7 @@ test-results/
 playwright-report/
 *.log
 exports/
+.env
+.env.*.local
+.env.local
+test/e2e/.state/

@@ -25,5 +25,7 @@
     "ALLOWED_ORIGINS": "",
     "MAX_PROFILES": "50"
   },
+  // Limpieza diaria de contadores de límite de peticiones (1 de los 5 cron gratuitos por cuenta).
+  "triggers": { "crons": ["17 3 * * *"] },
   "observability": { "enabled": false }
 }
