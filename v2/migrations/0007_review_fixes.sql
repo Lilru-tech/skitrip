@@ -40,3 +40,8 @@ ALTER TABLE trip_candidates ADD COLUMN adults INTEGER;
 ALTER TABLE trip_candidates ADD COLUMN children_ages TEXT;               -- JSON; NULL = no consta
 ALTER TABLE trip_candidates ADD COLUMN rooms INTEGER;
 ALTER TABLE trip_candidates ADD COLUMN forfait_included TEXT NOT NULL DEFAULT 'unknown' CHECK (forfait_included IN ('yes','no','unknown'));
+
+-- 3. Atomicidad: las escrituras dependientes de una edición se condicionan a este token dentro del mismo batch.
+ALTER TABLE expenses ADD COLUMN last_write_id TEXT;
+-- Texto del ticket tal como se revisó y confirmó (puede corregir el pegado original).
+ALTER TABLE receipts ADD COLUMN reviewed_text TEXT;

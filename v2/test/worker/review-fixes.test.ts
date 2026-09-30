@@ -136,3 +136,85 @@ describe('4 · identidad de ofertas por escenario, ámbito y condiciones', () =>
     expect(row.warnings).toMatch(/orientativo/);
   });
 });
+
+describe('3 · atomicidad de gastos y tickets', () => {
+  async function tripOf2() {
+    const a = await signup(); const b = await signup();
+    const trip = (await api(a.token, 'POST', '/api/trips', { name: 'Gastos' })).json.trip;
+    await env.DB.prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?1, ?2, 'member', ?3)`).bind(trip.id, b.id, Date.now()).run();
+    return { a, b, trip };
+  }
+  const fail = (name: string, table: string, when: string) => env.DB.prepare(`CREATE TRIGGER ${name} BEFORE INSERT ON ${table} WHEN ${when} BEGIN SELECT RAISE(ABORT, 'fallo simulado'); END`).run();
+  const drop = (name: string) => env.DB.prepare(`DROP TRIGGER IF EXISTS ${name}`).run();
+
+  it('un fallo a mitad de la edición no deja cambios: cabecera, reparto e historial van juntos', async () => {
+    const { a, b, trip } = await tripOf2();
+    const e = (await api(a.token, 'POST', `/api/trips/${trip.id}/expenses`, { concept: 'Cena', spentOn: '2026-12-10', payerId: a.id, amountCents: 1000, split: { mode: 'equal', participants: [a.id, b.id] } })).json;
+    await fail('t_hist_fail', 'expense_history', `NEW.after_json LIKE '%"concept":"FALLA"%'`);
+    try {
+      const r = await api(a.token, 'PUT', `/api/trips/${trip.id}/expenses/${e.id}`, { concept: 'FALLA', spentOn: '2026-12-10', payerId: a.id, amountCents: 2000, version: 1,
+        split: { mode: 'equal', participants: [a.id, b.id] } });
+      expect(r.status).toBe(500);
+    } finally { await drop('t_hist_fail'); }
+    const s = (await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json;
+    expect(s.expenses[0]).toMatchObject({ concept: 'Cena', amountCents: 1000, version: 1 });
+    expect(Object.values(s.expenses[0].shares).reduce((x: number, y: any) => x + y, 0)).toBe(1000);
+    expect(s.balanceCheckCents).toBe(0);
+  });
+
+  it('dos ediciones simultáneas con la misma versión: una gana, la otra recibe 409 y el reparto cuadra', async () => {
+    const { a, b, trip } = await tripOf2();
+    const e = (await api(a.token, 'POST', `/api/trips/${trip.id}/expenses`, { concept: 'Súper', spentOn: '2026-12-10', payerId: a.id, amountCents: 1000, split: { mode: 'equal', participants: [a.id, b.id] } })).json;
+    const put = (amount: number, who: typeof a) => api(who.token, 'PUT', `/api/trips/${trip.id}/expenses/${e.id}`, { concept: `Súper ${amount}`, spentOn: '2026-12-10', payerId: a.id, amountCents: amount, version: 1,
+      split: { mode: 'custom', shares: [{ userId: a.id, shareCents: amount - 100 }, { userId: b.id, shareCents: 100 }] } });
+    const [r1, r2] = await Promise.all([put(3000, a), put(5000, a)]);
+    expect([r1.status, r2.status].sort()).toEqual([200, 409]);
+    const s = (await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json;
+    const x = s.expenses[0];
+    expect(Object.values(x.shares).reduce((p: number, q: any) => p + q, 0)).toBe(x.amountCents);
+    expect(x.version).toBe(2);
+    expect(s.balanceCheckCents).toBe(0);
+  });
+
+  const TICKET = '30/09/2026 12:00\nDescripción\n1 LECHE 1,00\nTOTAL 1,00';
+  const meta = { text: TICKET, storeLabel: 'Mercadona Tarragona', channel: 'store', postalCode: '43007' };
+
+  it('producto inexistente: 422 sin guardar nada; el reintento corregido se importa', async () => {
+    const { a } = await tripOf2();
+    const bad = await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, mapping: [{ lineNo: 3, productId: 'does-not-exist' }] });
+    expect(bad.status).toBe(422);
+    const ok = await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, mapping: [] });
+    expect(ok.status).toBe(201);
+    const dup = await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, mapping: [] });
+    expect(dup.json).toMatchObject({ receiptId: ok.json.receiptId, alreadyImported: true });
+  });
+
+  it('un fallo al guardar las líneas no deja cabecera ni hash que bloquee el reintento', async () => {
+    const { a } = await tripOf2();
+    const text = TICKET.replace('LECHE', 'PAN');
+    await fail('t_line_fail', 'receipt_lines', `NEW.raw_text LIKE '%PAN%'`);
+    try {
+      expect((await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, text, mapping: [] })).status).toBe(500);
+    } finally { await drop('t_line_fail'); }
+    expect((await api(a.token, 'GET', '/api/receipts')).json.receipts.filter((r: any) => r.total_cents === 100 && r.lines === 0)).toHaveLength(0);
+    expect((await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, text, mapping: [] })).status).toBe(201);
+  });
+
+  it('si falla la vinculación del gasto, el ticket queda recuperable y se completa sin reimportar', async () => {
+    const { a, b, trip } = await tripOf2();
+    const text = TICKET.replace('LECHE', 'HUEVOS');
+    const conf = (await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, text, tripId: trip.id, mapping: [] })).json;
+    await fail('t_link_fail', 'expense_history', `NEW.after_json LIKE '%${conf.receiptId}%'`);
+    try {
+      expect((await api(a.token, 'POST', `/api/receipts/${conf.receiptId}/expense`, { tripId: trip.id, participants: [a.id, b.id] })).status).toBe(500);
+    } finally { await drop('t_link_fail'); }
+    const pending = (await api(a.token, 'GET', '/api/receipts')).json.receipts.find((r: any) => r.id === conf.receiptId);
+    expect(pending.expense_id).toBeNull();
+    expect((await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json.expenses).toHaveLength(0);
+    const again = await api(a.token, 'POST', '/api/receipts/confirm', { ...meta, text, tripId: trip.id, mapping: [] });
+    expect(again.json).toMatchObject({ receiptId: conf.receiptId, alreadyImported: true, expenseId: null });
+    const link = await api(a.token, 'POST', `/api/receipts/${conf.receiptId}/expense`, { tripId: trip.id, participants: [a.id, b.id] });
+    expect(link.status).toBe(201);
+    expect((await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json.expenses).toHaveLength(1);
+  });
+});

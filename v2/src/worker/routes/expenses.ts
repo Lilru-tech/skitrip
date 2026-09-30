@@ -23,6 +23,15 @@ const zExpense = z.object({
   ]),
 });
 
+/** Reparto completo en una sola sentencia (cualquier nº de participantes). */
+export function insertShares(db: D1Database, expenseId: string, shares: Map<string, number>, guardWriteId?: string) {
+  return db.prepare(
+    `INSERT INTO expense_shares (expense_id, user_id, share_cents)
+     SELECT ?1, json_extract(value, '$[0]'), json_extract(value, '$[1]') FROM json_each(?2)
+     WHERE ?3 IS NULL OR EXISTS (SELECT 1 FROM expenses WHERE id = ?1 AND last_write_id = ?3)`,
+  ).bind(expenseId, JSON.stringify([...shares]), guardWriteId ?? null);
+}
+
 async function memberSet(db: D1Database, tripId: string) {
   const { results } = await db.prepare('SELECT user_id FROM trip_members WHERE trip_id = ?1').bind(tripId).all<{ user_id: string }>();
   return new Set(results.map((r) => r.user_id));
@@ -85,10 +94,11 @@ expenseRoutes.post('/:id/expenses', async (c) => {
   const shares = computeShares(b, await memberSet(c.env.DB, tripId));
   const id = newId();
   const t = now();
+  // Un único batch (transacción de D1): cabecera, reparto e historial se guardan juntos o no se guarda nada.
   await c.env.DB.batch([
     c.env.DB.prepare(`INSERT INTO expenses (id, trip_id, concept, spent_on, payer_id, amount_cents, split_mode, category, created_by, created_at, updated_at)
                       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)`).bind(id, tripId, b.concept, b.spentOn, b.payerId, b.amountCents, b.split.mode, b.category ?? null, me, t),
-    ...[...shares].map(([u, s]) => c.env.DB.prepare('INSERT INTO expense_shares (expense_id, user_id, share_cents) VALUES (?1, ?2, ?3)').bind(id, u, s)),
+    insertShares(c.env.DB, id, shares),
     c.env.DB.prepare(`INSERT INTO expense_history (id, expense_id, trip_id, actor_id, action, after_json, at) VALUES (?1, ?2, ?3, ?4, 'create', ?5, ?6)`)
       .bind(newId(), id, tripId, me, JSON.stringify({ ...b, shares: Object.fromEntries(shares) }), t),
   ]);
@@ -117,18 +127,22 @@ expenseRoutes.put('/:id/expenses/:eid', async (c) => {
   const shares = computeShares(b, await memberSet(c.env.DB, tripId));
   const t = now();
   const before = { ...(await summary(c.env.DB, tripId)).expenses.find((x) => x.id === e.id) };
-  // Actualización condicionada a la versión; si otra persona guardó antes, 409 y no se toca nada.
-  const upd = await c.env.DB.prepare(
-    `UPDATE expenses SET concept = ?1, spent_on = ?2, payer_id = ?3, amount_cents = ?4, split_mode = ?5, category = ?6, version = version + 1, updated_at = ?7
-     WHERE id = ?8 AND version = ?9 AND deleted_at IS NULL`,
-  ).bind(b.concept, b.spentOn, b.payerId, b.amountCents, b.split.mode, b.category ?? null, t, e.id, b.version).run();
-  if (!upd.meta.changes) throw conflict('Otra persona ha modificado este gasto. Recarga para ver la versión actual.', 'version_conflict');
-  await c.env.DB.batch([
-    c.env.DB.prepare('DELETE FROM expense_shares WHERE expense_id = ?1').bind(e.id),
-    ...[...shares].map(([u, s]) => c.env.DB.prepare('INSERT INTO expense_shares (expense_id, user_id, share_cents) VALUES (?1, ?2, ?3)').bind(e.id, u, s)),
-    c.env.DB.prepare(`INSERT INTO expense_history (id, expense_id, trip_id, actor_id, action, before_json, after_json, at) VALUES (?1, ?2, ?3, ?4, 'update', ?5, ?6, ?7)`)
-      .bind(newId(), e.id, tripId, me, JSON.stringify(before), JSON.stringify({ ...b, shares: Object.fromEntries(shares) }), t),
+  // Todo en UN batch (transacción): la cabecera solo cambia si la versión coincide, y el reparto y el historial solo
+  // se escriben si esa misma escritura ganó (token last_write_id). Un fallo en cualquier sentencia revierte todo.
+  const writeId = newId();
+  const guard = 'EXISTS (SELECT 1 FROM expenses WHERE id = ?1 AND last_write_id = ?2)';
+  const res = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `UPDATE expenses SET concept = ?1, spent_on = ?2, payer_id = ?3, amount_cents = ?4, split_mode = ?5, category = ?6, version = version + 1, updated_at = ?7, last_write_id = ?10
+       WHERE id = ?8 AND version = ?9 AND deleted_at IS NULL`,
+    ).bind(b.concept, b.spentOn, b.payerId, b.amountCents, b.split.mode, b.category ?? null, t, e.id, b.version, writeId),
+    c.env.DB.prepare(`DELETE FROM expense_shares WHERE expense_id = ?1 AND ${guard}`).bind(e.id, writeId),
+    insertShares(c.env.DB, e.id, shares, writeId),
+    c.env.DB.prepare(`INSERT INTO expense_history (id, expense_id, trip_id, actor_id, action, before_json, after_json, at)
+                      SELECT ?3, ?1, ?4, ?5, 'update', ?6, ?7, ?8 WHERE ${guard}`)
+      .bind(e.id, writeId, newId(), tripId, me, JSON.stringify(before), JSON.stringify({ ...b, shares: Object.fromEntries(shares) }), t),
   ]);
+  if (!res[0].meta.changes) throw conflict('Otra persona ha modificado este gasto. Recarga para ver la versión actual.', 'version_conflict');
   return c.json({ ok: true, version: b.version + 1 });
 });
 

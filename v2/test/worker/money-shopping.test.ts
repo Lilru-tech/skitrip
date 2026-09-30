@@ -80,10 +80,14 @@ describe('compra y precios', () => {
     expect(conf.status).toBe(201);
     expect(conf.json.prices).toBe(1);
     const again = await api(a.token, 'POST', '/api/receipts/confirm', { text: TICKET + '\n', storeLabel: 'Mercadona Tarragona', channel: 'store', postalCode: '43007', mapping: [] });
-    expect(again.json.error.code).toBe('receipt_duplicate');
+    // Doble confirmación: no duplica; devuelve el ticket ya importado para poder continuar.
+    expect(again.status).toBe(200);
+    expect(again.json).toMatchObject({ receiptId: conf.json.receiptId, alreadyImported: true, expenseId: null });
     const exp = await api(a.token, 'POST', `/api/receipts/${conf.json.receiptId}/expense`, { tripId: trip.id, participants: [a.id, b.id] });
     expect(exp.status).toBe(201);
-    expect((await api(a.token, 'POST', `/api/receipts/${conf.json.receiptId}/expense`, { tripId: trip.id, participants: [a.id, b.id] })).json.error.code).toBe('receipt_already_linked');
+    const relink = await api(a.token, 'POST', `/api/receipts/${conf.json.receiptId}/expense`, { tripId: trip.id, participants: [a.id, b.id] });
+    expect(relink.json).toMatchObject({ expenseId: exp.json.expenseId, alreadyLinked: true });
+    expect((await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json.expenses).toHaveLength(1);
     await api(a.token, 'POST', '/api/prices', { productId: leche.id, amountCents: 99, priceType: 'shelf', storeLabel: 'Mercadona online', postalCode: '43007', channel: 'online', observedOn: '2026-10-05' });
     const s = (await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json;
     expect(s.expenses[0].amountCents).toBe(329);

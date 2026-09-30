@@ -5,6 +5,7 @@ import { parseReceiptText, receiptHash } from '../../core/parsers/receipt';
 import { parseAmount } from '../../core/parsers/money';
 import { parseFormat, unitPrice } from '../../core/parsers/unit-price';
 import { splitEqual } from '../../core/split';
+import { insertShares } from './expenses';
 import type { AppEnv } from '../env';
 import { requireTripMember } from '../access';
 import { sha256Hex } from '../crypto';
@@ -345,22 +346,45 @@ const zReceiptMeta = z.object({
   postalCode: z.string().regex(/^\d{5}$/).nullable().optional(),
 });
 
+type ProductLite = { id: string; name: string; brand: string | null; format: string | null; net_qty: number | null; net_unit: string | null };
+const words = (t: string) => t.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^\d+$/.test(w));
+
+/**
+ * Sugerencias de producto para una línea: solo si TODAS las palabras significativas coinciden, y marcando si el
+ * formato de la línea contradice el del producto. Son sugerencias: nada se asocia sin elección explícita.
+ */
+function suggestFor(desc: string, products: ProductLite[]) {
+  const w = words(desc);
+  if (!w.length) return [];
+  const lineFormat = parseFormat(desc);
+  return products
+    .filter((p) => { const pw = new Set(words(`${p.name} ${p.brand ?? ''}`)); return w.every((x) => pw.has(x)); })
+    .slice(0, 5)
+    .map((p) => ({ id: p.id, name: p.name, brand: p.brand, format: p.format,
+      formatMismatch: !!(lineFormat && p.net_qty != null && (lineFormat.netQty !== p.net_qty || lineFormat.netUnit !== p.net_unit)) }));
+}
+
+async function receiptState(db: D1Database, ownerId: string, hash: string) {
+  return db.prepare(
+    `SELECT r.id, r.created_at, r.trip_id, e.id AS expense_id, e.trip_id AS expense_trip_id FROM receipts r
+     LEFT JOIN expenses e ON e.receipt_id = r.id AND e.deleted_at IS NULL WHERE r.owner_id = ?1 AND r.content_hash = ?2`,
+  ).bind(ownerId, hash).first<{ id: string; created_at: number; trip_id: string | null; expense_id: string | null; expense_trip_id: string | null }>();
+}
+
 shoppingRoutes.post('/receipts/preview', async (c) => {
   const me = c.get('user').id;
   const b = await parseBody(c, zReceiptMeta);
   const parsed = parseReceiptText(b.text);
   const hash = await receiptHash(parsed);
-  const dup = await c.env.DB.prepare('SELECT id, created_at FROM receipts WHERE owner_id = ?1 AND content_hash = ?2').bind(me, hash).first();
-  const suggestions = [];
-  for (const l of parsed.lines) {
-    const words = l.description.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().split(/\s+/).filter((w) => w.length >= 3).slice(0, 2);
-    const { results } = words.length
-      ? await c.env.DB.prepare(`SELECT id, name, brand, format FROM products WHERE replaced_by IS NULL AND ${words.map((_, i) => `lower(name) LIKE ?${i + 1}`).join(' AND ')} LIMIT 5`).bind(...words.map((w) => `%${w}%`)).all()
-      : { results: [] };
-    suggestions.push({ lineNo: l.lineNo, candidates: results });
-  }
+  // 2 consultas, sea cual sea el nº de líneas.
+  const [dup, { results: products }] = await Promise.all([
+    receiptState(c.env.DB, me, hash),
+    c.env.DB.prepare('SELECT id, name, brand, format, net_qty, net_unit FROM products WHERE replaced_by IS NULL ORDER BY name LIMIT 3000').all<ProductLite>(),
+  ]);
+  const suggestions = parsed.lines.map((l) => ({ lineNo: l.lineNo, candidates: suggestFor(l.description, products) }));
+  const other = b.postalCode && b.postalCode !== '43007';
   return c.json({ parsed, hash, duplicate: dup ?? null, suggestions,
-    note: `Revisa cada línea y asocia el producto exacto. ${b.postalCode && b.postalCode !== '43007' ? 'Este ticket es de otra tienda: no se presentará como precio actual de Mercadona online 43007.' : ''}`.trim() });
+    note: `Revisa y corrige el texto si hace falta, y asocia el producto exacto de cada línea (las sugerencias no se aplican solas).${other || b.channel === 'store' ? ' Es un ticket de tienda física u otro código postal: no se presentará como precio online actual de Mercadona 43007.' : ''}` });
 });
 
 shoppingRoutes.post('/receipts/confirm', async (c) => {
@@ -370,54 +394,94 @@ shoppingRoutes.post('/receipts/confirm', async (c) => {
     mapping: z.array(z.object({ lineNo: z.number().int().min(1), productId: zId.nullable() })).max(300),
     visibility: z.enum(['private', 'shared_trips']).default('shared_trips'),
   }));
+  // 1) Validación COMPLETA antes de escribir nada.
   if (b.tripId) await requireTripMember(c.env.DB, b.tripId, me);
-  await rateLimit(c.env.DB, `receipt:${me}`, 30, 86400);
-  // Se vuelve a analizar el texto en el servidor: los importes no vienen del navegador.
+  // Se vuelve a analizar el texto revisado en el servidor: los importes no vienen del navegador.
   const parsed = parseReceiptText(b.text);
   if (!parsed.purchasedOn) throw new ApiError(422, 'validation', 'No se encuentra la fecha del ticket.');
   if (parsed.totalCents == null) throw new ApiError(422, 'validation', 'No se encuentra el total del ticket.');
+  if (!parsed.lines.length) throw new ApiError(422, 'validation', 'El ticket no tiene líneas reconocibles.');
   const hash = await receiptHash(parsed);
+  // Doble confirmación / reintento: se devuelve el ticket ya importado (y su gasto, si lo tiene) sin duplicar nada.
+  const existing = await receiptState(c.env.DB, me, hash);
+  if (existing) return c.json({ receiptId: existing.id, alreadyImported: true, expenseId: existing.expense_id, lines: parsed.lines.length }, 200);
+  const lineNos = new Set(parsed.lines.map((l) => l.lineNo));
+  const map = new Map<number, string | null>();
+  for (const m of b.mapping) {
+    if (!lineNos.has(m.lineNo)) throw new ApiError(422, 'validation', `La línea ${m.lineNo} no existe en el ticket revisado.`);
+    if (map.has(m.lineNo)) throw new ApiError(422, 'validation', `La línea ${m.lineNo} está asociada dos veces.`);
+    map.set(m.lineNo, m.productId);
+  }
+  const productIds = [...new Set([...map.values()].filter((x): x is string => !!x))];
+  if (productIds.length) {
+    const { results } = await c.env.DB.prepare('SELECT id FROM products WHERE id IN (SELECT value FROM json_each(?1))').bind(JSON.stringify(productIds)).all<{ id: string }>();
+    const found = new Set(results.map((r) => r.id));
+    const missing = productIds.filter((id) => !found.has(id));
+    if (missing.length) throw new ApiError(422, 'unknown_product', 'Algún producto asociado no existe. Revisa las asociaciones; no se ha guardado nada.');
+  }
+  await rateLimit(c.env.DB, `receipt:${me}`, 30, 86400);
   const receiptId = newId();
   const t = now();
+  const postal = b.postalCode ?? parsed.postalCode ?? null;
+  const lines = parsed.lines.map((l) => {
+    const productId = map.get(l.lineNo) ?? null;
+    // Precio por envase solo si es inequívoco (unidades enteras, sin peso variable).
+    const per = productId && !l.weightGrams && l.qty >= 1 ? l.unitCents ?? (l.qty === 1 ? l.amountCents : null) : null;
+    return { id: newId(), lineNo: l.lineNo, raw: l.rawText, productId, qty: l.weightGrams ? l.weightGrams / 1000 : l.qty, unit: l.unitCents, amount: l.amountCents,
+      price: per, priceId: newId(), dedupe: `${hash}:${l.lineNo}` };
+  });
+  // 2) Una sola transacción: cabecera, líneas y precios. Un fallo no deja cabecera ni hash que bloquee el reintento.
+  const J = (k: string) => `json_extract(value, '$.${k}')`;
   try {
-    await c.env.DB.prepare(
-      `INSERT INTO receipts (id, owner_id, trip_id, store_label, postal_code, channel, purchased_on, total_cents, content_hash, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
-    ).bind(receiptId, me, b.tripId ?? null, b.storeLabel, b.postalCode ?? parsed.postalCode ?? null, b.channel, parsed.purchasedOn, parsed.totalCents, hash, t).run();
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO receipts (id, owner_id, trip_id, store_label, postal_code, channel, purchased_on, total_cents, content_hash, created_at, reviewed_text)
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`)
+        .bind(receiptId, me, b.tripId ?? null, b.storeLabel, postal, b.channel, parsed.purchasedOn, parsed.totalCents, hash, t, b.text),
+      c.env.DB.prepare(`INSERT INTO receipt_lines (id, receipt_id, line_no, raw_text, product_id, qty, unit_cents, amount_cents)
+                        SELECT ${J('id')}, ?1, ${J('lineNo')}, ${J('raw')}, ${J('productId')}, ${J('qty')}, ${J('unit')}, ${J('amount')} FROM json_each(?2)`)
+        .bind(receiptId, JSON.stringify(lines)),
+      c.env.DB.prepare(`INSERT OR IGNORE INTO price_observations (id, product_id, source, price_type, amount_cents, store_label, postal_code, channel, observed_on, receipt_line_id, owner_id, visibility, dedupe_hash, created_at)
+                        SELECT ${J('priceId')}, ${J('productId')}, 'receipt', 'receipt_effective', ${J('price')}, ?1, ?2, ?3, ?4, ${J('id')}, ?5, ?6, ${J('dedupe')}, ?7
+                        FROM json_each(?8) WHERE ${J('price')} IS NOT NULL`)
+        .bind(b.storeLabel, postal, b.channel, parsed.purchasedOn, me, b.visibility, t, JSON.stringify(lines)),
+    ]);
   } catch (e) {
-    if (/UNIQUE/.test(String(e))) throw conflict('Este ticket ya estaba importado.', 'receipt_duplicate');
+    // Carrera con otra confirmación simultánea del mismo ticket: se devuelve el que ganó.
+    if (/UNIQUE/.test(String(e))) {
+      const won = await receiptState(c.env.DB, me, hash);
+      if (won) return c.json({ receiptId: won.id, alreadyImported: true, expenseId: won.expense_id, lines: parsed.lines.length }, 200);
+    }
     throw e;
   }
-  const map = new Map(b.mapping.map((m) => [m.lineNo, m.productId]));
-  const stmts: D1PreparedStatement[] = [];
-  let prices = 0;
-  for (const l of parsed.lines) {
-    const lineId = newId();
-    const productId = map.get(l.lineNo) ?? null;
-    if (productId && !(await c.env.DB.prepare('SELECT 1 FROM products WHERE id = ?1').bind(productId).first())) throw notFound('Producto');
-    stmts.push(c.env.DB.prepare(`INSERT INTO receipt_lines (id, receipt_id, line_no, raw_text, product_id, qty, unit_cents, amount_cents) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`)
-      .bind(lineId, receiptId, l.lineNo, l.rawText, productId, l.weightGrams ? l.weightGrams / 1000 : l.qty, l.unitCents, l.amountCents));
-    // Precio por envase solo si es inequívoco (unidades enteras, sin peso variable).
-    if (productId && !l.weightGrams && l.qty >= 1) {
-      const per = l.unitCents ?? (l.qty === 1 ? l.amountCents : null);
-      if (per != null) {
-        prices++;
-        stmts.push(c.env.DB.prepare(
-          `INSERT OR IGNORE INTO price_observations (id, product_id, source, price_type, amount_cents, store_label, postal_code, channel, observed_on, receipt_line_id, owner_id, visibility, dedupe_hash, created_at)
-           VALUES (?1, ?2, 'receipt', 'receipt_effective', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`,
-        ).bind(newId(), productId, per, b.storeLabel, b.postalCode ?? parsed.postalCode ?? null, b.channel, parsed.purchasedOn, lineId, me, b.visibility, `${hash}:${l.lineNo}`, t));
-      }
-    }
-  }
-  for (let i = 0; i < stmts.length; i += 50) await c.env.DB.batch(stmts.slice(i, i + 50));
-  return c.json({ receiptId, lines: parsed.lines.length, prices, warnings: parsed.warnings, sumMatchesTotal: parsed.sumMatchesTotal }, 201);
+  return c.json({ receiptId, alreadyImported: false, expenseId: null, lines: parsed.lines.length, prices: lines.filter((l) => l.price != null).length,
+    warnings: parsed.warnings, sumMatchesTotal: parsed.sumMatchesTotal }, 201);
 });
 
-// Añadir un ticket como gasto: acción explícita y vínculo único (receipt_id es UNIQUE en expenses).
+/** Tickets propios con su estado de vinculación: permite completar un gasto que falló sin volver a importar. */
+shoppingRoutes.get('/receipts', async (c) => {
+  const me = c.get('user').id;
+  const { results } = await c.env.DB.prepare(
+    `SELECT r.id, r.trip_id, r.store_label, r.postal_code, r.channel, r.purchased_on, r.total_cents, r.created_at,
+            (SELECT COUNT(*) FROM receipt_lines l WHERE l.receipt_id = r.id) AS lines, e.id AS expense_id, e.trip_id AS expense_trip_id
+     FROM receipts r LEFT JOIN expenses e ON e.receipt_id = r.id AND e.deleted_at IS NULL
+     WHERE r.owner_id = ?1 ORDER BY r.created_at DESC LIMIT 50`,
+  ).bind(me).all();
+  return c.json({ receipts: results });
+});
+
+// Añadir un ticket como gasto: acción explícita, atómica e idempotente (receipt_id es UNIQUE en expenses).
 shoppingRoutes.post('/receipts/:rid/expense', async (c) => {
   const me = c.get('user').id;
-  const r = await c.env.DB.prepare('SELECT * FROM receipts WHERE id = ?1').bind(c.req.param('rid')).first<any>();
+  const r = await c.env.DB.prepare(
+    `SELECT r.*, e.id AS expense_id, e.trip_id AS expense_trip_id FROM receipts r LEFT JOIN expenses e ON e.receipt_id = r.id AND e.deleted_at IS NULL WHERE r.id = ?1`,
+  ).bind(c.req.param('rid')).first<any>();
   if (!r || r.owner_id !== me) throw notFound('Ticket');
   const b = await parseBody(c, z.object({ tripId: zId, concept: z.string().trim().min(1).max(200).default('Compra'), participants: z.array(zId).min(1).max(60) }));
+  if (r.expense_id) {
+    // Reintento tras un fallo de red: si ya quedó vinculado a este viaje, se devuelve el gasto existente.
+    if (r.expense_trip_id === b.tripId) return c.json({ expenseId: r.expense_id, alreadyLinked: true }, 200);
+    throw conflict('Este ticket ya está vinculado a un gasto de otro viaje.', 'receipt_already_linked');
+  }
   await requireTripMember(c.env.DB, b.tripId, me);
   const { results: members } = await c.env.DB.prepare('SELECT user_id FROM trip_members WHERE trip_id = ?1').bind(b.tripId).all<{ user_id: string }>();
   const set = new Set(members.map((m) => m.user_id));
@@ -429,15 +493,19 @@ shoppingRoutes.post('/receipts/:rid/expense', async (c) => {
     await c.env.DB.batch([
       c.env.DB.prepare(`INSERT INTO expenses (id, trip_id, concept, spent_on, payer_id, amount_cents, split_mode, category, receipt_id, created_by, created_at, updated_at)
                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'equal', 'compra', ?7, ?5, ?8, ?8)`).bind(id, b.tripId, b.concept, r.purchased_on, me, r.total_cents, r.id, t),
-      ...[...shares].map(([u, s]) => c.env.DB.prepare('INSERT INTO expense_shares (expense_id, user_id, share_cents) VALUES (?1, ?2, ?3)').bind(id, u, s)),
+      insertShares(c.env.DB, id, shares),
       c.env.DB.prepare(`INSERT INTO expense_history (id, expense_id, trip_id, actor_id, action, after_json, at) VALUES (?1, ?2, ?3, ?4, 'create', ?5, ?6)`)
         .bind(newId(), id, b.tripId, me, JSON.stringify({ receiptId: r.id, amountCents: r.total_cents }), t),
     ]);
   } catch (e) {
-    if (/UNIQUE/.test(String(e))) throw conflict('Este ticket ya está vinculado a un gasto.', 'receipt_already_linked');
+    if (/UNIQUE/.test(String(e))) {
+      const won = await c.env.DB.prepare('SELECT id, trip_id FROM expenses WHERE receipt_id = ?1 AND deleted_at IS NULL').bind(r.id).first<{ id: string; trip_id: string }>();
+      if (won?.trip_id === b.tripId) return c.json({ expenseId: won.id, alreadyLinked: true }, 200);
+      throw conflict('Este ticket ya está vinculado a un gasto.', 'receipt_already_linked');
+    }
     throw e;
   }
-  return c.json({ expenseId: id }, 201);
+  return c.json({ expenseId: id, alreadyLinked: false }, 201);
 });
 
 // ---------- Cesta fija ----------
