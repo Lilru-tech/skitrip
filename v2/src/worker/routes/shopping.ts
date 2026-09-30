@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { parseCsv } from '../../core/csv';
 import { z } from 'zod';
 import { parseReceiptText, receiptHash } from '../../core/parsers/receipt';
 import { parseAmount } from '../../core/parsers/money';
@@ -277,21 +278,6 @@ shoppingRoutes.get('/products/:pid/prices', async (c) => {
 });
 
 // CSV: previsualizar y confirmar. Columnas: product_id|ean, amount, price_type, store, postal_code, channel, date (YYYY-MM-DD o DD/MM/YYYY), promo_note
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [], cell = '', q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (q) { if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (ch === '"') q = false; else cell += ch; }
-    else if (ch === '"') q = true;
-    else if (ch === ',' || ch === ';') { row.push(cell); cell = ''; }
-    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
-    else if (ch !== '\r') cell += ch;
-  }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-  return rows.filter((r) => r.some((x) => x.trim()));
-}
-
 async function previewCsv(db: D1Database, csv: string) {
   const rows = parseCsv(csv);
   if (!rows.length) return [];
