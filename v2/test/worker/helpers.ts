@@ -25,7 +25,17 @@ export async function api(token: string | null, method: string, path: string, bo
   const text = await res.text();
   let json: any = null;
   try { json = JSON.parse(text); } catch { /* texto */ }
-  return { status: res.status, json };
+  return { status: res.status, json, d1: Number(res.headers.get('X-D1-Statements') ?? NaN) };
+}
+
+/** Siembra el catálogo real (áreas y fuentes de data/catalog.json) para pruebas de volumen. */
+export async function seedCatalog(db: D1Database, catalog: { areas: any[]; sources: any[] }) {
+  const stmts = [
+    ...catalog.areas.map((a) => db.prepare('INSERT OR IGNORE INTO areas (id, name, kind, country, official_total_km) VALUES (?1, ?2, ?3, ?4, ?5)').bind(a.id, a.name, a.kind, a.country, a.official_total_km ?? null)),
+    ...catalog.sources.map((s) => db.prepare(`INSERT OR IGNORE INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, status, adapter) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, '[]', ?8, ?9)`)
+      .bind(s.id, s.area, s.scope, s.kind, s.provider, s.url, s.method, s.status, s.adapter)),
+  ];
+  for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50));
 }
 
 let n = 0;

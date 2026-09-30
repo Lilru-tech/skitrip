@@ -100,8 +100,12 @@ planRoutes.get('/:id/scenarios', async (c) => {
       return { offerId: o.offer_id, hotelName: o.hotel_name_raw, board: o.board, cancellation: o.cancellation, nights: o.nights, forfaitDays: o.forfait_days, adults: o.adults, url: o.url,
         availability: seenInLastRun ? o.availability : 'not_observed', panel };
     });
-    const current = offers.filter((o) => o.availability !== 'not_observed').map((o) => ({ offerId: o.offerId, amountCents: o.panel.lastValid?.amountCents ?? null }));
-    const previous = prevRun ? [...byOffer.entries()].filter(([, pts]) => pts.some((p) => p.observed_at === prevRun)).map(([id, pts]) => ({ offerId: id, amountCents: pts.find((p) => p.observed_at === prevRun)!.amount_cents })) : undefined;
+    const current = offers.filter((o) => o.availability !== 'not_observed')
+      .map((o) => ({ offerId: o.offerId, amountCents: o.panel.lastValid?.amountCents ?? null, unit: o.panel.lastValid?.unit, priceKind: o.panel.lastValid?.priceKind }));
+    const previous = prevRun ? [...byOffer.entries()].filter(([, pts]) => pts.some((p) => p.observed_at === prevRun)).map(([id, pts]) => {
+      const p = pts.find((x) => x.observed_at === prevRun)!;
+      return { offerId: id, amountCents: p.amount_cents, unit: p.unit, priceKind: p.price_kind };
+    }) : undefined;
     out.push({
       id: s.id, providerId: s.provider_id, areaId: s.area_id, modality: s.modality, checkIn: s.check_in, checkOut: s.check_out, nights: s.nights, adults: s.adults,
       childrenAges: JSON.parse(s.children_ages), rooms: s.rooms, forfaitDays: s.forfait_days, active: !!s.active, lastRun: runs[0] ?? null,
@@ -125,6 +129,11 @@ const zCandidate = z.object({
   checkIn: zDate.nullable().optional(),
   checkOut: zDate.nullable().optional(),
   people: z.number().int().min(1).max(60).nullable().optional(),
+  // Condiciones exactas de la cotización (null = no consta). No se deducen de lo que se pidió.
+  adults: z.number().int().min(1).max(60).nullable().optional(),
+  childrenAges: z.array(z.number().int().min(0).max(17)).max(20).nullable().optional(),
+  rooms: z.number().int().min(1).max(30).nullable().optional(),
+  forfaitIncluded: z.enum(['yes', 'no', 'unknown']).optional(),
   forfaitDays: z.number().int().min(0).max(30).nullable().optional(),
   conditions: z.string().max(1000).nullable().optional(),
   pendingNotes: z.string().max(1000).nullable().optional(),
@@ -153,22 +162,33 @@ planRoutes.post('/:id/candidates', async (c) => {
   await rateLimit(c.env.DB, `candidate:${me}`, 60, 86400);
   let fromOffer: any = null;
   if (b.offerId) {
+    // Condiciones de la oferta: las declaradas por la tarjeta; las del escenario solo si la tarjeta las verificó.
     fromOffer = await c.env.DB.prepare(
-      `SELECT o.*, ob.amount_cents, ob.unit, ob.price_kind FROM offers o LEFT JOIN offer_observations ob ON ob.offer_id = o.id
+      `SELECT o.*, ob.amount_cents, ob.unit, ob.price_kind,
+              s.check_in AS sc_check_in, s.check_out AS sc_check_out, s.adults AS sc_adults, s.children_ages AS sc_children, s.rooms AS sc_rooms, s.forfait_days AS sc_forfait
+       FROM offers o LEFT JOIN offer_observations ob ON ob.offer_id = o.id LEFT JOIN search_scenarios s ON s.id = o.scenario_id
        WHERE o.id = ?1 ORDER BY ob.observed_at DESC LIMIT 1`,
     ).bind(b.offerId).first();
     if (!fromOffer) throw notFound('Oferta');
+    if (fromOffer.conditions_verified) {
+      fromOffer.check_in ??= fromOffer.sc_check_in; fromOffer.check_out ??= fromOffer.sc_check_out; fromOffer.adults ??= fromOffer.sc_adults;
+      fromOffer.children_ages ??= fromOffer.sc_children; fromOffer.rooms ??= fromOffer.sc_rooms;
+    }
   }
+  const kids = b.childrenAges !== undefined ? (b.childrenAges ? JSON.stringify(b.childrenAges) : null) : fromOffer?.children_ages ?? null;
+  const adults = b.adults ?? fromOffer?.adults ?? null;
   const id = newId();
   const t = now();
   await c.env.DB.prepare(
     `INSERT INTO trip_candidates (id, trip_id, offer_id, title, area_id, modality, url, amount_cents, unit, price_kind, check_in, check_out, people, forfait_days, conditions,
-       pending_notes, proposed_by, created_at, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18)`,
+       pending_notes, proposed_by, created_at, updated_at, adults, children_ages, rooms, forfait_included)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18, ?19, ?20, ?21, ?22)`,
   ).bind(id, tripId, b.offerId ?? null, b.title, b.areaId ?? fromOffer?.area_id ?? null, b.modality, b.url ?? fromOffer?.url ?? null,
     b.amountCents ?? fromOffer?.amount_cents ?? null, b.unit ?? fromOffer?.unit ?? null, b.priceKind ?? fromOffer?.price_kind ?? (b.amountCents != null ? 'user_quote' : null),
-    b.checkIn ?? fromOffer?.check_in ?? null, b.checkOut ?? fromOffer?.check_out ?? null, b.people ?? fromOffer?.adults ?? null, b.forfaitDays ?? fromOffer?.forfait_days ?? null,
-    b.conditions ?? null, b.pendingNotes ?? null, me, t).run();
+    b.checkIn ?? fromOffer?.check_in ?? null, b.checkOut ?? fromOffer?.check_out ?? null,
+    b.people ?? (adults != null ? adults + (kids ? JSON.parse(kids).length : 0) : null), b.forfaitDays ?? fromOffer?.forfait_days ?? null,
+    b.conditions ?? null, b.pendingNotes ?? null, me, t, adults, kids, b.rooms ?? fromOffer?.rooms ?? null,
+    b.forfaitIncluded ?? fromOffer?.forfait_included ?? (b.modality === 'lodging_forfait' ? 'yes' : 'unknown')).run();
   return c.json({ id }, 201);
 });
 
@@ -182,9 +202,13 @@ planRoutes.patch('/:id/candidates/:cid', async (c) => {
   if (cand.proposed_by !== me && role === 'member') throw forbidden('Solo quien la propuso o un editor puede modificarla.');
   if ((b.status === 'chosen' || b.status === 'booked') && role === 'member') throw forbidden('Elegir o marcar como reservada corresponde al propietario o a un editor.');
   const map: Record<string, string> = { title: 'title', url: 'url', amountCents: 'amount_cents', unit: 'unit', priceKind: 'price_kind', checkIn: 'check_in', checkOut: 'check_out',
-    people: 'people', forfaitDays: 'forfait_days', conditions: 'conditions', pendingNotes: 'pending_notes', status: 'status', modality: 'modality', areaId: 'area_id' };
+    people: 'people', forfaitDays: 'forfait_days', conditions: 'conditions', pendingNotes: 'pending_notes', status: 'status', modality: 'modality', areaId: 'area_id',
+    adults: 'adults', childrenAges: 'children_ages', rooms: 'rooms', forfaitIncluded: 'forfait_included' };
   const sets: string[] = []; const args: unknown[] = [];
-  for (const [k, col] of Object.entries(map)) if ((b as any)[k] !== undefined) { sets.push(`${col} = ?`); args.push((b as any)[k]); }
+  for (const [k, col] of Object.entries(map)) if ((b as any)[k] !== undefined) {
+    sets.push(`${col} = ?`);
+    args.push(k === 'childrenAges' && (b as any)[k] != null ? JSON.stringify((b as any)[k]) : (b as any)[k]);
+  }
   if (!sets.length) return c.json({ ok: true });
   const r = await c.env.DB.prepare(`UPDATE trip_candidates SET ${sets.join(', ')}, version = version + 1, updated_at = ? WHERE id = ? AND version = ?`).bind(...args, now(), c.req.param('cid'), b.version).run();
   if (!r.meta.changes) throw conflict('La candidatura cambió mientras editabas. Recarga para ver la última versión.', 'version_conflict');
@@ -246,12 +270,17 @@ async function budgetFor(db: D1Database, tripId: string) {
   const cand = b.chosen_candidate_id ? await db.prepare('SELECT * FROM trip_candidates WHERE id = ?1 AND trip_id = ?2').bind(b.chosen_candidate_id, tripId).first<any>() : null;
   const shopping = await estimateList(db, tripId);
   const people = t.participants_planned ?? members?.n ?? null;
+  const tripKids: number[] = JSON.parse(t.children_ages || '[]');
   const groceries = b.groceries_cents ?? (shopping.complete ? shopping.knownCents : null);
   const input: BudgetInput = {
     people, skiers: b.skiers ?? people, renters: b.renters, nights: t.nights, skiDays: t.ski_days, cars: t.cars,
     roadKmOneWay: route?.road_km ?? null, fuelCentsPerLitre: b.fuel_cents_per_litre, litresPer100km: b.litres_per_100km_x10 != null ? b.litres_per_100km_x10 / 10 : null,
     tollsCentsPerCar: b.tolls_cents_per_car, parkingCentsPerCar: b.parking_cents_per_car,
-    lodging: cand ? { modality: cand.modality, amountCents: cand.amount_cents, unit: cand.unit ?? 'unknown', quotedPeople: cand.people, quotedNights: cand.check_in && cand.check_out ? daysBetween(cand.check_in, cand.check_out) : null, quotedForfaitDays: cand.forfait_days, priceKind: cand.price_kind } : null,
+    trip: { startDate: t.start_date, endDate: t.end_date, areaId: t.area_id, rooms: t.rooms, childrenAges: tripKids,
+      adults: people != null ? people - tripKids.length : null },
+    lodging: cand ? { modality: cand.modality, forfaitIncluded: cand.forfait_included, amountCents: cand.amount_cents, unit: cand.unit ?? 'unknown', priceKind: cand.price_kind,
+      checkIn: cand.check_in, checkOut: cand.check_out, adults: cand.adults, childrenAges: cand.children_ages ? JSON.parse(cand.children_ages) : null, rooms: cand.rooms,
+      areaId: cand.area_id, forfaitDays: cand.forfait_days } : null,
     forfaitCentsPerDay: b.forfait_cents_per_day, rentalCentsPerDay: b.rental_cents_per_day, groceriesCents: groceries,
   };
   const result = computeBudget(input);

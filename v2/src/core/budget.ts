@@ -16,32 +16,103 @@ export interface BudgetInput {
   litresPer100km: number | null;
   tollsCentsPerCar: number | null;   // ida y vuelta, por coche
   parkingCentsPerCar: number | null; // estancia completa, por coche
-  lodging: null | {
-    modality: Modality;
-    amountCents: number | null;
-    unit: PriceUnit;
-    /** Personas/noches a las que se refiere la cotización; si no coinciden con el viaje, no se escala. */
-    quotedPeople: number | null;
-    quotedNights: number | null;
-    quotedForfaitDays: number | null;
-    priceKind: string | null;
-  };
+  /** Condiciones del viaje con las que se compara la cotización (null = sin indicar). */
+  trip?: TripConditions;
+  lodging: null | LodgingQuote;
   forfaitCentsPerDay: number | null;
   rentalCentsPerDay: number | null;
   groceriesCents: number | null;
 }
 
-export type ComponentStatus = 'known' | 'pending' | 'not_applicable';
+export interface TripConditions {
+  startDate: string | null;
+  endDate: string | null;
+  areaId: string | null;
+  adults: number | null;
+  childrenAges: number[];          // [] = sin menores
+  rooms: number | null;            // null = sin indicar (solo importa si el precio es por habitación o la cotización lo fija)
+}
+
+/** Cotización tal como se obtuvo. Sus condiciones son las DECLARADAS por la cotización; null = desconocido. */
+export interface LodgingQuote {
+  modality: Modality;
+  forfaitIncluded?: 'yes' | 'no' | 'unknown';
+  amountCents: number | null;
+  unit: PriceUnit;
+  priceKind: string | null;        // quoted_for_search | user_quote | manual_estimate | advertised_from
+  checkIn: string | null;
+  checkOut: string | null;
+  adults: number | null;
+  childrenAges: number[] | null;   // null = no consta
+  rooms: number | null;
+  areaId: string | null;
+  forfaitDays: number | null;
+}
+
+export interface QuoteComparison {
+  status: 'compatible' | 'incompatible' | 'incomplete';
+  issues: string[];                // condiciones distintas
+  unknown: string[];               // condiciones que no se pueden comprobar
+}
+
+const daysBetweenIso = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400_000);
+const agesKey = (a: number[]) => JSON.stringify([...a].sort((x, y) => x - y));
+
+/**
+ * Compara las condiciones exactas del viaje con las de la cotización. Nunca escala: si cambia una dimensión
+ * determinante (fechas, ocupación, habitaciones, destino o forfait) la cotización deja de valer para el grupo.
+ */
+export function compareQuote(i: Pick<BudgetInput, 'nights' | 'skiDays'> & { trip?: TripConditions }, q: LodgingQuote): QuoteComparison {
+  const t = i.trip;
+  const issues: string[] = [];
+  const unknown: string[] = [];
+  // Fechas exactas (misma duración en otras fechas NO es la misma cotización).
+  if (q.checkIn && q.checkOut) {
+    const qn = daysBetweenIso(q.checkIn, q.checkOut);
+    if (t?.startDate && t?.endDate) {
+      if (q.checkIn !== t.startDate || q.checkOut !== t.endDate) issues.push(`la cotización es del ${q.checkIn} al ${q.checkOut} y el viaje del ${t.startDate} al ${t.endDate}`);
+    } else if (i.nights != null && qn !== i.nights) issues.push(`la cotización es para ${qn} noche(s) y el viaje tiene ${i.nights}`);
+    else unknown.push('fechas del viaje');
+  } else unknown.push('fechas de la cotización');
+  // Ocupación: adultos y edades de menores. Un precio por persona tampoco se escala a otro grupo.
+  if (q.adults == null) unknown.push('adultos de la cotización');
+  else if (t?.adults == null) unknown.push('adultos del viaje');
+  else if (q.adults !== t.adults) issues.push(`la cotización es para ${q.adults} adulto(s) y el viaje tiene ${t.adults}`);
+  const tripKids = t?.childrenAges ?? [];
+  if (q.childrenAges == null) { if (tripKids.length) unknown.push('menores de la cotización'); }
+  else if (agesKey(q.childrenAges) !== agesKey(tripKids)) issues.push(`menores distintos (cotización: ${q.childrenAges.length ? q.childrenAges.join(', ') + ' años' : 'ninguno'}; viaje: ${tripKids.length ? tripKids.join(', ') + ' años' : 'ninguno'})`);
+  // Habitaciones: importan si la cotización o el viaje las fijan, o si el precio es por habitación.
+  if (q.rooms != null && t?.rooms != null && q.rooms !== t.rooms) issues.push(`la cotización es para ${q.rooms} habitación(es) y el viaje prevé ${t.rooms}`);
+  else if (q.unit === 'per_room' && (q.rooms == null || t?.rooms == null)) unknown.push('habitaciones');
+  // Destino.
+  if (q.areaId && t?.areaId && q.areaId !== t.areaId) issues.push('la cotización es de otro destino');
+  else if (!q.areaId || !t?.areaId) unknown.push('destino');
+  // Forfait.
+  const forfait = q.forfaitIncluded ?? (q.modality === 'lodging_forfait' ? 'yes' : 'unknown');
+  if (forfait === 'unknown') unknown.push('si incluye forfait');
+  if (forfait === 'yes') {
+    if (q.forfaitDays == null) unknown.push('días de forfait');
+    else if (i.skiDays != null && q.forfaitDays !== i.skiDays) issues.push(`el paquete incluye ${q.forfaitDays} día(s) de forfait y planeáis ${i.skiDays}`);
+  }
+  return { status: issues.length ? 'incompatible' : unknown.length ? 'incomplete' : 'compatible', issues, unknown };
+}
+
+/** known = cotización válida para el grupo; estimated = estimación manual deliberada (se suma aparte). */
+export type ComponentStatus = 'known' | 'estimated' | 'pending' | 'not_applicable';
 export interface BudgetComponent {
   key: 'transport' | 'tolls' | 'parking' | 'lodging' | 'forfait' | 'rental' | 'groceries';
   label: string;
   status: ComponentStatus;
   totalCents: number | null;
   note: string;
+  /** Importe de la cotización que no se suma (incompatible, incompleta u orientativa), como referencia histórica. */
+  referenceCents?: number | null;
+  comparison?: QuoteComparison;
 }
 export interface BudgetResult {
   components: BudgetComponent[];
   knownSubtotalCents: number;
+  estimatedSubtotalCents: number;  // solo estimaciones manuales; nunca mezcladas con lo conocido
   pending: string[];
   complete: boolean;
   perPersonCents: number | null;   // solo si está completo y hay personas
@@ -72,18 +143,23 @@ export function computeBudget(i: BudgetInput): BudgetResult {
     else c.push({ key, label, status: 'known', totalCents: v * i.cars, note: `${eur(v)} por coche × ${i.cars}.` });
   }
 
-  // Alojamiento (o paquete alojamiento + forfait). Nunca se escala una cotización a otras noches/personas.
+  // Alojamiento (o paquete alojamiento + forfait). Nunca se escala una cotización a otras fechas, personas o destino.
   let packageIncludesForfait = false;
   const L = i.lodging;
   if (!L || L.amountCents == null) pending('lodging', 'Alojamiento', 'Sin alojamiento elegido o sin precio.');
   else {
-    packageIncludesForfait = L.modality === 'lodging_forfait';
+    const forfait = L.forfaitIncluded ?? (L.modality === 'lodging_forfait' ? 'yes' : 'unknown');
+    packageIncludesForfait = forfait === 'yes';
     const label = packageIncludesForfait ? 'Alojamiento + forfait' : 'Alojamiento';
-    const mismatch: string[] = [];
-    if (L.quotedNights != null && i.nights != null && L.quotedNights !== i.nights) mismatch.push(`la cotización es para ${L.quotedNights} noche(s) y el viaje tiene ${i.nights}`);
-    if (L.quotedPeople != null && i.people != null && L.quotedPeople !== i.people && L.unit !== 'per_person' && L.unit !== 'per_person_night') mismatch.push(`la cotización es para ${L.quotedPeople} persona(s) y sois ${i.people}`);
-    if (packageIncludesForfait && L.quotedForfaitDays != null && i.skiDays != null && L.quotedForfaitDays !== i.skiDays) mismatch.push(`el paquete incluye ${L.quotedForfaitDays} día(s) de forfait y planeáis ${i.skiDays}`);
-    if (mismatch.length) pending('lodging', label, `No comparable: ${mismatch.join('; ')}. Pide una cotización para estas condiciones.`);
+    const cmp = compareQuote(i, L);
+    const estimate = L.priceKind === 'manual_estimate';
+    const ref = { referenceCents: L.amountCents, comparison: cmp };
+    if (cmp.status === 'incompatible') c.push({ key: 'lodging', label, status: 'pending', totalCents: null, ...ref,
+      note: `La cotización guardada no vale para el viaje actual: ${cmp.issues.join('; ')}. Se conserva como referencia; pide una cotización para estas condiciones.` });
+    else if (cmp.status === 'incomplete' && !estimate) c.push({ key: 'lodging', label, status: 'pending', totalCents: null, ...ref,
+      note: `No se puede comprobar que la cotización valga para el grupo: falta ${cmp.unknown.join(', ')}.` });
+    else if (L.priceKind === 'advertised_from') c.push({ key: 'lodging', label, status: 'pending', totalCents: null, ...ref,
+      note: 'Precio «desde» orientativo del proveedor: no es una cotización para vuestro grupo ni fechas.' });
     else {
       let total: number | null = null;
       let note = '';
@@ -91,17 +167,16 @@ export function computeBudget(i: BudgetInput): BudgetResult {
       if (packageIncludesForfait && i.skiers != null && i.people != null && i.skiers < i.people) warnings.push('Hay participantes que no esquían y el paquete incluye forfait para cada persona: confirma el precio sin forfait para ellos.');
       switch (L.unit) {
         case 'per_stay': total = L.amountCents; note = 'Precio total de la estancia.'; break;
-        case 'per_person': if (who != null) { total = L.amountCents * who; note = `${eur(L.amountCents)} por persona × ${who}.`; } break;
+        case 'per_person': if (who != null) { total = L.amountCents * who; note = `${eur(L.amountCents)} por persona × ${who} (cotizado para este mismo grupo).`; } break;
         case 'per_night': if (i.nights != null) { total = L.amountCents * i.nights; note = `${eur(L.amountCents)} por noche (alojamiento completo) × ${i.nights}.`; } break;
         case 'per_person_night': if (who != null && i.nights != null) { total = L.amountCents * who * i.nights; note = `${eur(L.amountCents)} por persona y noche × ${who} × ${i.nights}.`; } break;
-        default: break; // por habitación o desconocido: requiere confirmar habitaciones/cupo
+        case 'per_room': if (L.rooms != null && i.trip?.rooms != null && L.rooms === i.trip.rooms) { total = L.amountCents * L.rooms; note = `${eur(L.amountCents)} por habitación × ${L.rooms}.`; } break;
+        default: break;
       }
-      if (total == null) pending('lodging', label, L.unit === 'per_room' ? 'Precio por habitación: confirma cuántas habitaciones y el cupo antes de sumar.' : 'Unidad del precio desconocida o faltan personas/noches.');
-      else {
-        if (L.priceKind === 'advertised_from') warnings.push('El alojamiento es un precio «desde»: no garantiza disponibilidad para vuestro grupo ni fechas.');
-        if (L.priceKind === 'manual_estimate') warnings.push('El alojamiento es una estimación manual.');
-        c.push({ key: 'lodging', label, status: 'known', totalCents: total, note });
-      }
+      if (total == null) pending('lodging', label, L.unit === 'per_room' ? 'Precio por habitación: confirma cuántas habitaciones antes de sumar.' : 'Unidad del precio desconocida o faltan personas/noches.');
+      else if (estimate) {
+        c.push({ key: 'lodging', label, status: 'estimated', totalCents: total, ...ref, note: `Estimación manual, no una cotización. ${note}${cmp.unknown.length ? ` Sin comprobar: ${cmp.unknown.join(', ')}.` : ''}` });
+      } else c.push({ key: 'lodging', label, status: 'known', totalCents: total, comparison: cmp, note });
     }
   }
 
@@ -119,12 +194,15 @@ export function computeBudget(i: BudgetInput): BudgetResult {
   else c.push({ key: 'groceries', label: 'Compra', status: 'known', totalCents: i.groceriesCents, note: 'Estimación del grupo.' });
 
   const knownSubtotalCents = c.reduce((s, x) => s + (x.status === 'known' ? x.totalCents! : 0), 0);
+  const estimatedSubtotalCents = c.reduce((s, x) => s + (x.status === 'estimated' ? x.totalCents! : 0), 0);
   const pend = c.filter((x) => x.status === 'pending').map((x) => x.label);
-  const complete = pend.length === 0;
+  // Completo solo con partidas conocidas: una estimación manual no completa el presupuesto.
+  const complete = pend.length === 0 && !c.some((x) => x.status === 'estimated');
   const people = i.people && i.people > 0 ? i.people : null;
   return {
     components: c,
     knownSubtotalCents,
+    estimatedSubtotalCents,
     pending: pend,
     complete,
     perPersonCents: complete && people ? Math.round(knownSubtotalCents / people) : null,

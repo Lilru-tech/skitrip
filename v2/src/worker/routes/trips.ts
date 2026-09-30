@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../env';
+import { daysBetween } from '../../core/dates';
 import { areFriends, audit, isBlocked, requireTripEditor, requireTripMember, requireTripOwner, tripRole } from '../access';
 import { ApiError, badRequest, conflict, forbidden, newId, notFound, now, parseBody } from '../http';
 import { rateLimit } from '../ratelimit';
@@ -12,13 +13,14 @@ type TripRow = {
   id: string; owner_id: string; name: string; origin_id: string | null; start_date: string | null; end_date: string | null;
   nights: number | null; ski_days: number | null; participants_planned: number | null; cars: number | null;
   budget_cents: number | null; area_id: string | null; status: string; members_can_invite: number; version: number;
-  created_at: number; updated_at: number;
+  created_at: number; updated_at: number; children_ages: string; rooms: number | null;
 };
 
 const tripOut = (t: TripRow) => ({
   id: t.id, ownerId: t.owner_id, name: t.name, originId: t.origin_id, startDate: t.start_date, endDate: t.end_date,
   nights: t.nights, skiDays: t.ski_days, participantsPlanned: t.participants_planned, cars: t.cars,
   budgetCents: t.budget_cents, areaId: t.area_id, status: t.status, membersCanInvite: !!t.members_can_invite,
+  childrenAges: JSON.parse(t.children_ages || '[]') as number[], rooms: t.rooms,
   version: t.version, createdAt: t.created_at, updatedAt: t.updated_at,
 });
 
@@ -35,16 +37,39 @@ const tripFields = z.object({
   areaId: zId.nullable().optional(),
   status: z.enum(['planning', 'decided', 'done', 'cancelled']).optional(),
   membersCanInvite: z.boolean().optional(),
+  childrenAges: z.array(z.number().int().min(0).max(17)).max(20).optional(),
+  rooms: z.number().int().min(1).max(30).nullable().optional(),
 });
 
 const COLS: Record<string, string> = {
   name: 'name', originId: 'origin_id', startDate: 'start_date', endDate: 'end_date', nights: 'nights', skiDays: 'ski_days',
   participantsPlanned: 'participants_planned', cars: 'cars', budgetCents: 'budget_cents', areaId: 'area_id', status: 'status',
-  membersCanInvite: 'members_can_invite',
+  membersCanInvite: 'members_can_invite', childrenAges: 'children_ages', rooms: 'rooms',
 };
 
 function checkDates(start?: string | null, end?: string | null) {
   if (start && end && end < start) throw new ApiError(422, 'validation', 'La fecha de vuelta no puede ser anterior a la de ida.');
+}
+
+/**
+ * Noches coherentes con las fechas: con ida y vuelta, las noches se derivan de ellas. Si se envían unas noches
+ * distintas se rechaza con un mensaje claro en lugar de guardar datos contradictorios.
+ */
+function resolveNights(start: string | null | undefined, end: string | null | undefined, nights: number | null | undefined, nightsSent: boolean): number | null | undefined {
+  if (start && end) {
+    const derived = daysBetween(start, end);
+    if (nightsSent && nights != null && nights !== derived) {
+      throw new ApiError(422, 'nights_mismatch', `Las noches (${nights}) no coinciden con las fechas: del ${start} al ${end} son ${derived}. Corrige las fechas o las noches.`);
+    }
+    return derived;
+  }
+  return nights;
+}
+
+function checkPeople(participants: number | null | undefined, kids: number[] | undefined) {
+  if (kids && kids.length && participants != null && kids.length >= participants) {
+    throw new ApiError(422, 'validation', 'Los menores se cuentan dentro de los participantes y debe haber al menos un adulto.');
+  }
 }
 
 tripRoutes.get('/', async (c) => {
@@ -59,17 +84,19 @@ tripRoutes.post('/', async (c) => {
   const user = c.get('user');
   const body = await parseBody(c, tripFields);
   checkDates(body.startDate, body.endDate);
+  body.nights = resolveNights(body.startDate, body.endDate, body.nights, body.nights !== undefined);
+  checkPeople(body.participantsPlanned, body.childrenAges);
   await rateLimit(c.env.DB, `trip_create:${user.id}`, 30, 86400);
   const id = newId();
   const t = now();
   await c.env.DB.batch([
     c.env.DB.prepare(
       `INSERT INTO trips (id, owner_id, name, origin_id, start_date, end_date, nights, ski_days, participants_planned, cars,
-                          budget_cents, area_id, status, members_can_invite, created_at, updated_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)`,
+                          budget_cents, area_id, status, members_can_invite, created_at, updated_at, children_ages, rooms)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15, ?16, ?17)`,
     ).bind(id, user.id, body.name, body.originId ?? 'tarragona', body.startDate ?? null, body.endDate ?? null, body.nights ?? null,
       body.skiDays ?? null, body.participantsPlanned ?? null, body.cars ?? null, body.budgetCents ?? null, body.areaId ?? null,
-      body.status ?? 'planning', body.membersCanInvite ? 1 : 0, t),
+      body.status ?? 'planning', body.membersCanInvite ? 1 : 0, t, JSON.stringify(body.childrenAges ?? []), body.rooms ?? null),
     c.env.DB.prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?1, ?2, 'owner', ?3)`).bind(id, user.id, t),
   ]);
   const trip = await c.env.DB.prepare('SELECT * FROM trips WHERE id = ?1').bind(id).first<TripRow>();
@@ -168,7 +195,14 @@ tripRoutes.patch('/:id', async (c) => {
   await requireTripEditor(c.env.DB, id, user.id);
   const body = await parseBody(c, tripFields.partial().extend({ version: z.number().int().positive() }));
   const current = await loadTrip(c.env.DB, id);
-  checkDates(body.startDate !== undefined ? body.startDate : current.start_date, body.endDate !== undefined ? body.endDate : current.end_date);
+  const start = body.startDate !== undefined ? body.startDate : current.start_date;
+  const end = body.endDate !== undefined ? body.endDate : current.end_date;
+  checkDates(start, end);
+  // Si cambian las fechas, las noches se recalculan; unas noches enviadas que no cuadran se rechazan.
+  const nights = resolveNights(start, end, body.nights !== undefined ? body.nights : current.nights, body.nights !== undefined);
+  if (start && end && nights !== current.nights) body.nights = nights;
+  checkPeople(body.participantsPlanned !== undefined ? body.participantsPlanned : current.participants_planned,
+    body.childrenAges !== undefined ? body.childrenAges : JSON.parse(current.children_ages || '[]'));
   const sets: string[] = [];
   const args: unknown[] = [];
   for (const [k, col] of Object.entries(COLS)) {
@@ -178,7 +212,7 @@ tripRoutes.patch('/:id', async (c) => {
       if (current.owner_id !== user.id) throw forbidden('Solo el propietario decide quién puede invitar.');
       sets.push(`${col} = ?`); args.push(v ? 1 : 0);
     } else {
-      sets.push(`${col} = ?`); args.push(v);
+      sets.push(`${col} = ?`); args.push(k === 'childrenAges' ? JSON.stringify(v) : v);
     }
   }
   if (!sets.length) return c.json({ trip: tripOut(current) });

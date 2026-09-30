@@ -89,9 +89,10 @@ describe('ingesta de nieve', () => {
 describe('escenarios, ofertas y presupuesto', () => {
   it('ingesta de ofertas: no observada ≠ agotada, precio «desde» y no se multiplica al cambiar noches', async () => {
     const o = await signup();
-    const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Paquete', nights: 2, skiDays: 2, participantsPlanned: 2, cars: 1, areaId: 'cerler' })).json.trip;
     const d = new Date(Date.now() + 60 * 86400_000).toISOString().slice(0, 10);
     const d2 = new Date(Date.now() + 62 * 86400_000).toISOString().slice(0, 10);
+    const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Paquete', startDate: d, endDate: d2, skiDays: 2, participantsPlanned: 2, cars: 1, areaId: 'cerler' })).json.trip;
+    expect(trip.nights).toBe(2); // derivadas de las fechas
     const sc = await api(o.token, 'POST', `/api/trips/${trip.id}/scenarios`, { providerId: 'esquiades', areaId: 'cerler', modality: 'lodging_forfait', checkIn: d, checkOut: d2, adults: 2, forfaitDays: 2 });
     expect(sc.status).toBe(201);
     const sc2 = await api(o.token, 'POST', `/api/trips/${trip.id}/scenarios`, { providerId: 'esquiades', areaId: 'cerler', modality: 'lodging_forfait', checkIn: d, checkOut: d2, adults: 2, forfaitDays: 2 });
@@ -99,7 +100,9 @@ describe('escenarios, ofertas y presupuesto', () => {
     const scen = (await SELF.fetch('http://localhost/api/ingest/scenarios', { headers: { Authorization: `Bearer ${INGEST}` } }).then((r) => r.json<any>())).scenarios;
     expect(scen.map((s: any) => s.id)).toContain(sc.json.scenarioId);
 
-    const offer = (id: string, amount: number | null) => ({ providerOfferId: id, hotelName: `Hotel ${id}`, board: 'MP', nights: 2, forfaitDays: 2, adults: 2, unit: 'per_person', priceKind: 'quoted_for_search', amountCents: amount, availability: 'available', extractor: 'esquiades-cards@2' });
+    // La tarjeta declara fechas, adultos y forfait: condiciones verificadas → cotización para la búsqueda.
+    const offer = (id: string, amount: number | null) => ({ providerOfferId: id, hotelName: `Hotel ${id}`, board: 'MP', nights: 2, forfaitDays: 2, forfaitIncluded: 'yes', adults: 2,
+      checkIn: d, checkOut: d2, unit: 'per_person', priceKind: 'quoted_for_search', amountCents: amount, availability: 'available', extractor: 'esquiades-cards@2' });
     const t1 = Date.now() - 2 * 86400_000, t2 = Date.now() - 86400_000;
     await ingest('offers', { run: { ...run('run-off-1'), pipeline: 'offers' }, observedAt: t1, results: [{ scenarioId: sc.json.scenarioId, outcome: 'results', offers: [offer('A', 20000), offer('B', 25000)] }] });
     await ingest('offers', { run: { ...run('run-off-2'), pipeline: 'offers' }, observedAt: t2, results: [{ scenarioId: sc.json.scenarioId, outcome: 'results', offers: [offer('A', 19000)] }] });
@@ -108,7 +111,7 @@ describe('escenarios, ofertas y presupuesto', () => {
     const B = view.offers.find((x: any) => x.hotelName === 'Hotel B');
     expect(A.panel.change).toMatchObject({ cents: -1000 });
     expect(B.availability).toBe('not_observed');
-    expect(view.distribution).toMatchObject({ n: 1, compositionChanged: true });
+    expect(view.distribution.groups[0]).toMatchObject({ unit: 'per_person', n: 1, compositionChanged: true });
 
     const cand = (await api(o.token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Hotel A', offerId: A.offerId, modality: 'lodging_forfait' })).json;
     const budget0 = (await api(o.token, 'GET', `/api/trips/${trip.id}/budget`)).json;
@@ -117,7 +120,9 @@ describe('escenarios, ofertas y presupuesto', () => {
     expect(b1.components.find((c: any) => c.key === 'lodging')).toMatchObject({ status: 'known', totalCents: 38000 });
     expect(b1.components.find((c: any) => c.key === 'forfait').status).toBe('not_applicable');
     const tv = (await api(o.token, 'GET', `/api/trips/${trip.id}`)).json.trip;
-    await api(o.token, 'PATCH', `/api/trips/${trip.id}`, { nights: 4, version: tv.version });
+    const d4 = new Date(Date.parse(d2) + 2 * 86400_000).toISOString().slice(0, 10);
+    const patched = await api(o.token, 'PATCH', `/api/trips/${trip.id}`, { endDate: d4, version: tv.version });
+    expect(patched.json.trip.nights).toBe(4);
     const b2 = (await api(o.token, 'GET', `/api/trips/${trip.id}/budget`)).json.result;
     expect(b2.components.find((c: any) => c.key === 'lodging')).toMatchObject({ status: 'pending', totalCents: null });
     expect(b2.complete).toBe(false);

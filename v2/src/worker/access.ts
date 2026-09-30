@@ -49,23 +49,32 @@ export async function isBlocked(db: D1Database, a: string, b: string): Promise<b
  * - Compartido con un viaje concreto y ambos son miembros hoy: sí (si se pasa ese viaje, solo ese).
  */
 export async function canSeeAvailability(db: D1Database, viewer: string, owner: string, tripId?: string): Promise<boolean> {
-  if (viewer === owner) return true;
-  if (await isBlocked(db, viewer, owner)) return false;
-  const [x, y] = pair(viewer, owner);
-  const row = await db
+  return (await visibleAvailabilityOwners(db, viewer, [owner], tripId)).has(owner);
+}
+
+/**
+ * Misma regla que canSeeAvailability para varias personas en UNA consulta (presupuesto de D1 por petición).
+ * Es la única implementación de la decisión: canSeeAvailability la usa.
+ */
+export async function visibleAvailabilityOwners(db: D1Database, viewer: string, owners: string[], tripId?: string): Promise<Set<string>> {
+  const out = new Set<string>(owners.includes(viewer) ? [viewer] : []);
+  const others = owners.filter((o) => o !== viewer);
+  if (!others.length) return out;
+  const { results } = await db
     .prepare(
-      `SELECT 1 FROM availability_shares s
-       WHERE s.owner_id = ?1 AND (
-         (s.scope = 'friends' AND EXISTS (SELECT 1 FROM friendships f WHERE f.user_a = ?3 AND f.user_b = ?4))
-         OR
-         (s.scope = 'trip' AND (?5 IS NULL OR s.trip_id = ?5)
-           AND EXISTS (SELECT 1 FROM trip_members m1 WHERE m1.trip_id = s.trip_id AND m1.user_id = ?1)
-           AND EXISTS (SELECT 1 FROM trip_members m2 WHERE m2.trip_id = s.trip_id AND m2.user_id = ?2))
-       ) LIMIT 1`,
+      `SELECT o.value AS owner FROM json_each(?1) o
+       WHERE NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = ?2 AND b.blocked_id = o.value) OR (b.blocker_id = o.value AND b.blocked_id = ?2))
+         AND EXISTS (SELECT 1 FROM availability_shares s WHERE s.owner_id = o.value AND (
+           (s.scope = 'friends' AND EXISTS (SELECT 1 FROM friendships f WHERE f.user_a = MIN(?2, o.value) AND f.user_b = MAX(?2, o.value)))
+           OR
+           (s.scope = 'trip' AND (?3 IS NULL OR s.trip_id = ?3)
+             AND EXISTS (SELECT 1 FROM trip_members m1 WHERE m1.trip_id = s.trip_id AND m1.user_id = o.value)
+             AND EXISTS (SELECT 1 FROM trip_members m2 WHERE m2.trip_id = s.trip_id AND m2.user_id = ?2))))`,
     )
-    .bind(owner, viewer, x, y, tripId ?? null)
-    .first();
-  return !!row;
+    .bind(JSON.stringify(others), viewer, tripId ?? null)
+    .all<{ owner: string }>();
+  for (const r of results) out.add(r.owner);
+  return out;
 }
 
 export async function audit(db: D1Database, actorId: string | null, action: string, targetType: string, targetId: string | null, detail?: unknown) {

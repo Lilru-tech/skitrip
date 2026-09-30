@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { dailyCounts, findCandidateWindows, type DayStatus, type PersonDays } from '../../core/calendar';
 import { daysBetween, eachDay, weekdayMon0 } from '../../core/dates';
 import type { AppEnv } from '../env';
-import { canSeeAvailability, requireTripMember } from '../access';
+import { requireTripMember, visibleAvailabilityOwners } from '../access';
 import { ApiError, conflict, newId, notFound, now, parseBody, parseQuery } from '../http';
 import { zDate, zId } from '../schemas';
 
@@ -15,9 +15,8 @@ const zRange = z.object({ from: zDate, to: zDate }).refine((r) => r.to >= r.from
 async function loadDays(db: D1Database, userIds: string[], from: string, to: string): Promise<Map<string, Map<string, DayStatus>>> {
   const out = new Map<string, Map<string, DayStatus>>(userIds.map((id) => [id, new Map()]));
   if (!userIds.length) return out;
-  const ph = userIds.map((_, i) => `?${i + 3}`).join(',');
-  const { results } = await db.prepare(`SELECT user_id, day, status FROM availability WHERE day BETWEEN ?1 AND ?2 AND user_id IN (${ph})`)
-    .bind(from, to, ...userIds).all<{ user_id: string; day: string; status: DayStatus }>();
+  const { results } = await db.prepare(`SELECT user_id, day, status FROM availability WHERE day BETWEEN ?1 AND ?2 AND user_id IN (SELECT value FROM json_each(?3))`)
+    .bind(from, to, JSON.stringify(userIds)).all<{ user_id: string; day: string; status: DayStatus }>();
   for (const r of results) out.get(r.user_id)!.set(r.day, r.status);
   return out;
 }
@@ -52,14 +51,15 @@ availabilityRoutes.put('/me', async (c) => {
   // Los días sueltos se aplican después del rango: sirven de excepciones al patrón semanal.
   for (const s of body.set ?? []) changes.set(s.day, s.status);
   const t = now();
-  const stmts: D1PreparedStatement[] = [];
-  for (const [day, status] of changes) {
-    stmts.push(status === null
-      ? c.env.DB.prepare('DELETE FROM availability WHERE user_id = ?1 AND day = ?2').bind(me, day)
-      : c.env.DB.prepare(`INSERT INTO availability (user_id, day, status, updated_at) VALUES (?1, ?2, ?3, ?4)
-                          ON CONFLICT (user_id, day) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`).bind(me, day, status, t));
-  }
-  for (let i = 0; i < stmts.length; i += 100) await c.env.DB.batch(stmts.slice(i, i + 100));
+  const upserts = [...changes].filter(([, s]) => s !== null).map(([day, status]) => ({ day, status }));
+  const deletes = [...changes].filter(([, s]) => s === null).map(([day]) => day);
+  // Dos sentencias fijas, en una transacción, para cualquier tamaño (temporada completa incluida).
+  await c.env.DB.batch([
+    c.env.DB.prepare(`INSERT INTO availability (user_id, day, status, updated_at)
+                      SELECT ?1, json_extract(value, '$.day'), json_extract(value, '$.status'), ?2 FROM json_each(?3) WHERE true
+                      ON CONFLICT (user_id, day) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`).bind(me, t, JSON.stringify(upserts)),
+    c.env.DB.prepare(`DELETE FROM availability WHERE user_id = ?1 AND day IN (SELECT value FROM json_each(?2))`).bind(me, JSON.stringify(deletes)),
+  ]);
   return c.json({ ok: true, changed: changes.size });
 });
 
@@ -75,13 +75,17 @@ availabilityRoutes.get('/shares', async (c) => {
 availabilityRoutes.put('/shares', async (c) => {
   const me = c.get('user').id;
   const body = await parseBody(c, z.object({ friends: z.boolean(), tripIds: z.array(zId).max(50) }));
-  for (const tid of body.tripIds) await requireTripMember(c.env.DB, tid, me);
+  const tripIds = [...new Set(body.tripIds)];
+  if (tripIds.length) {
+    const { results: mine } = await c.env.DB.prepare(`SELECT trip_id FROM trip_members WHERE user_id = ?1 AND trip_id IN (SELECT value FROM json_each(?2))`)
+      .bind(me, JSON.stringify(tripIds)).all<{ trip_id: string }>();
+    if (mine.length !== tripIds.length) throw notFound('Viaje');
+  }
   const t = now();
   const stmts = [c.env.DB.prepare('DELETE FROM availability_shares WHERE owner_id = ?1').bind(me)];
   if (body.friends) stmts.push(c.env.DB.prepare(`INSERT INTO availability_shares (id, owner_id, scope, created_at) VALUES (?1, ?2, 'friends', ?3)`).bind(newId(), me, t));
-  for (const tid of new Set(body.tripIds)) {
-    stmts.push(c.env.DB.prepare(`INSERT INTO availability_shares (id, owner_id, scope, trip_id, created_at) VALUES (?1, ?2, 'trip', ?3, ?4)`).bind(newId(), me, tid, t));
-  }
+  if (tripIds.length) stmts.push(c.env.DB.prepare(`INSERT INTO availability_shares (id, owner_id, scope, trip_id, created_at)
+    SELECT lower(hex(randomblob(16))), ?1, 'trip', value, ?2 FROM json_each(?3)`).bind(me, t, JSON.stringify(tripIds)));
   await c.env.DB.batch(stmts);
   return c.json({ ok: true });
 });
@@ -104,8 +108,8 @@ availabilityRoutes.get('/visible', async (c) => {
 });
 
 async function commonView(db: D1Database, viewer: string, ids: string[], from: string, to: string, tripId?: string) {
-  const visible: string[] = [];
-  for (const id of ids) if (await canSeeAvailability(db, viewer, id, tripId)) visible.push(id);
+  const allowed = await visibleAvailabilityOwners(db, viewer, ids, tripId);
+  const visible = ids.filter((id) => allowed.has(id));
   const days = await loadDays(db, visible, from, to);
   const people: PersonDays[] = ids.map((id) => ({ id, days: days.get(id) ?? null }));
   return people;

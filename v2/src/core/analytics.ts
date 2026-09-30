@@ -66,7 +66,9 @@ export function offerPanel(points: readonly PricePoint[], nowMs = Date.now(), wi
  * Distribución de una BÚSQUEDA (varias ofertas a la vez). Indica si la composición cambió respecto a
  * la búsqueda anterior: entonces una bajada del mínimo NO es un descuento del mismo producto.
  */
-export function searchDistribution(current: { offerId: string; amountCents: number | null }[], previous?: { offerId: string; amountCents: number | null }[]) {
+type DistItem = { offerId: string; amountCents: number | null; unit?: string; priceKind?: string };
+
+function distOne(current: DistItem[], previous?: DistItem[]) {
   const vals = current.map((o) => o.amountCents).filter((v): v is number => typeof v === 'number');
   const res = { n: vals.length, minCents: vals.length ? Math.min(...vals) : null, medianCents: median(vals), maxCents: vals.length ? Math.max(...vals) : null, compositionChanged: false, added: [] as string[], removed: [] as string[] };
   if (previous) {
@@ -77,6 +79,20 @@ export function searchDistribution(current: { offerId: string; amountCents: numb
     res.compositionChanged = res.added.length > 0 || res.removed.length > 0;
   }
   return res;
+}
+
+/**
+ * Distribución de una búsqueda, SEPARADA por unidad y tipo de precio: nunca se calcula una mediana conjunta de
+ * €/persona, €/habitación y €/estancia, ni se mezclan precios «desde» con cotizaciones.
+ */
+export function searchDistribution(current: DistItem[], previous?: DistItem[]) {
+  const key = (o: DistItem) => `${o.unit ?? 'unknown'}|${o.priceKind ?? 'unknown'}`;
+  const keys = [...new Set(current.filter((o) => o.amountCents != null).map(key))];
+  const groups = keys.map((k) => {
+    const [unit, priceKind] = k.split('|');
+    return { unit, priceKind, ...distOne(current.filter((o) => key(o) === k), previous?.filter((o) => key(o) === k)) };
+  });
+  return { groups, mixedUnits: new Set(groups.map((g) => g.unit)).size > 1 };
 }
 
 /** Estado de frescura según umbral por tipo de dato. */

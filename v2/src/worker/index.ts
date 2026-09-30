@@ -15,8 +15,20 @@ import { shoppingRoutes } from './routes/shopping';
 import { expenseRoutes } from './routes/expenses';
 import { socialRoutes } from './routes/social';
 import { purgeRateLimits } from './ratelimit';
+import { countingDb, QUERY_BUDGET } from './d1budget';
 
 const app = new Hono<AppEnv>();
+
+// Cuenta cada sentencia D1 de la invocación y corta antes del límite de D1 Free (ver d1budget.ts).
+app.use('/api/*', async (c, next) => {
+  const counter = { n: 0, max: QUERY_BUDGET };
+  c.env = { ...c.env, DB: countingDb(c.env.DB, counter) };
+  try {
+    await next();
+  } finally {
+    if (c.env.AUTH_MODE === 'emulator') c.res.headers.set('X-D1-Statements', String(counter.n));
+  }
+});
 
 // Cabeceras de seguridad y sin caché para todas las respuestas de la API.
 app.use('/api/*', async (c, next) => {

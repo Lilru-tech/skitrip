@@ -27,11 +27,24 @@ describe('analítica de precios', () => {
     expect(r.change!.pct).toBeNull();
   });
   it('un cambio de composición de la búsqueda se marca: no es un descuento del mismo producto', () => {
-    const r = searchDistribution([{ offerId: 'b', amountCents: 8000 }], [{ offerId: 'a', amountCents: 10000 }]);
+    const r = searchDistribution([{ offerId: 'b', amountCents: 8000 }], [{ offerId: 'a', amountCents: 10000 }]).groups[0];
     expect(r.compositionChanged).toBe(true);
     expect(r.added).toEqual(['b']);
   });
   it('con una sola oferta muestra n=1', () => {
-    expect(searchDistribution([{ offerId: 'a', amountCents: 8000 }]).n).toBe(1);
+    expect(searchDistribution([{ offerId: 'a', amountCents: 8000 }]).groups[0].n).toBe(1);
+  });
+  it('nunca calcula una mediana conjunta de €/persona, €/habitación y €/estancia', () => {
+    const r = searchDistribution([
+      { offerId: 'a', amountCents: 10000, unit: 'per_person', priceKind: 'quoted_for_search' },
+      { offerId: 'b', amountCents: 12000, unit: 'per_person', priceKind: 'quoted_for_search' },
+      { offerId: 'c', amountCents: 30000, unit: 'per_room', priceKind: 'quoted_for_search' },
+      { offerId: 'd', amountCents: 90000, unit: 'per_stay', priceKind: 'quoted_for_search' },
+      { offerId: 'e', amountCents: 5000, unit: 'per_person', priceKind: 'advertised_from' },
+    ]);
+    expect(r.mixedUnits).toBe(true);
+    expect(r.groups).toHaveLength(4);
+    expect(r.groups.find((g) => g.unit === 'per_person' && g.priceKind === 'quoted_for_search')).toMatchObject({ n: 2, medianCents: 11000 });
+    expect(r.groups.find((g) => g.unit === 'per_stay')).toMatchObject({ n: 1, medianCents: 90000 });
   });
 });
