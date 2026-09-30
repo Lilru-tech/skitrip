@@ -1,0 +1,57 @@
+# SkiTrip v2 · captura de ofertas orientativas. No toca el flujo legacy (update-data.yml) ni hace commits.
+# Aviso: GitHub desactiva los workflows programados tras 60 días sin actividad en el repositorio
+# (ver docs/DEPLOY.md, «Mantenimiento»). Reactivar desde la pestaña Actions si ocurre.
+name: v2 · ofertas
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '40 7 * 10-12,1-4 *'    # oct-abr: diaria (UTC)
+    - cron: '40 7 * 5-9 1'          # may-sep: lunes
+permissions:
+  contents: read
+concurrency:
+  group: v2-offers
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: v2
+    env:
+      SKITRIP_API_URL: ${{ secrets.SKITRIP_API_URL }}
+      SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
+    steps:
+      - id: cfg
+        run: |
+          if [ -z "$SKITRIP_API_URL" ] || [ -z "$SKITRIP_INGEST_TOKEN" ]; then
+            echo "::warning::Secretos SKITRIP_API_URL / SKITRIP_INGEST_TOKEN no configurados: no se recolecta."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: .
+      - if: steps.cfg.outputs.ready == 'true'
+        uses: actions/checkout@v4
+      - if: steps.cfg.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - if: steps.cfg.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.cfg.outputs.ready == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.cfg.outputs.ready == 'true'
+        run: |
+          mkdir -p diag
+          set -o pipefail
+          npx tsx tools/collectors/offers.ts 2>&1 | tee diag/offers.log
+      - if: always() && steps.cfg.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: offers-diagnostics
+          path: v2/diag/
+          retention-days: 3

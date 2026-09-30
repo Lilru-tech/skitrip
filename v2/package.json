@@ -11,7 +11,10 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply skitrip --local",
-    "demo:e2e": "node scripts/demo-e2e.mjs"
+    "demo:e2e": "node scripts/demo-e2e.mjs",
+    "collect:snow": "tsx tools/collectors/snow.ts",
+    "collect:offers": "tsx tools/collectors/offers.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "firebase": "^12.19.0",

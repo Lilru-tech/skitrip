@@ -123,6 +123,23 @@ describe('escenarios, ofertas y presupuesto', () => {
     expect(b2.complete).toBe(false);
   });
 
+  it('ofertas de catálogo: orientativas, sin escenario, idempotentes y limitadas a fuentes registradas', async () => {
+    await env.DB.prepare(`INSERT OR IGNORE INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, status, adapter) VALUES
+      ('estiber-cer','cerler','cerler','offers','estiber','https://www.estiber.com/ofertas/cerler','playwright','[]','unverified','estiber-cards')`).run();
+    const offer = { providerOfferId: 'est-1', hotelName: 'Hotel Prueba', board: 'half_board', nights: 2, forfaitDays: 2, adults: 2, unit: 'per_person', priceKind: 'advertised_from', amountCents: 18900, availability: 'available', extractor: 'estiber-cards@1' };
+    const seen = Date.now() - 3_600_000; // el detalle público solo muestra ofertas de los últimos 14 días
+    const body = (id: string) => ({ run: { ...run(id), pipeline: 'offers', expected: 1, ok: 1 }, observedAt: seen, results: [],
+      catalog: [{ sourceId: 'estiber-cer', outcome: 'results', offers: [offer] }, { sourceId: 'esq-cer', outcome: 'results', offers: [offer] }] });
+    const r1 = await ingest('offers', body('run-cat-1'));
+    expect(r1.status).toBe(200);
+    expect(r1.json.written).toBe(1); // esq-cer es una fuente de nieve: se ignora
+    expect((await ingest('offers', body('run-cat-2'))).json.written).toBe(0);
+    const area = (await api(null, 'GET', '/api/public/areas/cerler')).json;
+    expect(area.offers.items).toHaveLength(1);
+    expect(area.offers.items[0]).toMatchObject({ price_kind: 'advertised_from', amount_cents: 18900, unit: 'per_person' });
+    expect(area.offers.note).toMatch(/orientativas/);
+  });
+
   it('votos: uno por persona, modificable, y votar no es reservar', async () => {
     const o = await signup();
     const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Votos' })).json.trip;

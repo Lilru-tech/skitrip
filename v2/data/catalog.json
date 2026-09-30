@@ -779,9 +779,9 @@
  ],
  "sources": [
   {
-   "id": "esquiades-status",
-   "area": "*",
-   "scope": "*",
+   "id": "esquiades-status-grandvalira",
+   "area": "grandvalira",
+   "scope": "grandvalira",
    "kind": "snow",
    "provider": "esquiades",
    "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
@@ -796,8 +796,474 @@
    "priority": 50,
    "status": "unverified",
    "checked_on": null,
-   "limitations": "Agregador. Ámbito por fila: en dominios conjuntos puede publicar solo el conjunto o solo un miembro. Adaptador reescrito, no ejecutado online desde este entorno.",
-   "adapter": "esquiades-status"
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "grandvalira"
+   ]
+  },
+  {
+   "id": "esquiades-status-pal-arinsal",
+   "area": "pal-arinsal",
+   "scope": "pal-arinsal",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "vallnord pal arinsal",
+    "pal arinsal"
+   ]
+  },
+  {
+   "id": "esquiades-status-ordino-arcalis",
+   "area": "ordino-arcalis",
+   "scope": "ordino-arcalis",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "ordino arcalis",
+    "vallnord ordino arcalis"
+   ]
+  },
+  {
+   "id": "esquiades-status-alp-2500",
+   "area": "alp-2500",
+   "scope": "alp-2500",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Solo la fila «Alp 2500»; la fila «La Molina» es otra fuente con otro ámbito.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "alp 2500 la molina masella",
+    "alp 2500"
+   ]
+  },
+  {
+   "id": "esquiades-status-la-molina",
+   "area": "la-molina",
+   "scope": "la-molina",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "la molina"
+   ]
+  },
+  {
+   "id": "esquiades-status-masella",
+   "area": "masella",
+   "scope": "masella",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "masella"
+   ]
+  },
+  {
+   "id": "esquiades-status-baqueira-beret",
+   "area": "baqueira-beret",
+   "scope": "baqueira-beret",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "baqueira beret",
+    "baqueira"
+   ]
+  },
+  {
+   "id": "esquiades-status-port-aine",
+   "area": "port-aine",
+   "scope": "port-aine",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "port aine"
+   ]
+  },
+  {
+   "id": "esquiades-status-espot-esqui",
+   "area": "espot-esqui",
+   "scope": "espot-esqui",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "espot esqui",
+    "espot"
+   ]
+  },
+  {
+   "id": "esquiades-status-boi-taull",
+   "area": "boi-taull",
+   "scope": "boi-taull",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "boi taull"
+   ]
+  },
+  {
+   "id": "esquiades-status-port-del-comte",
+   "area": "port-del-comte",
+   "scope": "port-del-comte",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "port del comte"
+   ]
+  },
+  {
+   "id": "esquiades-status-vall-de-nuria",
+   "area": "vall-de-nuria",
+   "scope": "vall-de-nuria",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "vall de nuria"
+   ]
+  },
+  {
+   "id": "esquiades-status-cerler",
+   "area": "cerler",
+   "scope": "cerler",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "cerler"
+   ]
+  },
+  {
+   "id": "esquiades-status-formigal-panticosa",
+   "area": "formigal-panticosa",
+   "scope": "formigal-panticosa",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Fila del conjunto; no se replica en Formigal ni en Panticosa.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "formigal panticosa"
+   ]
+  },
+  {
+   "id": "esquiades-status-astun-candanchu",
+   "area": "astun-candanchu",
+   "scope": "astun-candanchu",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Esquiades publicaba la misma cifra (101 km) bajo Astún y bajo Candanchú: es el dominio conjunto. Se registra una sola vez, en el dominio.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "astun",
+    "candanchu"
+   ]
+  },
+  {
+   "id": "esquiades-status-valdelinares",
+   "area": "valdelinares",
+   "scope": "valdelinares",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "valdelinares"
+   ]
+  },
+  {
+   "id": "esquiades-status-javalambre",
+   "area": "javalambre",
+   "scope": "javalambre",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "javalambre"
+   ]
+  },
+  {
+   "id": "esquiades-status-font-romeu-pyrenees-2000",
+   "area": "font-romeu-pyrenees-2000",
+   "scope": "font-romeu-pyrenees-2000",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "font romeu pyrenees 2000",
+    "font romeu"
+   ]
+  },
+  {
+   "id": "esquiades-status-les-angles",
+   "area": "les-angles",
+   "scope": "les-angles",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "les angles"
+   ]
+  },
+  {
+   "id": "esquiades-status-ax-3-domaines",
+   "area": "ax-3-domaines",
+   "scope": "ax-3-domaines",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "ax 3 domaines"
+   ]
   },
   {
    "id": "grandvalira-official",
@@ -823,7 +1289,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Página comprobada manualmente el 30/09/2026: muestra «0 / 215km», pistas por color, remontes 4/73, espesores y «Última actualización». Falta adaptador probado.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "ordino-arcalis-official",
@@ -847,7 +1314,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Comprobada el 30/09/2026: publica pistas por color, remontes y espesores, pero NO kilómetros. No se infieren km por proporción.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "fgc-pirineu365",
@@ -868,7 +1336,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Comprobada el 30/09/2026: lista La Molina, Vall de Núria, Vallter, Espot, Port Ainé y Boí Taüll; los valores se cargan dinámicamente (hace falta navegador). Sirve también para vall-de-nuria, espot-esqui, port-aine y boi-taull.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "altiservice-font-romeu",
@@ -888,7 +1357,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Comprobada el 30/09/2026 fuera de temporada: solo pistas de verano y remontes (0/7, 0/5). Sin km. Revalidar en invierno.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "ax-official",
@@ -905,7 +1375,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Comprobada el 30/09/2026: periodo de apertura 05/12/2026–29/03/2027 y mapa interactivo; no publica km ni recuentos en texto. No se infieren km.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "fgc-pirineu365-vall-de-nuria",
@@ -926,7 +1397,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Misma página FGC que La Molina; valores dinámicos.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "fgc-pirineu365-espot-esqui",
@@ -947,7 +1419,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Misma página FGC que La Molina; valores dinámicos.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "fgc-pirineu365-port-aine",
@@ -968,7 +1441,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Misma página FGC que La Molina; valores dinámicos.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "fgc-pirineu365-boi-taull",
@@ -989,7 +1463,8 @@
    "status": "unverified",
    "checked_on": "2026-09-30",
    "limitations": "Misma página FGC que La Molina; valores dinámicos.",
-   "adapter": null
+   "adapter": null,
+   "aliases": null
   },
   {
    "id": "offers-grandvalira",
@@ -1006,7 +1481,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-pal-arinsal",
@@ -1023,7 +1499,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-ordino-arcalis",
@@ -1040,7 +1517,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-alp-2500",
@@ -1057,7 +1535,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-baqueira-beret",
@@ -1074,7 +1553,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-port-aine",
@@ -1091,7 +1571,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-espot-esqui",
@@ -1108,7 +1589,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-boi-taull",
@@ -1125,7 +1607,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-port-del-comte",
@@ -1142,7 +1625,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-vall-de-nuria",
@@ -1159,7 +1643,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-cerler",
@@ -1176,7 +1661,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-formigal-panticosa",
@@ -1193,7 +1679,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-astun",
@@ -1210,7 +1697,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "esquiades-cards"
+   "adapter": "esquiades-cards",
+   "aliases": null
   },
   {
    "id": "offers-candanchu",
@@ -1227,7 +1715,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-valdelinares",
@@ -1244,7 +1733,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-javalambre",
@@ -1261,7 +1751,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-font-romeu-pyrenees-2000",
@@ -1278,7 +1769,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-les-angles",
@@ -1295,7 +1787,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   },
   {
    "id": "offers-ax-3-domaines",
@@ -1312,7 +1805,8 @@
    "status": "unverified",
    "checked_on": null,
    "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
-   "adapter": "estiber-cards"
+   "adapter": "estiber-cards",
+   "aliases": null
   }
  ],
  "legacy_scope_rules": {

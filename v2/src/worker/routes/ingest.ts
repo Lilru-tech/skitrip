@@ -155,11 +155,39 @@ ingestRoutes.post('/offers', async (c) => {
       error: z.string().max(500).nullable().optional(),
       offers: z.array(zOfferIn).max(60),
     })).max(100),
+    // Ofertas orientativas de las páginas de catálogo (fechas y ocupación del proveedor, no de un viaje).
+    catalog: z.array(z.object({
+      sourceId: zId,
+      outcome: z.enum(['results', 'empty', 'error', 'blocked', 'unsupported']),
+      offers: z.array(zOfferIn).max(60),
+    })).max(60).default([]),
     health: z.array(zHealth).max(200).default([]),
   }));
   const db = c.env.DB;
   await upsertRun(db, body.run, 0);
   let written = 0;
+  for (const cat of body.catalog) {
+    const src = await db.prepare(`SELECT scope_area_id, provider FROM sources WHERE id = ?1 AND kind = 'offers'`).bind(cat.sourceId).first<{ scope_area_id: string; provider: string }>();
+    if (!src) continue;
+    for (const o of cat.offers) {
+      const norm = (s?: string | null) => (s ?? '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const modality = o.forfaitDays ? 'lodging_forfait' : 'lodging';
+      const identity = await sha256Hex(JSON.stringify(['catalog', src.provider, src.scope_area_id, o.providerOfferId ?? norm(o.hotelName), o.board ?? null, o.nights ?? null, o.forfaitDays ?? null,
+        o.adults ?? null, o.cancellation ?? null, o.checkIn ?? null, o.checkOut ?? null, modality, o.unit]));
+      await db.prepare(
+        `INSERT OR IGNORE INTO offers (id, provider_id, provider_offer_id, hotel_name_raw, area_id, forfait_area_id, modality, check_in, check_out, nights, adults, board, cancellation,
+           forfait_days, url, identity_hash, first_seen_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`,
+      ).bind(crypto.randomUUID(), src.provider, o.providerOfferId, o.hotelName, src.scope_area_id, modality === 'lodging_forfait' ? src.scope_area_id : null, modality,
+        o.checkIn ?? null, o.checkOut ?? null, o.nights ?? null, o.adults ?? null, o.board ?? null, o.cancellation ?? null, o.forfaitDays ?? null, o.url ?? null, identity, body.observedAt).run();
+      const offer = await db.prepare('SELECT id FROM offers WHERE identity_hash = ?1').bind(identity).first<{ id: string }>();
+      const hash = await sha256Hex(JSON.stringify([offer!.id, body.observedAt, o.amountCents, o.priceKind, o.unit, o.availability]));
+      const ins = await db.prepare(
+        `INSERT OR IGNORE INTO offer_observations (id, offer_id, scenario_id, run_id, observed_at, price_kind, amount_cents, unit, currency, availability, extractor, content_hash)
+         VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, 'EUR', ?8, ?9, ?10)`,
+      ).bind(crypto.randomUUID(), offer!.id, body.run.id, body.observedAt, o.priceKind, o.amountCents, o.unit, o.availability, o.extractor, hash).run();
+      if (ins.meta.changes) { written++; await notifyPriceChange(db, offer!.id, o.amountCents, o.priceKind, o.unit, body.observedAt); }
+    }
+  }
   for (const res of body.results) {
     const sc = await db.prepare('SELECT * FROM search_scenarios WHERE id = ?1').bind(res.scenarioId).first<any>();
     if (!sc) continue;
@@ -232,9 +260,16 @@ ingestRoutes.get('/scenarios', async (c) => {
 });
 
 /** Fuentes de nieve activas para el recolector (catálogo cerrado: el servidor nunca visita URLs del navegador). */
+ingestRoutes.get('/offer-sources', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, area_id, scope_area_id, provider, url, adapter FROM sources WHERE kind = 'offers' AND status IN ('verified','unverified') AND adapter IS NOT NULL AND url IS NOT NULL ORDER BY priority`,
+  ).all();
+  return c.json({ sources: results });
+});
+
 ingestRoutes.get('/snow-sources', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT s.id, s.area_id, s.scope_area_id, s.provider, s.url, s.adapter, a.name AS area_name FROM sources s JOIN areas a ON a.id = s.area_id
+    `SELECT s.id, s.area_id, s.scope_area_id, s.provider, s.url, s.adapter, s.match_aliases, a.name AS area_name FROM sources s JOIN areas a ON a.id = s.area_id
      WHERE s.kind = 'snow' AND s.status IN ('verified','unverified') AND s.adapter IS NOT NULL ORDER BY s.priority`,
   ).all();
   return c.json({ sources: results });

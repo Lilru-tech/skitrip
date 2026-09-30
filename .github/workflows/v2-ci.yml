@@ -1,0 +1,50 @@
+# SkiTrip v2 · integración continua. Sin secretos: todo corre contra emuladores locales
+# (Firebase Auth emulator + workerd/D1 local). Nunca escribe en producción.
+name: v2 · CI
+on:
+  push:
+    branches: [main, 'rebuild/**']
+    paths: ['v2/**', '.github/workflows/v2-*.yml']
+  pull_request:
+    paths: ['v2/**', '.github/workflows/v2-*.yml']
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: v2-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - uses: actions/setup-java@v4   # requerido por el emulador de Firebase
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: E2E (360 px, 390 px y escritorio)
+        run: |
+          export PW_CHROMIUM_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+          npx playwright test
+        env:
+          CI: '1'
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: v2/test-results/
+          retention-days: 3

@@ -64,7 +64,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
   if (!area) throw notFound('Estación');
   const nowMs = Date.now();
   const since = nowMs - 90 * 86400_000;
-  const [links, sources, snow, legacySnow, legacyHotel, comments] = await db.batch([
+  const [links, sources, snow, legacySnow, legacyHotel, comments, offers] = await db.batch([
     db.prepare(`SELECT l.parent_id, p.name AS parent_name, l.child_id, ch.name AS child_name, l.relation FROM area_links l
                 JOIN areas p ON p.id = l.parent_id JOIN areas ch ON ch.id = l.child_id WHERE l.parent_id = ?1 OR l.child_id = ?1`).bind(id),
     db.prepare(`SELECT s.*, h.last_attempt_at, h.last_success_at, h.last_status, h.last_error FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
@@ -75,6 +75,13 @@ catalogRoutes.get('/areas/:id', async (c) => {
                 WHERE scope_area_id = ?1 ORDER BY ts DESC LIMIT 120`).bind(id),
     db.prepare(`SELECT c.id, c.body, c.created_at, c.updated_at, u.id AS author_id, u.alias AS author_alias FROM comments c JOIN users u ON u.id = c.author_id
                 WHERE c.scope = 'area_public' AND c.area_id = ?1 AND c.hidden = 0 AND c.deleted_at IS NULL ORDER BY c.created_at DESC LIMIT 100`).bind(id),
+    // Ofertas orientativas recientes (sin escenario): fechas/ocupación del proveedor, con enlace para consultar.
+    db.prepare(`SELECT o.id, o.provider_id, o.hotel_name_raw, o.modality, o.board, o.nights, o.forfait_days, o.adults, o.check_in, o.check_out, o.url,
+                       ob.observed_at, ob.amount_cents, ob.unit, ob.price_kind, ob.availability
+                FROM offers o JOIN offer_observations ob ON ob.offer_id = o.id
+                WHERE o.area_id = ?1 AND ob.scenario_id IS NULL AND ob.observed_at >= ?2
+                  AND ob.observed_at = (SELECT MAX(observed_at) FROM offer_observations x WHERE x.offer_id = o.id AND x.scenario_id IS NULL)
+                ORDER BY ob.amount_cents LIMIT 30`).bind(id, nowMs - 14 * 86400_000),
   ]);
   c.header('Cache-Control', 'public, max-age=120');
   return c.json({
@@ -88,6 +95,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
       hotel: legacyHotel.results,
     },
     comments: comments.results,
+    offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.', items: offers.results },
   });
 });
 
