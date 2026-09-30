@@ -1,68 +1,83 @@
 # Validación
 
-Fecha: 30/09/2026. Rama `rebuild/v2`. Todo lo que aparece aquí se ha ejecutado en el entorno de desarrollo, que no tiene salida a las webs de estaciones, Esquiades, Estiber ni Open Prices, y no tiene cuentas de Cloudflare ni Firebase. Por eso las categorías son estrictas:
+Fecha: 30/09/2026. Rama `rebuild/v2`, después de la revisión independiente del mismo día. Todo lo que figura aquí se ha ejecutado en el entorno de desarrollo. Ese entorno no tiene salida a las webs de estaciones, Esquiades, Estiber ni Open Prices (la política de red rechaza la conexión), y no tiene cuentas de Cloudflare ni Firebase. **No es una versión terminada ni desplegada.** Las categorías son estrictas:
 
-- **Implementado y probado:** hay un test automático que pasa.
-- **Solo local:** funciona contra servicios locales oficiales (workerd + D1 local, emulador de Firebase Auth) o fixtures, pero no se ha ejecutado contra el servicio real.
-- **Pendiente de credenciales o exportaciones:** listo, pero necesita algo de David.
-- **No soportado por la fuente:** la fuente no publica el dato; no se inventa.
+- **Probado (local):** hay un test automático que pasa contra D1 local (workerd), el emulador oficial de Firebase Auth o fixtures.
+- **Solo local, sin test automático:** se ha ejecutado a mano en local, pero no contra el servicio real.
+- **Pendiente online:** necesita ejecutarse contra la web o el servicio real.
+- **Pendiente de David:** necesita credenciales, exportaciones o su visto bueno.
+- **No soportado por la fuente:** la fuente no publica el dato y no se inventa.
 
-## Resultados de las pruebas
+## Resultados
 
 | Suite | Tests | Resultado |
 |---|---|---|
-| Lógica pura (`test/core`): calendario, repartos, presupuesto, análisis, puntuación, geografía, importadores de hojas | 35 | ✔ |
-| Parsers con fixtures sintéticos (`test/core/parsers`): importes, nieve, ofertas, ticket, precio unitario | 74 | ✔ |
-| Worker + D1 en workerd (`test/worker`): autenticación, permisos, calendario, viajes, gastos, compra, ingesta, administración | 56 | ✔ |
-| **Total Vitest** | **165** | **✔ 165/165** |
+| Lógica pura (`test/core`, sin parsers): calendario, repartos, presupuesto por condiciones, análisis, cesta, Comparar, partes, hojas | 58 | ✔ |
+| Parsers (`test/core/parsers`): fixtures sintéticos + extracto real de Grandvalira | 82 | ✔ |
+| Worker + D1 en workerd (`test/worker`): auth, permisos, calendario, viajes, gastos, compra, ingesta, cuotas, auditoría de consultas, revisión | 86 | ✔ |
+| **Total Vitest** | **226** | **✔ 226/226** |
 | Typecheck (`tsc`) | — | ✔ |
-| Recorrido mínimo (`npm run demo:e2e`): emulador Auth + `wrangler dev` + D1 local | 12 comprobaciones | ✔ |
+| Build de la SPA (`vite build`) | — | ✔ (559 kB de JS, 158 kB gzip; aviso de Vite por pasar de 500 kB, la mayor parte es el SDK de Firebase) |
+| Playwright (`npm run e2e`): 22 recorridos × 360 px, 390 px y 1280 px, contra el emulador de Auth + Worker + D1 local | 66 | ✔ 66/66 |
 
-| Playwright (`npm run e2e`) a 360 px, 390 px y 1280 px contra emulador Auth + Worker + D1 local | 45 (15 por tamaño) | ✔ 45/45 |
-| Build de la SPA (`vite build`) | — | ✔ (unos 518 kB de JS, la mayor parte el SDK de Firebase; sin scripts ni estilos en línea) |
+Autoría: los 66 recorridos de navegador los escribí y ejecuté yo en el entorno de desarrollo (Claude). No son una verificación del revisor.
 
-Recorridos e2e: registro y alias, amistad, compartir, marcar días, crear viaje e invitar, ventana común con ambos libres, proponer y votar fechas; gasto de 10 € entre tres con saldos que suman 0; editar y marcar un artículo de la compra y comprobar que persiste; votar y cambiar el voto de una candidatura; filtro de distancia de Comparar (dominios sin duplicar, estaciones sin ruta en su propio grupo); ofertas filtradas por modalidad; contraseña errónea; ausencia de emails ajenos; sin desbordamiento horizontal en 14 páginas; calendario usable solo con teclado; foco devuelto al cerrar diálogos; patrón semanal con excepción.
+Cada corrección de la revisión tiene un test que reproducía el fallo antes del cambio (`test/worker/review-fixes.test.ts`, `quotas.test.ts`, y las secciones «revisión 5» de los parsers). Solo se cambiaron expectativas antiguas cuando codificaban el comportamiento que la revisión pedía corregir. Casos: una tarjeta sin «desde» ya no es cotización; confirmar dos veces un ticket devuelve el ya importado en vez de 409; y un test antiguo de presupuesto ahora declara fechas y ocupación.
 
-Sin probar en la interfaz: lector de pantalla real (sí nombres y roles ARIA), restablecimiento de contraseña con Firebase real, la página de administración con una cuenta de administrador (sí sus endpoints en la API), acciones de administración de miembros y el diálogo de conflicto de versión (el 409 sí está probado en la API). Comparar no puntúa el coste (el catálogo no tiene coste por estación) ni el après; la página lo indica.
+## Qué se corrigió y cómo está probado
 
-## Implementado y probado
+| Punto | Estado | Pruebas |
+|---|---|---|
+| 1 · D1 Free | Probado (local) | Ingesta: ≤ 8 sentencias para nieve (igual con 1 que con 29 fuentes) y ≤ 14 para 190 ofertas. Partes reanudables e idempotentes. Calendario de 150 días: 3. CSV de 500 filas: ≤ 12. Auditoría de 34 rutas con volumen: máximo 11 (ver `QUOTAS.md`). |
+| 2 · Presupuesto por condiciones | Probado (local) | Cambio de fechas con la misma duración, ocupación por persona, noches incoherentes (422), otro destino, edades distintas, condiciones incompletas, estimación manual separada. e2e: la cotización queda como referencia al cambiar fechas. |
+| 3 · Atomicidad | Probado (local) | Fallo a mitad de edición de gasto (trigger), dos ediciones simultáneas (una 200, otra 409), producto inexistente (422 sin escribir), fallo al guardar líneas, vinculación fallida recuperable sin reimportar. e2e: recuperación del ticket. |
+| 4 · Identidad de ofertas | Probado (local) | Dos escenarios con el mismo hotel, precio y hora; mismo ID en otra área; cancelación distinta; condiciones no declaradas → orientativo con aviso; distribución por unidad y condiciones, nunca mediana conjunta. |
+| 5 · Tipo de precio | Probado (local) | Sin «desde» sigue orientativo salvo fechas, adultos y menores declarados; forfait nulo = desconocido; contradicciones con aviso; varios precios → sin importe. |
+| 6 · Compra y cesta | Probado (local) | Producto repetido (1 + 2 = 100 %), otras tiendas, canales y tipos no se mezclan, criterio explícito editable, cobertura parcial sin total, € y % contra el anterior comparable, cambio de formato, varias observaciones el mismo día. e2e de la cesta. |
+| 7 · Capacidades honestas | Probado (local) | `/api/public/capabilities` y respuesta del escenario; la interfaz muestra la capacidad antes de crear y ya no promete resultados ni culpa al proveedor. Adaptador oficial de Grandvalira probado con texto real. |
+| 8 · Ranking y coste | Probado (local) | Elección de nieve determinista; antigua, dudosa o sin estado excluida del criterio pero visible con fecha. Coste por persona: completos ordenados, incompletos sin posición. e2e de ambos. |
+| 9 · Legacy | Probado (local) | Comentario publicado visible con autoría de la hoja; compra recuperable a un viaje con producto exacto, procedencia y sin duplicar; disponibilidad con vista e incorporación explícita (sin sobrescribir por defecto; días ausentes siguen sin indicar). La vista de disponibilidad legacy no tiene e2e (sí test de API). |
 
-- **Cuentas:** alta con email, contraseña y alias público único (3–24 caracteres, sin distinguir mayúsculas ni acentos), sin verificación obligatoria; tope de perfiles y límite de altas por IP; bloqueo inmediato; los tokens se verifican contra las claves públicas de Firebase (firma, emisor, audiencia, caducidad, `auth_time`); tokens manipulados o de otro proyecto se rechazan.
-- **Permisos:** quien no es miembro de un viaje recibe 404 (no se revela que existe); nadie edita contenido ajeno cambiando un ID; la búsqueda de personas nunca devuelve emails; un bloqueo oculta a la persona y anula el acceso a la disponibilidad por cualquier ruta.
-- **Amigos e invitaciones:** solicitudes, aceptación automática de solicitudes cruzadas, invitaciones directas solo a amigos y enlaces de invitación guardados como hash, revocables.
-- **Calendario compartido:** estados libre, ocupado, quizá y sin indicar; «sin indicar» nunca cuenta como libre; compartir con amigos o con un viaje; ventanas candidatas que incluyen día de llegada y de salida, con y sin «quizá»; propuestas de fechas y votos.
-- **Ediciones simultáneas:** columnas de versión; una edición basada en datos viejos devuelve 409 en lugar de pisar la otra.
-- **Presupuesto honesto:** cada partida es conocida, pendiente o no aplicable; un paquete con forfait no suma el forfait dos veces; noches, personas o días de forfait que no cuadran dejan el alojamiento pendiente en lugar de multiplicar; sin km de carretera, el transporte queda pendiente.
-- **Gastos:** céntimos enteros, reparto exacto con el residuo asignado de forma determinista, saldos, transferencias sugeridas, liquidaciones, historial de cambios y borrado lógico.
-- **Compra:** productos exactos con cantidad neta y unidad, lista versionada, precios manuales, CSV y ticket de texto con previsualización y confirmación re-analizada en el servidor; un ticket confirmado puede generar un gasto una sola vez.
-- **Open Prices:** capa separada con atribución ODbL, caché de 7 días y conservación del último resultado si la API falla (probado con un cliente simulado).
-- **Mercadona:** el adaptador directo existe solo como registro deshabilitado; hay un test que comprueba que no se activa.
-- **Ingesta:** credencial propia comparada en tiempo constante (una sesión de usuario no sirve); cada fuente solo escribe en su ámbito; idempotencia por hash; un 0 dudoso no se guarda como cerrado; totales incoherentes se marcan; una captura vacía es un error visible y no borra el último dato válido; avisos de cambio de precio deduplicados por oferta y día.
-- **Ofertas de catálogo:** se guardan como orientativas, sin escenario, y el detalle público solo muestra las de los últimos 14 días con su aviso.
-- **Legacy:** importación idempotente con SHA-256 y copia íntegra; restauración verificada (4.432 filas hoteleras y 5.337 de nieve, hashes originales coinciden); disponibilidad y comentarios legacy solo se asignan a una cuenta por acción de administración.
-- **Importadores de hojas:** CSV con «,» o «;», coma decimal, comillas y BOM; fechas D/M/AAAA, ISO e instantes de Apps Script convertidos a la fecha de Madrid; duplicados detectados; los días ausentes de la hoja no se inventan.
+Errores encontrados durante la revisión que no estaban en la lista: crear un escenario daba 500 si no se había ejecutado el importador legacy (faltaban los proveedores; ahora los crea la migración 0008), y la lista de escenarios hacía dos consultas por escenario.
 
-## Solo local
+## Solo local, sin test automático
 
-- **Recolector de nieve:** ejecutado contra `wrangler dev` con el fixture sintético de Esquiades: 9 fuentes con fila, 11 sin fila en el fixture (esperado), 1 rechazada por el servidor (Javalambre, abiertos > totales). No se ha ejecutado contra esquiades.com.
-- **Recolector de ofertas:** ejecutado contra `wrangler dev` con fixtures sintéticos de Esquiades y Estiber: 19 fuentes, 62 observaciones. No se ha ejecutado contra las webs reales.
-- **Importador de hojas:** probado con las plantillas de `docs/templates`, aplicado dos veces sobre D1 local sin duplicar filas.
-- **Copias de seguridad:** `backup.ts export --local` y `restore-test` probados; `--remote` no.
-- **Workflows de GitHub Actions:** escritos, no ejecutados (se ejecutarán cuando la rama llegue al repositorio).
+- **Recolectores con fixtures contra `wrangler dev` y una D1 local aislada** (30/09/2026, tras el cambio a partes):
+  - nieve con el fixture sintético de Esquiades: 21 fuentes, 9 válidas, 8 filas escritas, 1 rechazada por el servidor, estado «parcial»;
+  - ofertas con fixtures sintéticos: 19 fuentes, 62 observaciones, estado «ok»;
+  - Grandvalira con el extracto real: 1 fila escrita.
+- **Importador de hojas:** probado con las plantillas de `docs/templates`.
+- **Copias de seguridad:** `backup.ts export --local` y `restore-test`.
 
-## Pendiente de credenciales o exportaciones
+## Pendiente online
 
-- **Despliegue:** proyecto de Firebase (Spark) y cuenta de Cloudflare (Free) de David, y su visto bueno. Pasos en `DEPLOY.md`.
-- **Push al repositorio:** la cuenta conectada no tiene permiso de escritura en `Lilru-tech/skitrip`. Mientras tanto el trabajo se entrega como bundle de git.
+- **Primera ejecución de los recolectores contra las webs reales.** Hasta entonces todas las fuentes figuran como «no verificada online». Para registrarlo hay un workflow manual de solo lectura (`v2 · comprobar fuentes online`, `tools/online-check.ts`) que guarda URL, fecha, filas obtenidas y errores sin escribir en la API.
+- **Búsqueda de ofertas por fechas y ocupación:** no implementada. Falta verificar el formato de búsqueda de cada proveedor. La interfaz ofrece el enlace y la cotización manual.
+- **Grandvalira oficial:** probado con un extracto de texto real obtenido con una herramienta de lectura web, no con el HTML crudo.
+- **CPU de 10 ms:** no medido en Cloudflare (ver `QUOTAS.md`).
+- **Workflows de GitHub Actions:** escritos, no ejecutados.
+
+## Pendiente de David
+
+- **Push al repositorio:** la cuenta conectada no tiene permiso de escritura en `Lilru-tech/skitrip`. El trabajo se entrega como bundle de git.
+- **Despliegue:** proyecto de Firebase (Spark) y cuenta de Cloudflare (Free) de David, y su visto bueno. Pasos en `DEPLOY.md`, con las migraciones 0001–0008.
 - **Exportaciones de las hojas** (comentarios, compra, disponibilidad) en CSV.
-- **Primera ejecución online de los recolectores:** hasta entonces todas las fuentes figuran como «no verificada online».
-- **Búsquedas de ofertas para las fechas de un viaje:** falta verificar a mano el formato de URL de búsqueda por fechas y ocupación de cada proveedor. Hasta entonces los escenarios se informan como «no soportado», nunca con precios de catálogo.
+- **Red del entorno de desarrollo:** si se quiere verificar fuentes desde aquí, hay que permitir esos dominios en la configuración de red del entorno. Si no, se usa el workflow manual.
+
+## Sin probar en la interfaz
+
+- Lector de pantalla real (sí nombres y roles ARIA).
+- Restablecimiento de contraseña con Firebase real.
+- Acciones de administración con una cuenta de administrador (sí sus endpoints).
+- La vista de disponibilidad legacy.
+- Los enlaces a proveedores llevan a la portada pública: la API no guarda URL de búsqueda.
 
 ## No soportado por la fuente
 
 - **Ordino Arcalís (web oficial):** no publica kilómetros.
 - **Ax 3 Domaines (web oficial):** no publica km ni recuentos en texto.
 - **Font-Romeu (Altiservice):** fuera de temporada solo muestra pistas de verano; revalidar en invierno.
-- **Históricos hoteleros legacy:** sin hotel, noches, fechas de estancia ni ocupación; solo sirven como referencia agregada.
+- **Grandvalira fuera de temporada:** publica «0 / 215 km» sin texto de estado. Se guarda como estado desconocido y no puntúa.
+- **Históricos hoteleros legacy:** sin hotel, noches, fechas ni ocupación; solo sirven como referencia agregada.
 - **Open Prices:** cobertura muy escasa de productos de Mercadona en España.
-- **Mercadona:** sin autorización; no hay precios automáticos.
+- **Mercadona:** sin autorización; no hay precios automáticos y el adaptador directo sigue deshabilitado.
