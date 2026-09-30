@@ -26,9 +26,11 @@ jobs:
           cache-dependency-path: v2/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: |
+      - env:
+          FILTER: ${{ github.event.inputs.filter }}
+        run: |
           mkdir -p diag
-          npx tsx tools/online-check.ts "${{ github.event.inputs.filter }}" > diag/online-check.json
+          npx tsx tools/online-check.ts "$FILTER" > diag/online-check.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
