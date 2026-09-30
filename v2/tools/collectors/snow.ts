@@ -8,6 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { esquiadesAdapter, matchResortRow, type StatusRow } from '../../src/core/parsers/snow.ts';
+import { chunkBy } from '../../src/core/chunk.ts';
 import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
 
 type Source = { id: string; area_id: string; scope_area_id: string; provider: string; url: string; adapter: string; match_aliases: string | null; area_name: string };
@@ -70,10 +71,24 @@ try {
   console.error('Fallo general del navegador:', (e as Error).message);
 }
 
-const run = { id: runId('snow'), pipeline: 'snow', startedAt: started, finishedAt: Date.now(), expected: sources.length, ok, failed, unsupported,
-  runner: process.env.GITHUB_RUN_ID ? `github-actions#${process.env.GITHUB_RUN_ID}` : 'local', errorSummary: failed ? health.filter((h) => h.status !== 'ok').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null };
-console.log(`Fuentes: ${sources.length} · válidas ${ok} · fallidas ${failed} · no soportadas ${unsupported}`);
-if (dry) { console.log(JSON.stringify({ run, observations, health }, null, 2)); process.exit(0); }
-const res = await apiPost<{ written: number; rejected: unknown[]; runStatus: string }>('/api/ingest/snow', { run, observations, health });
-console.log(`Escritas ${res.written}, rechazadas ${res.rejected.length}, estado ${res.runStatus}`);
-if (res.runStatus === 'error' || res.runStatus === 'empty') { console.log('::error::La captura de nieve no produjo datos válidos.'); process.exit(1); }
+// Partes de ≤ 200 fuentes, cada una con su observación y su salud; los recuentos son por parte.
+type Obs = { sourceId: string };
+const parts = chunkBy(health, () => 1, 200);
+const id = runId('snow');
+const runner = process.env.GITHUB_RUN_ID ? `github-actions#${process.env.GITHUB_RUN_ID}` : 'local';
+const errorSummary = failed ? health.filter((h) => h.status !== 'ok').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null;
+console.log(`Fuentes: ${sources.length} · válidas ${ok} · fallidas ${failed} · no soportadas ${unsupported} · partes ${parts.length}`);
+let status = 'ok';
+for (const [i, hs] of parts.entries()) {
+  const ids = new Set(hs.map((h) => h.sourceId));
+  const obs = (observations as Obs[]).filter((o) => ids.has(o.sourceId));
+  const n = (st: string) => hs.filter((h) => h.status === st).length;
+  const run = { id, pipeline: 'snow', startedAt: started, finishedAt: Date.now(), expected: sources.length, part: i, parts: parts.length,
+    ok: n('ok'), failed: hs.length - n('ok') - n('unsupported'), unsupported: n('unsupported'), runner, errorSummary };
+  if (dry) { console.log(JSON.stringify({ run, observations: obs, health: hs }, null, 2)); continue; }
+  const res = await apiPost<{ written: number; rejected: unknown[]; runStatus: string }>('/api/ingest/snow', { run, observations: obs, health: hs });
+  console.log(`Parte ${i + 1}/${parts.length}: escritas ${res.written}, rechazadas ${res.rejected.length}, estado ${res.runStatus}`);
+  status = res.runStatus;
+}
+if (dry) process.exit(0);
+if (status === 'error' || status === 'empty') { console.log('::error::La captura de nieve no produjo datos válidos.'); process.exit(1); }

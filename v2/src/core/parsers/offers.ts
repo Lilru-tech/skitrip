@@ -9,6 +9,7 @@ export type PriceUnit = 'per_person' | 'per_room' | 'per_night' | 'per_person_ni
 export type PriceKind = 'advertised_from' | 'quoted_for_search';
 export type Board = 'room_only' | 'breakfast' | 'half_board' | 'full_board' | 'all_inclusive';
 export type Cancellation = 'free' | 'non_refundable';
+export type ForfaitIncluded = 'yes' | 'no' | 'unknown';
 
 export interface OfferCard {
   provider: Provider;
@@ -18,11 +19,23 @@ export interface OfferCard {
   nights: number | null;
   forfaitDays: number | null;
   adults: number | null;
+  /** Edades de menores declaradas en la tarjeta; [] solo si dice explícitamente que no hay; null = desconocido. */
+  childrenAges: number[] | null;
+  rooms: number | null;
+  checkIn: string | null;
+  checkOut: string | null;
+  /** Forfait incluido según la tarjeta. Sin mención es 'unknown', nunca «solo alojamiento». */
+  forfaitIncluded: ForfaitIncluded;
   cancellation: Cancellation | null;
   priceText: string | null;
   amount: Money | null;
   unit: PriceUnit;
+  /** 'quoted_for_search' solo si la tarjeta declara fechas, adultos y menores y no dice «desde». El servidor
+   *  lo vuelve a verificar contra el escenario pedido; en páginas de catálogo siempre queda orientativo. */
   priceKind: PriceKind;
+  saysFrom: boolean;
+  /** Varios importes distintos: no se elige ninguno. */
+  ambiguousPrice: boolean;
   strikethroughIgnored: boolean;
   url: string | null;
   warnings: string[];
@@ -88,6 +101,38 @@ function detectCancellation(t: string): Cancellation | null {
   return null;
 }
 
+const iso = (d: string, m: string, y: string) => {
+  const yy = y.length === 2 ? `20${y}` : y;
+  const dt = new Date(Date.UTC(Number(yy), Number(m) - 1, Number(d)));
+  return dt.getUTCDate() === Number(d) && dt.getUTCMonth() === Number(m) - 1 ? dt.toISOString().slice(0, 10) : null;
+};
+
+/** «del 10/12/2026 al 12/12/2026», «10/12/2026 - 12/12/2026» o fechas ISO. Solo si la salida es posterior. */
+function detectDates(t: string): { checkIn: string | null; checkOut: string | null } {
+  const dmy = /(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})\s*(?:-|–|al|a|hasta)\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})/.exec(t);
+  let a: string | null = null, b: string | null = null;
+  if (dmy) { a = iso(dmy[1], dmy[2], dmy[3]); b = iso(dmy[4], dmy[5], dmy[6]); }
+  else {
+    const i = /(\d{4}-\d{2}-\d{2})\s*(?:-|–|al|a|hasta)\s*(\d{4}-\d{2}-\d{2})/.exec(t);
+    if (i) { a = i[1]; b = i[2]; }
+  }
+  return a && b && b > a ? { checkIn: a, checkOut: b } : { checkIn: null, checkOut: null };
+}
+
+function detectChildren(t: string): number[] | null {
+  if (/sin (niñ|menor)|\b0\s*(niñ|menor)/.test(t)) return [];
+  const ages = /(?:niñ[oa]s?|menores?)\s*(?:de|\()\s*((?:\d{1,2}\s*(?:,|y|e)?\s*)+)\s*años/.exec(t);
+  if (ages) return (ages[1].match(/\d{1,2}/g) ?? []).map(Number).filter((n) => n < 18);
+  return null;
+}
+
+function detectForfait(t: string, days: number | null): { included: ForfaitIncluded; warning: string | null } {
+  const yes = days !== null || /forfait (incluido|incl\.)|con forfait|\+\s*forfait|skipass incluido/.test(t);
+  const no = /sin forfait|forfait no incluido|no incluye (el )?forfait|s[oó]lo alojamiento/.test(t);
+  if (yes && no) return { included: 'unknown', warning: 'La tarjeta menciona forfait y «solo alojamiento/sin forfait» a la vez: forfait desconocido.' };
+  return { included: yes ? 'yes' : no ? 'no' : 'unknown', warning: null };
+}
+
 function hotelNameOf(card: El): string | null {
   const byClass = findAll(
     card,
@@ -135,6 +180,7 @@ function parseCard(card: El, provider: Provider): OfferCard {
   let amount: Money | null = null;
   let context = lower;
   let before = '';
+  let ambiguous: number[] | null = null;
   if (innermost.length) {
     const el = innermost[0];
     const hits = findMoney(textContent(el, isStrikethrough));
@@ -147,7 +193,7 @@ function parseCard(card: El, provider: Provider): OfferCard {
     context = textContent(block, isStrikethrough).toLowerCase();
     before = context;
     const distinct = new Set(innermost.flatMap((e) => findMoney(textContent(e, isStrikethrough)).map((h) => h.cents)));
-    if (distinct.size > 1) warnings.push('Varios precios en la tarjeta; se usa el primero.');
+    if (distinct.size > 1) ambiguous = [...distinct];
   } else {
     const hits = findMoney(cardText);
     if (hits.length) {
@@ -155,7 +201,8 @@ function parseCard(card: El, provider: Provider): OfferCard {
       amount = parseAmount(priceText);
       before = lower.slice(Math.max(0, hits[0].index - 40), hits[0].index + priceText.length + 40);
       context = before;
-      if (new Set(hits.map((h) => h.cents)).size > 1) warnings.push('Varios precios en la tarjeta; se usa el primero.');
+      const distinct = new Set(hits.map((h) => h.cents));
+      if (distinct.size > 1) ambiguous = [...distinct];
     } else {
       warnings.push('Sin precio en la tarjeta.');
     }
@@ -164,19 +211,42 @@ function parseCard(card: El, provider: Provider): OfferCard {
   let unit = detectUnit(context);
   if (unit === 'unknown' && context !== lower) unit = detectUnit(lower);
 
+  if (ambiguous) {
+    const shown = ambiguous.slice(0, 4).map((c) => `${(c / 100).toFixed(2).replace('.', ',')} €`).join(', ');
+    warnings.push(`Varios precios distintos en la tarjeta (${shown}); no se elige ninguno.`);
+    amount = null;
+  }
+  const forfaitDays = detectForfaitDays(lower);
+  const forfait = detectForfait(lower, forfaitDays);
+  if (forfait.warning) warnings.push(forfait.warning);
+  const { checkIn, checkOut } = detectDates(lower);
+  const adults = int(/(\d{1,2})\s*(?:adultos?|adults?)\b/, lower);
+  const childrenAges = detectChildren(lower);
+  const saysFrom = /\b(desde|a partir de|from)\b/.test(before);
+  const declared = checkIn !== null && checkOut !== null && adults !== null && childrenAges !== null;
+  const priceKind: PriceKind = !saysFrom && declared && amount !== null ? 'quoted_for_search' : 'advertised_from';
+  if (amount !== null && priceKind === 'advertised_from' && !saysFrom) warnings.push('Precio orientativo aunque no diga «desde»: la tarjeta no declara fechas y ocupación completas.');
+
   return {
     provider,
     providerOfferId: offerIdOf(card),
     hotelName: hotelNameOf(card),
     board: detectBoard(lower),
     nights: int(/(\d{1,2})\s*(?:noches?|nits|nights?)\b/, lower),
-    forfaitDays: detectForfaitDays(lower),
-    adults: int(/(\d{1,2})\s*(?:adultos?|adults?)\b/, lower),
+    forfaitDays,
+    adults,
+    childrenAges,
+    rooms: int(/(\d{1,2})\s*hab(?:itaci[oó]n(?:es)?|s?\.)/, lower),
+    checkIn,
+    checkOut,
+    forfaitIncluded: forfait.included,
     cancellation: detectCancellation(lower),
-    priceText,
+    priceText: ambiguous ? null : priceText,
     amount,
     unit,
-    priceKind: /\b(desde|a partir de|from)\b/.test(before) ? 'advertised_from' : 'quoted_for_search',
+    priceKind,
+    saysFrom,
+    ambiguousPrice: ambiguous !== null,
     strikethroughIgnored: strikeHasMoney(card),
     url: urlOf(card),
     warnings,

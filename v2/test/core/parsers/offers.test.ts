@@ -11,8 +11,8 @@ import estHtml from '../../fixtures/parsers/estiber-offers.html?raw';
 
 const card = (over: Partial<OfferCard>): OfferCard => ({
   provider: 'esquiades', providerOfferId: null, hotelName: 'Hotel X', board: 'half_board', nights: 2, forfaitDays: 1,
-  adults: 2, cancellation: null, priceText: '100 €', amount: { cents: 10000, currency: 'EUR' }, unit: 'per_person',
-  priceKind: 'quoted_for_search', strikethroughIgnored: false, url: null, warnings: [], ...over,
+  adults: 2, childrenAges: null, rooms: null, checkIn: null, checkOut: null, forfaitIncluded: 'yes', cancellation: null, priceText: '100 €',
+  amount: { cents: 10000, currency: 'EUR' }, unit: 'per_person', priceKind: 'advertised_from', saysFrom: false, ambiguousPrice: false, strikethroughIgnored: false, url: null, warnings: [], ...over,
 });
 
 describe('parseOfferCardsHtml (esquiades)', () => {
@@ -34,7 +34,7 @@ describe('parseOfferCardsHtml (esquiades)', () => {
     expect(cards[1].warnings).toContain('Sin precio en la tarjeta.');
   });
   it('<del> old price ignored; "precio por persona" → per_person; 1 día forfait accepted', () => {
-    expect(cards[2]).toMatchObject({ amount: { cents: 12900 }, unit: 'per_person', nights: 1, forfaitDays: 1, strikethroughIgnored: true, priceKind: 'quoted_for_search' });
+    expect(cards[2]).toMatchObject({ amount: { cents: 12900 }, unit: 'per_person', nights: 1, forfaitDays: 1, strikethroughIgnored: true, priceKind: 'advertised_from' }); // revisión 30/09: sin «desde» NO basta para ser cotización
   });
   it('does not leak a strikethrough price when it is the only one', () => {
     const html = '<article class="hotel-card"><h3>H</h3><span class="price old-price">200 €</span><s>180 €</s><span style="text-decoration: line-through">170 €</span><span class="precio-tachado">160 €</span></article>'
@@ -108,5 +108,39 @@ describe('summarize', () => {
   it('unknown unit only when explicitly requested', () => {
     expect(summarize([card({ unit: 'unknown' })]).n).toBe(0);
     expect(summarize([card({ unit: 'unknown' })], { unit: 'unknown' }).n).toBe(1);
+  });
+});
+
+describe('revisión 5 · tipo de precio y modalidad', () => {
+  it('una tarjeta de catálogo sin «desde» sigue siendo orientativa si no declara fechas y ocupación completas', () => {
+    const cards = parseOfferCardsHtml(esqHtml, 'esquiades');
+    expect(cards[2]).toMatchObject({ priceKind: 'advertised_from', saysFrom: false, checkIn: null, checkOut: null });
+    expect(cards[2].warnings.join(' ')).toMatch(/orientativo/);
+    expect(cards.every((c) => c.priceKind === 'advertised_from')).toBe(true);
+  });
+  it('solo con fechas, adultos y menores declarados en la tarjeta y sin «desde» se marca como cotización candidata', () => {
+    const html = '<article class="hotel-card" data-offer-id="Q1"><h3>Hotel Q</h3><p>Del 10/12/2026 al 12/12/2026 · 2 adultos · sin niños · 1 habitación · forfait 2 días incluido</p><span class="price">300 €</span><span>por persona</span></article>';
+    const [c] = parseOfferCardsHtml(html, 'esquiades');
+    expect(c).toMatchObject({ checkIn: '2026-12-10', checkOut: '2026-12-12', adults: 2, childrenAges: [], rooms: 1, forfaitDays: 2, forfaitIncluded: 'yes', priceKind: 'quoted_for_search' });
+    const [d] = parseOfferCardsHtml(html.replace('sin niños · ', ''), 'esquiades');
+    expect(d).toMatchObject({ childrenAges: null, priceKind: 'advertised_from' }); // menores desconocidos
+    const [e] = parseOfferCardsHtml(html.replace('2 adultos · sin niños', '2 adultos y 2 niños de 6 y 9 años'), 'esquiades');
+    expect(e.childrenAges).toEqual([6, 9]);
+  });
+  it('forfait: sin mención es desconocido (no «solo alojamiento»); contradicciones quedan desconocidas con aviso', () => {
+    const est = parseOfferCardsHtml(estHtml, 'estiber');
+    expect(est[0].forfaitIncluded).toBe('yes');
+    expect(est[3]).toMatchObject({ forfaitDays: null, forfaitIncluded: 'unknown' });
+    const esq = parseOfferCardsHtml(esqHtml, 'esquiades');
+    expect(esq[1].forfaitIncluded).toBe('unknown'); // «forfait 1 día» y «Solo alojamiento» a la vez
+    expect(esq[1].warnings.join(' ')).toMatch(/forfait/i);
+    const [solo] = parseOfferCardsHtml('<article class="hotel-card"><h3>H</h3><p>Sin forfait · 2 noches</p><span class="price">80 €</span></article>', 'esquiades');
+    expect(solo.forfaitIncluded).toBe('no');
+  });
+  it('varios precios distintos: no se elige el primero; importe nulo, precio ambiguo y aviso conservado', () => {
+    const [c] = parseOfferCardsHtml('<article class="hotel-card"><h3>H</h3><span class="price">120 €</span><span class="price">240 €</span></article>', 'esquiades');
+    expect(c).toMatchObject({ amount: null, ambiguousPrice: true });
+    expect(c.warnings.join(' ')).toMatch(/Varios precios/);
+    expect(c.warnings.join(' ')).toMatch(/120/);
   });
 });

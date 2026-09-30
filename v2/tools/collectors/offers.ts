@@ -13,6 +13,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { dedupeCards, parseOfferCardsHtml, type OfferCard, type Provider } from '../../src/core/parsers/offers.ts';
+import { chunkBy } from '../../src/core/chunk.ts';
 import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
 
 type Source = { id: string; area_id: string; scope_area_id: string; provider: string; url: string; adapter: string };
@@ -35,8 +36,10 @@ const SCENARIO_SEARCH: Partial<Record<string, (s: Scenario) => string>> = {};
 
 export function cardToOffer(c: OfferCard, extractor: string) {
   return {
-    providerOfferId: c.providerOfferId, hotelName: c.hotelName, board: c.board, nights: c.nights, forfaitDays: c.forfaitDays, adults: c.adults,
+    providerOfferId: c.providerOfferId, hotelName: c.hotelName, board: c.board, nights: c.nights, forfaitDays: c.forfaitDays,
+    forfaitIncluded: c.forfaitIncluded, adults: c.adults, childrenAges: c.childrenAges, rooms: c.rooms, checkIn: c.checkIn, checkOut: c.checkOut,
     cancellation: c.cancellation, unit: c.unit, priceKind: c.priceKind, amountCents: c.amount?.cents ?? null,
+    warnings: c.warnings.slice(0, 10).map((w) => w.slice(0, 200)),
     availability: c.amount ? 'available' as const : 'unknown' as const, url: c.url && /^https?:\/\//.test(c.url) ? c.url.slice(0, 500) : null, extractor,
   };
 }
@@ -88,12 +91,28 @@ const results = scenarios.map((sc) => {
   return { scenarioId: sc.id, outcome: 'unsupported' as const, error: build ? 'búsqueda pendiente de implementar' : `sin formato de búsqueda verificado para ${sc.provider_id}`, offers: [] };
 });
 
-const run = { id: runId('offers'), pipeline: 'offers', startedAt: started, finishedAt: Date.now(), expected: sources.length + scenarios.length, ok, failed, unsupported,
-  runner: process.env.GITHUB_RUN_ID ? `github-actions#${process.env.GITHUB_RUN_ID}` : 'local',
-  errorSummary: failed ? health.filter((h) => h.status !== 'ok' && h.status !== 'unsupported').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null };
-console.log(`Fuentes de catálogo: ${sources.length} · válidas ${ok} · fallidas ${failed} · escenarios ${scenarios.length} (no soportados aún)`);
-const payload = { run, observedAt: Date.now(), results, catalog, health };
-if (dry) { console.log(JSON.stringify(payload, null, 2)); process.exit(0); }
-const res = await apiPost<{ written: number; runStatus: string }>('/api/ingest/offers', payload);
-console.log(`Observaciones escritas ${res.written}, estado ${res.runStatus}`);
+// Partes de ≤ 200 ofertas (límite de la ingesta, que mantiene cada POST por debajo de 50 consultas D1).
+// Cada fuente va entera a una parte, con su salud; los recuentos ok/failed/unsupported son por parte.
+type Unit = { kind: 'catalog'; c: (typeof catalog)[number] } | { kind: 'scenario'; r: (typeof results)[number] };
+const units: Unit[] = [...catalog.map((c) => ({ kind: 'catalog' as const, c })), ...results.map((r) => ({ kind: 'scenario' as const, r }))];
+const parts = chunkBy(units, (u) => (u.kind === 'catalog' ? u.c.offers.length : u.r.offers.length), 200, 60);
+const id = runId('offers');
+const runner = process.env.GITHUB_RUN_ID ? `github-actions#${process.env.GITHUB_RUN_ID}` : 'local';
+const errorSummary = failed ? health.filter((h) => h.status !== 'ok' && h.status !== 'unsupported').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null;
+console.log(`Fuentes de catálogo: ${sources.length} · válidas ${ok} · fallidas ${failed} · escenarios ${scenarios.length} (no soportados aún) · partes ${parts.length}`);
+const observedAt = Date.now();
+let last: { written: number; runStatus: string } | null = null;
+for (const [i, part] of parts.entries()) {
+  const cat = part.flatMap((u) => (u.kind === 'catalog' ? [u.c] : []));
+  const res = part.flatMap((u) => (u.kind === 'scenario' ? [u.r] : []));
+  const ids = new Set(cat.map((c) => c.sourceId));
+  const count = (o: Outcome) => cat.filter((c) => c.outcome === o).length + res.filter((r) => r.outcome === o).length;
+  const run = { id, pipeline: 'offers', startedAt: started, finishedAt: Date.now(), expected: sources.length + scenarios.length, part: i, parts: parts.length,
+    ok: count('results'), failed: count('error') + count('blocked') + count('empty'), unsupported: count('unsupported'), runner, errorSummary };
+  const payload = { run, observedAt, results: res, catalog: cat, health: health.filter((h) => ids.has(h.sourceId)) };
+  if (dry) { console.log(JSON.stringify(payload, null, 2)); continue; }
+  last = await apiPost<{ written: number; runStatus: string }>('/api/ingest/offers', payload); // reintentable: idempotente por parte
+  console.log(`Parte ${i + 1}/${parts.length}: observaciones escritas ${last.written}, estado ${last.runStatus}`);
+}
+if (dry) process.exit(0);
 if (sources.length && ok === 0) { console.log('::error::Ninguna fuente de ofertas devolvió datos válidos.'); process.exit(1); }
