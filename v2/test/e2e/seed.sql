@@ -27,6 +27,7 @@ INSERT INTO routes (origin_id, area_id, access_name, road_km, duration_min, sour
 INSERT INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, priority, status, checked_on, limitations, adapter) VALUES
   ('e2e-dominio-snow', 'e2e-dominio', 'e2e-dominio', 'snow', 'official', 'https://example.invalid/alfa', 'html', '["open_km","total_km"]', 10, 'verified', '2026-09-01', 'Fuente sintética.', 'e2e'),
   ('e2e-beta-snow', 'e2e-beta', 'e2e-beta', 'snow', 'official', 'https://example.invalid/beta', 'html', '["open_km","total_km"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
+  ('e2e-lejana-snow', 'e2e-lejana', 'e2e-lejana', 'snow', 'official', 'https://example.invalid/gamma', 'html', '["open_km","total_km","source_date"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
   ('e2e-beta-offers', 'e2e-beta', 'e2e-beta', 'offers', 'esquiades', 'https://example.invalid/ofertas', 'html', '["price"]', 20, 'broken', '2026-09-01', 'Adaptador roto (sintético).', 'e2e');
 
 INSERT INTO source_health (source_id, last_attempt_at, last_success_at, last_status, last_error, consecutive_fail) VALUES
@@ -39,7 +40,9 @@ INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date,
   ('e2e-s1', 'e2e-dominio', 'e2e-dominio-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, NULL, 'open', 85, 120, 'h1', 'e2e'),
   ('e2e-s2', 'e2e-dominio', 'e2e-dominio-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 86400000 - 3600000, NULL, 'open', 80, 120, 'h2', 'e2e'),
   ('e2e-s3', 'e2e-dominio', 'e2e-dominio-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 2 * 86400000 - 3600000, NULL, 'partial', 60, 120, 'h3', 'e2e'),
-  ('e2e-s4', 'e2e-beta', 'e2e-beta-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 5 * 86400000, NULL, 'open', 40, 90, 'h4', 'e2e');
+  ('e2e-s4', 'e2e-beta', 'e2e-beta-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 5 * 86400000, NULL, 'open', 40, 90, 'h4', 'e2e'),
+  -- Gamma: capturada hace 1 h, pero la fuente publica un parte de hace 7 días.
+  ('e2e-s5', 'e2e-lejana', 'e2e-lejana-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now', '-7 days'), 'partial', 200, 300, 'h5', 'e2e');
 
 INSERT INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, imported_at) VALUES ('e2e-legacy', 'open_km_history', 'sintetico.json', 'e2e-sha', 1, 1, 0);
 INSERT INTO legacy_snow_observations (file_id, legacy_resort_id, obs_date, open_km, total_km, anomalies, scope_area_id) VALUES

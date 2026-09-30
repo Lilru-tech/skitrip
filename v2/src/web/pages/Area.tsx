@@ -1,5 +1,5 @@
 import { get } from '../api';
-import { Freshness } from '../components/Badges';
+import { Freshness, ReportDate } from '../components/Badges';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
 import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, instant, kmText, OP_STATUS_LABEL, PRICE_KIND_LABEL, RUN_STATUS_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
@@ -51,7 +51,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
       <section className="panel stack" aria-labelledby="a-snow">
         <h2 id="a-snow">Nieve</h2>
         {latest ? (
-          <p><SnowKm open={latest.openKm} total={latest.totalKm} /> · {OP_STATUS_LABEL[latest.opStatus] ?? latest.opStatus} <Freshness state={latest.freshness} at={latest.observedAt} />
+          <p><SnowKm open={latest.openKm} total={latest.totalKm} /> · {OP_STATUS_LABEL[latest.opStatus] ?? latest.opStatus} <Freshness state={latest.freshness} at={latest.observedAt} /><ReportDate date={latest.sourceDate} />
             {latest.quality !== 'ok' && <span className="tag tag-warn"> Calidad: {latest.qualityNote ?? latest.quality}</span>}</p>
         ) : <p>Sin dato de nieve en los últimos 90 días.</p>}
         <p className="muted small">Km totales declarados: {kmText(area.official_total_km)}{area.total_km_source && ` (${area.total_km_source})`}. Las condiciones actuales no predicen las de un viaje futuro.</p>

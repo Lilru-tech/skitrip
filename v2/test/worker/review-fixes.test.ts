@@ -466,3 +466,25 @@ describe('revisión final 1–2 · extracción → ingesta → ficha pública', 
     expect(by('Hotel f3')[0].warnings.join(' ')).toMatch(/orientativo/i);
   });
 });
+
+describe('revisión final 3 · parte antiguo re-descargado hoy', () => {
+  it('no puntúa ni desplaza a una fuente con parte reciente; se ven las dos fechas', async () => {
+    const t = Date.now() - 600_000;
+    const day = (n: number) => new Date(Date.now() - n * 86400_000).toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO areas (id, name, kind, country) VALUES ('rv-sd1','Parte 1 (test)','resort','ES'), ('rv-sd2','Parte 2 (test)','resort','ES')`),
+      env.DB.prepare(`INSERT OR IGNORE INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, status, adapter, priority) VALUES
+        ('rv-sd1-off','rv-sd1','rv-sd1','snow','official','https://example.invalid/1','html','[]','unverified','x', 10),
+        ('rv-sd2-off','rv-sd2','rv-sd2','snow','official','https://example.invalid/2','html','[]','unverified','x', 10),
+        ('rv-sd2-agg','rv-sd2','rv-sd2','snow','esquiades','https://example.invalid/3','html','[]','unverified','x', 50)`),
+      env.DB.prepare(`INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date, op_status, open_km, total_km, quality, content_hash, extractor) VALUES
+        ('rv-sd-a','rv-sd1','rv-sd1-off',?1,?2,'partial',80,100,'ok','sd1','t'),
+        ('rv-sd-b','rv-sd2','rv-sd2-off',?1,?2,'partial',80,100,'ok','sd2','t'),
+        ('rv-sd-c','rv-sd2','rv-sd2-agg',?1,?3,'partial',60,100,'ok','sd3','t')`).bind(t, day(7), day(0)),
+    ]);
+    const cat = await SELF.fetch('http://localhost/api/public/catalog').then((x) => x.json<any>());
+    const a = cat.areas.find((x: any) => x.id === 'rv-sd1').snow, b = cat.areas.find((x: any) => x.id === 'rv-sd2').snow;
+    expect(a).toMatchObject({ openKm: 80, sourceDate: day(7), observedAt: t, freshness: 'stale', captureFreshness: 'fresh', rank: { openKm: null, excluded: 'parte_antiguo' } });
+    expect(b).toMatchObject({ sourceId: 'rv-sd2-agg', openKm: 60, rank: { openKm: 60, excluded: null } });
+  });
+});

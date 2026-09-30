@@ -5,7 +5,7 @@ export interface Snow {
   depthMinCm: number | null; depthMaxCm: number | null; quality: string; qualityNote: string | null; sourceId: string;
   freshness: 'fresh' | 'stale' | 'never';
   /** Lo que puede puntuar en «Nieve abierta ahora»; un dato excluido se sigue mostrando con su fecha. */
-  rank?: { openKm: number | null; excluded: null | 'sin_dato' | 'antiguo' | 'dudoso' | 'estado_desconocido' | 'sin_km'; label: string | null };
+  rank?: { openKm: number | null; excluded: null | 'sin_dato' | 'antiguo' | 'parte_antiguo' | 'dudoso' | 'estado_desconocido' | 'sin_km'; label: string | null };
   sources?: number;
 }
 export interface Route { accessName: string; roadKm: number | null; durationMin: number | null; tollCents: number | null; source: string; checkedOn: string | null; validated: boolean; notes: string | null }

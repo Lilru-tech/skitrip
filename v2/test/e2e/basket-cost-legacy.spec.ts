@@ -137,5 +137,9 @@ test('legacy y nieve: comentario de la hoja con su autoría y nieve antigua que 
 
   await page.goto('/comparar');
   const near = page.getByRole('list', { name: 'Estaciones dentro de la distancia' });
-  await expect(near).toContainText('no puntúa: dato de hace más de 30 h');
+  await expect(near).toContainText('no puntúa: capturado hace más de 30 h');
+  // Parte de hace una semana re-descargado hoy: se ven captura y fecha del parte, y no puntúa.
+  const gamma = near.getByRole('listitem').filter({ hasText: 'Gamma Lejana (sintético)' });
+  await expect(gamma).toContainText('parte del');
+  await expect(gamma).toContainText('no puntúa: el parte de la fuente es anterior a ayer');
 });

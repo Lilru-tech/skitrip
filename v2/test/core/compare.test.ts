@@ -43,3 +43,29 @@ describe('comparación de coste', () => {
     expect(r[2]).toMatchObject({ perPersonCents: null, totalCents: null, pending: ['Forfait'], knownPerPersonCents: 5000 });
   });
 });
+
+describe('revisión final 3 · fecha del parte frente a fecha de captura', () => {
+  const today = '2027-01-15'; // NOW = 15/01/2027 12:00 UTC = 13:00 en Madrid
+  it('parte de hace siete días capturado hoy: no puntúa', () => {
+    expect(snowForRanking(s({ sourceDate: '2027-01-08', openKm: 80 }), NOW)).toEqual({ openKm: null, excluded: 'parte_antiguo' });
+  });
+  it('parte de hoy o de ayer (fecha sin hora, zona Europe/Madrid): puntúa', () => {
+    expect(snowForRanking(s({ sourceDate: today }), NOW).excluded).toBeNull();
+    expect(snowForRanking(s({ sourceDate: '2027-01-14' }), NOW).excluded).toBeNull();
+    expect(snowForRanking(s({ sourceDate: '2027-01-13' }), NOW).excluded).toBe('parte_antiguo');
+  });
+  it('sin fecha publicada: vale la captura (limitación documentada); parte con fecha futura es dudoso', () => {
+    expect(snowForRanking(s({ sourceDate: null }), NOW).excluded).toBeNull();
+    expect(snowForRanking(s({ sourceDate: '2027-01-20' }), NOW).excluded).toBe('dudoso');
+  });
+  it('la fuente preferente con parte antiguo no desplaza a otra con parte reciente', () => {
+    const pref = s({ sourceId: 'oficial', priority: 1, sourceDate: '2027-01-08' });
+    const alt = s({ sourceId: 'agregador', priority: 50, sourceDate: today });
+    expect(pickSnow([pref, alt], NOW)!.sourceId).toBe('agregador');
+    expect(pickSnow([pref], NOW)!.sourceId).toBe('oficial'); // se muestra con sus dos fechas, pero no puntúa
+  });
+  it('se mantienen las exclusiones por calidad y estado desconocido', () => {
+    expect(snowForRanking(s({ sourceDate: today, quality: 'total_mismatch' }), NOW).excluded).toBe('dudoso');
+    expect(snowForRanking(s({ sourceDate: today, opStatus: 'unknown' }), NOW).excluded).toBe('estado_desconocido');
+  });
+});

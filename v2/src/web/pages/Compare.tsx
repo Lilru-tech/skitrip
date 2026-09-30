@@ -2,7 +2,7 @@
 // dominios con sus estaciones miembro (sin contar dos veces) y puntuación con pesos editables.
 import { useMemo, useState } from 'react';
 import { get } from '../api';
-import { Freshness } from '../components/Badges';
+import { Freshness, ReportDate } from '../components/Badges';
 import { ErrorState, Loading, Empty } from '../components/States';
 import { AREA_KIND_LABEL, kmText, MODALITY_LABEL } from '../format';
 import { useResource } from '../hooks';
@@ -134,7 +134,7 @@ function AreaCard({ area, members, mode, score, rank, origin }: {
       </div>
       <dl className="area-facts">
         <div><dt>Carretera</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min`}{!r.validated && <span className="muted"> (sin validar)</span>}</> : `sin distancia desde ${origin === 'tarragona' ? 'Tarragona' : 'Sabadell'}`}</dd></div>
-        <div><dt>Nieve</dt><dd>{area.snow ? <><SnowKm open={area.snow.openKm} total={area.snow.totalKm} /> <Freshness state={area.snow.freshness} at={area.snow.observedAt} />
+        <div><dt>Nieve</dt><dd>{area.snow ? <><SnowKm open={area.snow.openKm} total={area.snow.totalKm} /> <Freshness state={area.snow.freshness} at={area.snow.observedAt} /><ReportDate date={area.snow.sourceDate} />
           {area.snow.rank?.excluded && <span className="snow-excluded small">no puntúa: {area.snow.rank.label ?? area.snow.rank.excluded}</span>}</> : 'sin dato'}</dd></div>
         <div><dt>Km totales</dt><dd>{kmText(area.officialTotalKm)}{area.totalKmSource && area.officialTotalKm != null && <span className="muted small"> ({area.totalKmSource})</span>}</dd></div>
         <div><dt>Ambiente / après</dt><dd>{area.vibe ?? 'sin dato'} / {area.apres ?? 'sin dato'} <span className="muted small">(0–10, subjetivo)</span></dd></div>

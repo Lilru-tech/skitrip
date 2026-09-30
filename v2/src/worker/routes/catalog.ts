@@ -5,6 +5,7 @@ import type { AppEnv } from '../env';
 import { notFound, parseQuery } from '../http';
 import { zId } from '../schemas';
 import { CAPABILITIES } from '../../core/capabilities';
+import { addDays, todayMadrid } from '../../core/dates';
 import { pickSnow, SNOW_EXCLUSION_LABEL, snowForRanking } from '../../core/compare';
 
 // Datos no personales: catálogo, rutas, nieve y fuentes. Lectura anónima con caché corta.
@@ -16,9 +17,11 @@ const snowOut = (s: any, nowMs: number) => s && ({
   observedAt: s.observed_at, sourceDate: s.source_date, opStatus: s.op_status, openKm: s.open_km, totalKm: s.total_km,
   openRuns: s.open_runs, totalRuns: s.total_runs, openLifts: s.open_lifts, totalLifts: s.total_lifts,
   depthMinCm: s.depth_min_cm, depthMaxCm: s.depth_max_cm, quality: s.quality, qualityNote: s.quality_note, sourceId: s.source_id,
-  freshness: freshness(s.observed_at, STALE_HOURS.snow, nowMs),
+  // Frescura visible: captura reciente y, si la fuente publica fecha de parte, parte de hoy o de ayer (Europe/Madrid).
+  freshness: s.source_date && s.source_date < addDays(todayMadrid(nowMs), -1) ? 'stale' : freshness(s.observed_at, STALE_HOURS.snow, nowMs),
+  captureFreshness: freshness(s.observed_at, STALE_HOURS.snow, nowMs),
 });
-const candOf = (s: any) => ({ ...s, sourceId: s.source_id, priority: s.priority ?? 100, observedAt: s.observed_at, opStatus: s.op_status, openKm: s.open_km, quality: s.quality });
+const candOf = (s: any) => ({ ...s, sourceId: s.source_id, priority: s.priority ?? 100, observedAt: s.observed_at, opStatus: s.op_status, openKm: s.open_km, quality: s.quality, sourceDate: s.source_date });
 
 catalogRoutes.get('/catalog', async (c) => {
   const { origin } = parseQuery(c, z.object({ origin: zId.default('tarragona') }));
