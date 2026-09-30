@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeBudget, type BudgetInput } from '../../src/core/budget';
+import { candidateScenario, computeBudget, type BudgetInput } from '../../src/core/budget';
 
 const base: BudgetInput = {
   people: 4, skiers: 4, renters: 2, nights: 2, skiDays: 2, cars: 1, roadKmOneWay: 260, fuelCentsPerLitre: 160, litresPer100km: 6.5,
@@ -140,5 +140,45 @@ describe('revisión final 4 · condiciones que no se pueden dar por comprobadas'
     const l = lodging({ ...trip, trip: { ...trip.trip!, rooms: 2 }, lodging: { ...trip.lodging!, priceKind: 'manual_estimate' } });
     expect(l.status).toBe('estimated');
     expect(l.note).toMatch(/Sin comprobar: .*habitaciones/);
+  });
+});
+
+describe('revisión final 6 · escenario hipotético por candidatura', () => {
+  const st = (r: ReturnType<typeof computeBudget>, k: string) => r.components.find((c) => c.key === k)!.status;
+  const hotelIn = (areaId: string | null) => ({ ...base.lodging!, modality: 'lodging' as const, forfaitIncluded: 'no' as const, forfaitDays: null, areaId });
+  it('misma estación que el viaje: no es hipotético y reutiliza sus partidas', () => {
+    const { input, hypothetical } = candidateScenario({ ...base, lodging: hotelIn('cerler') }, 'cerler');
+    expect(hypothetical).toBe(false);
+    const r = computeBudget(input);
+    expect([st(r, 'forfait'), st(r, 'tolls'), st(r, 'parking'), st(r, 'rental'), st(r, 'lodging')]).toEqual(['known', 'known', 'known', 'known', 'known']);
+  });
+  it('otra estación: la cotización vale en su destino, pero forfait, peajes, parking y alquiler quedan pendientes', () => {
+    const { input, hypothetical } = candidateScenario({ ...base, lodging: hotelIn('formigal') }, 'formigal', (id) => id.toUpperCase());
+    expect(hypothetical).toBe(true);
+    expect(input.trip!.areaId).toBe('formigal');
+    expect(base.trip!.areaId).toBe('cerler'); // el viaje original no se toca
+    const r = computeBudget(input);
+    expect(st(r, 'lodging')).toBe('known');
+    expect([st(r, 'forfait'), st(r, 'tolls'), st(r, 'parking'), st(r, 'rental')]).toEqual(['pending', 'pending', 'pending', 'pending']);
+    expect(r.components.find((c) => c.key === 'forfait')!.note).toMatch(/es de CERLER, no de FORMIGAL/);
+    expect(r.complete).toBe(false);
+  });
+  it('lo que no aplica sigue sin aplicar: paquete con forfait, sin coches, nadie alquila → completo en otra estación', () => {
+    const { input } = candidateScenario({ ...base, cars: 0, renters: 0, lodging: { ...base.lodging!, areaId: 'formigal' } }, 'formigal');
+    const r = computeBudget(input);
+    expect([st(r, 'forfait'), st(r, 'tolls'), st(r, 'parking'), st(r, 'rental')]).toEqual(['not_applicable', 'not_applicable', 'not_applicable', 'not_applicable']);
+    expect(r.complete).toBe(true);
+  });
+  it('viaje sin destino: se usa el de la candidatura; sin destino en ninguna parte queda sin comprobar', () => {
+    const noDest = { ...base, trip: { ...base.trip!, areaId: null } };
+    const a = computeBudget(candidateScenario({ ...noDest, lodging: hotelIn('formigal') }, 'formigal').input);
+    expect(a.components.find((c) => c.key === 'lodging')!.comparison!.unknown).not.toContain('destino');
+    expect(a.components.find((c) => c.key === 'tolls')!.note).toMatch(/el viaje no tiene destino/);
+    const b = computeBudget(candidateScenario({ ...noDest, lodging: hotelIn(null) }, null).input);
+    expect(b.components.find((c) => c.key === 'lodging')!.comparison!.unknown).toContain('destino');
+  });
+  it('sin escenario (presupuesto elegido) la otra estación sigue siendo incompatible', () => {
+    const r = computeBudget({ ...base, lodging: hotelIn('formigal') });
+    expect(r.components.find((c) => c.key === 'lodging')!.comparison!.status).toBe('incompatible');
   });
 });

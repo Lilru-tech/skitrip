@@ -518,3 +518,103 @@ describe('revisión final 5 · marcar avisos como leídos en lote', () => {
     expect(await unread(a.id)).toBe(0);
   });
 });
+
+describe('revisión final 6 · comparador de coste con el destino de cada candidatura', () => {
+  beforeAll(async () => {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO origins (id, name, lat, lon) VALUES ('tarragona','Tarragona',41.1,1.2)`),
+      env.DB.prepare(`INSERT OR IGNORE INTO routes (origin_id, area_id, access_name, road_km, source, validated) VALUES ('tarragona','rv-cerler','Cerler',300,'manual',1), ('tarragona','rv-formigal','Formigal',350,'manual',1)`),
+    ]);
+  });
+  const cond = { checkIn: '2027-01-15', checkOut: '2027-01-17', adults: 2, childrenAges: [], forfaitIncluded: 'yes', forfaitDays: 2 };
+  const pkg = (title: string, areaId: string | null, amountCents: number, over: Record<string, unknown> = {}) =>
+    ({ title, modality: 'lodging_forfait', areaId, amountCents, unit: 'per_person', priceKind: 'user_quote', ...cond, ...over });
+  const setup = async (trip: Record<string, unknown>, budget: Record<string, unknown>) => {
+    const o = await signup();
+    const t = (await api(o.token, 'POST', '/api/trips', { name: 'Coste destinos', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2, ...trip })).json.trip;
+    const b0 = (await api(o.token, 'GET', `/api/trips/${t.id}/budget`)).json;
+    expect((await api(o.token, 'PUT', `/api/trips/${t.id}/budget`, { version: b0.params.version, ...budget })).status).toBe(200);
+    return { o, t };
+  };
+  const compare = async (o: { token: string }, tripId: string) => (await api(o.token, 'GET', `/api/trips/${tripId}/cost-comparison`)).json.options as any[];
+
+  it('alternativas en dos estaciones: cada una en su destino, ambas completas y ordenadas (antes la otra estación era incompatible)', async () => {
+    const { o, t } = await setup({ cars: 0, areaId: 'rv-cerler' }, { groceriesCents: 0, renters: 0 });
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Paquete Cerler', 'rv-cerler', 30000));
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Paquete Formigal', 'rv-formigal', 25000));
+    const opts = await compare(o, t.id);
+    expect(opts.map((x) => [x.title, x.rank, x.perPersonCents, x.hypothetical])).toEqual([['Paquete Formigal', 1, 25000, true], ['Paquete Cerler', 2, 30000, false]]);
+    expect(opts[0].warnings.join(' ')).toMatch(/hipotético/);
+    // El viaje no cambia.
+    expect((await api(o.token, 'GET', `/api/trips/${t.id}`)).json.trip.areaId).toBe('rv-cerler');
+  });
+
+  it('forfait, peajes, parking y alquiler de otra estación no se reutilizan como confirmados; en la estación del viaje sí', async () => {
+    const { o, t } = await setup({ cars: 1, areaId: 'rv-cerler' },
+      { groceriesCents: 0, renters: 2, rentalCentsPerDay: 2000, forfaitCentsPerDay: 5000, tollsCentsPerCar: 3000, parkingCentsPerCar: 1500, fuelCentsPerLitre: 160, litresPer100kmX10: 60 });
+    const hotel = { modality: 'lodging', forfaitIncluded: 'no', forfaitDays: null };
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Hotel Cerler', 'rv-cerler', 10000, hotel));
+    const fid = (await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Hotel Formigal', 'rv-formigal', 9000, hotel))).json.id;
+    const opts = await compare(o, t.id);
+    const cer = opts.find((x) => x.title === 'Hotel Cerler'), form = opts.find((x) => x.title === 'Hotel Formigal');
+    expect(cer).toMatchObject({ rank: 1, complete: true, hypothetical: false, pending: [] });
+    expect(form).toMatchObject({ rank: null, complete: false, hypothetical: true, roadKm: 350 });
+    expect([...form.pending].sort()).toEqual(['Alquiler de material', 'Forfait', 'Parking', 'Peajes']);
+    expect(form.lodging.status).toBe('known'); // la cotización de Formigal vale en su propio destino
+    // Presupuesto elegido: validación estricta de destino intacta (Formigal no vale para un viaje a Cerler).
+    const b = (await api(o.token, 'GET', `/api/trips/${t.id}/budget`)).json;
+    const chosen = (await api(o.token, 'PUT', `/api/trips/${t.id}/budget`, { version: b.params.version, chosenCandidateId: fid })).json;
+    const lodging = chosen.result.components.find((x: any) => x.key === 'lodging');
+    expect(lodging).toMatchObject({ status: 'pending', comparison: { status: 'incompatible' } });
+    expect(lodging.comparison.issues.join(' ')).toMatch(/otro destino/);
+  });
+
+  it('viaje sin destino: las candidaturas con estación se comparan en la suya; sin estación queda incompleta (antes todo incompleto)', async () => {
+    const { o, t } = await setup({ cars: 0 }, { groceriesCents: 0, renters: 0 });
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Paquete Cerler', 'rv-cerler', 30000));
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Paquete Formigal', 'rv-formigal', 25000));
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Paquete sin estación', null, 20000));
+    const opts = await compare(o, t.id);
+    expect(opts.map((x) => [x.title, x.rank])).toEqual([['Paquete Formigal', 1], ['Paquete Cerler', 2], ['Paquete sin estación', null]]);
+    expect(opts[2].lodging.comparison.unknown).toContain('destino');
+    expect(opts[0].warnings.join(' ')).toMatch(/no tiene destino/);
+  });
+
+  it('viaje sin destino y con coche: peajes y parking guardados no se confirman para ninguna estación', async () => {
+    const { o, t } = await setup({ cars: 1 }, { groceriesCents: 0, renters: 0, tollsCentsPerCar: 3000, parkingCentsPerCar: 1500, fuelCentsPerLitre: 160, litresPer100kmX10: 60 });
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Paquete Cerler', 'rv-cerler', 30000));
+    const [x] = await compare(o, t.id);
+    expect(x.rank).toBeNull();
+    expect([...x.pending].sort()).toEqual(['Parking', 'Peajes']); // combustible sí: ruta de Cerler; forfait incluido en el paquete
+  });
+
+  it('condiciones incompatibles siguen sin posición aunque se calcule en su destino', async () => {
+    const { o, t } = await setup({ cars: 0, areaId: 'rv-cerler' }, { groceriesCents: 0, renters: 0 });
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Formigal otras fechas', 'rv-formigal', 20000, { checkIn: '2027-02-15', checkOut: '2027-02-17' }));
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, pkg('Formigal 3 adultos', 'rv-formigal', 20000, { adults: 3 }));
+    const opts = await compare(o, t.id);
+    for (const x of opts) { expect(x.rank).toBeNull(); expect(x.lodging.comparison.status).toBe('incompatible'); }
+    expect(opts.every((x) => !x.lodging.comparison.issues.join(' ').includes('otro destino'))).toBe(true);
+  });
+});
+
+describe('revisión final 4 · presupuesto por API: habitaciones y días de forfait declarados por una sola parte', () => {
+  it('viaje con 2 habitaciones y cotización sin habitaciones → pendiente; paquete de 2 días con viaje sin días de esquí → incompleto', async () => {
+    const o = await signup();
+    const cond = { checkIn: '2027-01-15', checkOut: '2027-01-17', adults: 2, childrenAges: [], rooms: null };
+    const t1 = (await api(o.token, 'POST', '/api/trips', { name: 'Habitaciones', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2, cars: 0, rooms: 2, areaId: 'rv-cerler' })).json.trip;
+    const c1 = (await api(o.token, 'POST', `/api/trips/${t1.id}/candidates`, { title: 'Hotel', modality: 'lodging', areaId: 'rv-cerler', amountCents: 10000, unit: 'per_person', priceKind: 'user_quote', forfaitIncluded: 'no', ...cond })).json;
+    let b = (await api(o.token, 'GET', `/api/trips/${t1.id}/budget`)).json;
+    b = (await api(o.token, 'PUT', `/api/trips/${t1.id}/budget`, { version: b.params.version, chosenCandidateId: c1.id })).json;
+    const l1 = b.result.components.find((x: any) => x.key === 'lodging');
+    expect(l1.status).toBe('pending');
+    expect(l1.comparison.unknown.join(' ')).toMatch(/habitaciones de la cotización \(el viaje pide 2\)/);
+
+    const t2 = (await api(o.token, 'POST', '/api/trips', { name: 'Sin días', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: null, cars: 0, areaId: 'rv-cerler' })).json.trip;
+    const c2 = (await api(o.token, 'POST', `/api/trips/${t2.id}/candidates`, { title: 'Paquete', modality: 'lodging_forfait', areaId: 'rv-cerler', amountCents: 30000, unit: 'per_person', priceKind: 'user_quote', forfaitIncluded: 'yes', forfaitDays: 2, ...cond })).json;
+    let b2 = (await api(o.token, 'GET', `/api/trips/${t2.id}/budget`)).json;
+    b2 = (await api(o.token, 'PUT', `/api/trips/${t2.id}/budget`, { version: b2.params.version, chosenCandidateId: c2.id, groceriesCents: 0, renters: 0 })).json;
+    expect(b2.result.complete).toBe(false);
+    expect(b2.result.components.find((x: any) => x.key === 'lodging').comparison.unknown.join(' ')).toMatch(/días de esquí del viaje \(el paquete incluye 2\)/);
+  });
+});

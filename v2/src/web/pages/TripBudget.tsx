@@ -192,6 +192,8 @@ interface CostRow {
   id: string; title: string; areaId: string | null; roadKm: number | null; roadValidated: boolean; rank: number | null; complete: boolean;
   perPersonCents: number | null; knownPerPersonCents: number | null; totalCents: number | null; knownSubtotalCents: number; pending: string[];
   lodging: { status: string; comparison: BudgetComponent['comparison'] | null; referenceCents: number | null } | null; warnings: string[];
+  /** Calculado en el destino de la candidatura sin modificar el viaje. */
+  hypothetical?: boolean;
 }
 
 function lodgingText(l: CostRow['lodging']) {
@@ -229,7 +231,7 @@ function CostComparison({ tripId, version }: { tripId: string; version: number }
             <ol className="card-list" aria-label="Candidaturas completas por coste">
               {ranked.map((o) => (
                 <li key={o.id} className="card cost-card" data-rank={o.rank}>
-                  <div className="card-head"><h3><span className="rank">{o.rank}.</span> {o.title}</h3><strong className="cost-figure">{euros(o.perPersonCents!)}/persona</strong></div>
+                  <div className="card-head"><h3><span className="rank">{o.rank}.</span> {o.title}</h3>{o.hypothetical && <span className="tag">hipotético</span>}<strong className="cost-figure">{euros(o.perPersonCents!)}/persona</strong></div>
                   <p className="small">Total {euros(o.totalCents!)} · completo</p>
                   {facts(o)}
                   {o.warnings.length > 0 && <ul className="warnings small">{o.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
@@ -243,10 +245,11 @@ function CostComparison({ tripId, version }: { tripId: string; version: number }
               <ul className="card-list" aria-label="Candidaturas con presupuesto incompleto">
                 {incomplete.map((o) => (
                   <li key={o.id} className="card cost-card is-incomplete">
-                    <div className="card-head"><h3>{o.title}</h3><span className="tag tag-warn">incompleto</span></div>
+                    <div className="card-head"><h3>{o.title}</h3><span className="tag tag-warn">incompleto</span>{o.hypothetical && <span className="tag">hipotético</span>}</div>
                     <p className="small"><strong>Incompleto: falta {o.pending.length ? o.pending.join(', ') : 'confirmar partidas estimadas'}.</strong>{' '}
                       {o.knownPerPersonCents != null ? `Conocido hasta ahora: ${euros(o.knownPerPersonCents)}/persona` : `Conocido hasta ahora: ${euros(o.knownSubtotalCents)}`} (el total real será mayor).</p>
                     {facts(o)}
+                    {o.warnings.length > 0 && <ul className="warnings small">{o.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { offerPanel, searchDistribution, type PricePoint } from '../../core/analytics';
-import { computeBudget, type BudgetInput } from '../../core/budget';
+import { candidateScenario, computeBudget, type BudgetInput } from '../../core/budget';
 import { dateSearchAvailable } from '../../core/capabilities';
 import { daysBetween, todayMadrid } from '../../core/dates';
 import type { AppEnv } from '../env';
@@ -282,7 +282,8 @@ async function budgetContext(db: D1Database, tripId: string) {
 type BudgetCtx = Awaited<ReturnType<typeof budgetContext>>;
 type RouteRow = { road_km: number | null; source: string; validated: number; notes: string | null } | null;
 
-function budgetWith({ t, b, members, shopping }: BudgetCtx, cand: any | null, route: RouteRow) {
+/** scenario: coste de una candidatura en SU destino (hipótesis que no modifica el viaje). Sin él, destino real y validación estricta. */
+function budgetWith({ t, b, members, shopping }: BudgetCtx, cand: any | null, route: RouteRow, scenario?: { areaLabel: (id: string) => string }) {
   const people = t.participants_planned ?? members ?? null;
   const tripKids: number[] = JSON.parse(t.children_ages || '[]');
   const groceries = b.groceries_cents ?? (shopping.complete ? shopping.knownCents : null);
@@ -297,10 +298,14 @@ function budgetWith({ t, b, members, shopping }: BudgetCtx, cand: any | null, ro
       areaId: cand.area_id, forfaitDays: cand.forfait_days } : null,
     forfaitCentsPerDay: b.forfait_cents_per_day, rentalCentsPerDay: b.rental_cents_per_day, groceriesCents: groceries,
   };
-  const result = computeBudget(input);
+  const sc = scenario ? candidateScenario(input, cand?.area_id ?? null, scenario.areaLabel) : { input, hypothetical: false };
+  const result = computeBudget(sc.input);
+  if (sc.hypothetical) result.warnings.push(t.area_id
+    ? 'Escenario hipotético en el destino de la candidatura: el viaje tiene otro destino y no se modifica. Forfait, peajes, parking y alquiler de esta estación quedan pendientes hasta confirmarlos.'
+    : 'Escenario hipotético en el destino de la candidatura: el viaje no tiene destino y no se modifica. Forfait, peajes, parking y alquiler quedan pendientes hasta confirmarlos para esta estación.');
   if (route && !route.validated) result.warnings.push(`Distancia por carretera sin validar (${route.source})${route.notes ? `: ${route.notes}` : '.'}`);
   if (b.groceries_cents == null && shopping.unpriced) result.warnings.push(`La lista de compra tiene ${shopping.unpriced} artículo(s) sin precio: la compra queda pendiente.`);
-  return { input, result };
+  return { input: sc.input, result, hypothetical: sc.hypothetical };
 }
 
 async function budgetFor(db: D1Database, tripId: string) {
@@ -324,15 +329,23 @@ planRoutes.get('/:id/cost-comparison', async (c) => {
   const ctx = await budgetContext(db, tripId);
   const { results: cands } = await db.prepare('SELECT * FROM trip_candidates WHERE trip_id = ?1 ORDER BY created_at LIMIT 50').bind(tripId).all<any>();
   const areas = [...new Set([ctx.t.area_id, ...cands.map((x) => x.area_id)].filter(Boolean))];
-  const { results: routes } = await db.prepare(`SELECT area_id, road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id IN (SELECT value FROM json_each(?2))`)
-    .bind(ctx.t.origin_id ?? 'tarragona', JSON.stringify(areas)).all<any>();
+  const [{ results: routes }, { results: names }] = await Promise.all([
+    db.prepare(`SELECT area_id, road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id IN (SELECT value FROM json_each(?2))`)
+      .bind(ctx.t.origin_id ?? 'tarragona', JSON.stringify(areas)).all<any>(),
+    db.prepare('SELECT id, name FROM areas WHERE id IN (SELECT value FROM json_each(?1))').bind(JSON.stringify(areas)).all<{ id: string; name: string }>(),
+  ]);
   const routeBy = new Map(routes.map((r) => [r.area_id, r]));
+  const nameBy = new Map(names.map((a) => [a.id, a.name]));
+  const areaLabel = (id: string) => nameBy.get(id) ?? id;
   const options = cands.map((cand) => {
-    const route = routeBy.get(cand.area_id ?? ctx.t.area_id) ?? null;
-    return { id: cand.id, title: cand.title, areaId: cand.area_id ?? ctx.t.area_id, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, budget: budgetWith(ctx, cand, route).result };
+    // Cada candidatura se calcula en su propio destino (hipótesis) sin tocar el viaje; su ruta es la de su estación.
+    const areaId = cand.area_id ?? ctx.t.area_id;
+    const route = areaId ? routeBy.get(areaId) ?? null : null;
+    const b = budgetWith(ctx, cand, route, { areaLabel });
+    return { id: cand.id, title: cand.title, areaId, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, hypothetical: b.hypothetical, budget: b.result };
   });
   return c.json({
-    options: rankCosts(options).map((r) => ({ ...r, warnings: options.find((o) => o.id === r.id)!.budget.warnings })),
+    options: rankCosts(options).map((r) => { const o = options.find((x) => x.id === r.id)!; return { ...r, hypothetical: o.hypothetical, warnings: o.budget.warnings }; }),
     note: 'Coste completo por persona con transporte, forfait, alquiler y compra del viaje. Un presupuesto incompleto no tiene posición: nunca se muestra como el más barato.',
   });
 });

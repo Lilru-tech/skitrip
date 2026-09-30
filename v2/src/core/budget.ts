@@ -22,7 +22,16 @@ export interface BudgetInput {
   forfaitCentsPerDay: number | null;
   rentalCentsPerDay: number | null;
   groceriesCents: number | null;
+  /**
+   * Partidas que dependen del destino y cuyo importe guardado NO está confirmado para el destino calculado (escenario
+   * hipotético de otra estación). Quedan pendientes con esta nota salvo que no apliquen (sin coches, forfait incluido…).
+   */
+  unconfirmed?: Partial<Record<DestinationCost, string>>;
 }
+
+/** Partidas cuyo precio depende de la estación: forfait, peajes, parking y alquiler. */
+export const DESTINATION_COSTS = ['tolls', 'parking', 'forfait', 'rental'] as const;
+export type DestinationCost = (typeof DESTINATION_COSTS)[number];
 
 export interface TripConditions {
   startDate: string | null;
@@ -145,6 +154,7 @@ export function computeBudget(i: BudgetInput): BudgetResult {
   }
   for (const [key, label, v] of [['tolls', 'Peajes', i.tollsCentsPerCar], ['parking', 'Parking', i.parkingCentsPerCar]] as const) {
     if (i.cars === 0) c.push({ key, label, status: 'not_applicable', totalCents: null, note: 'Sin coches.' });
+    else if (i.unconfirmed?.[key]) pending(key, label, i.unconfirmed[key]!);
     else if (v == null || i.cars == null) pending(key, label, `Falta ${label.toLowerCase()} por coche${i.cars == null ? ' y nº de coches' : ''}.`);
     else c.push({ key, label, status: 'known', totalCents: v * i.cars, note: `${eur(v)} por coche × ${i.cars}.` });
   }
@@ -189,10 +199,12 @@ export function computeBudget(i: BudgetInput): BudgetResult {
   // Forfait: si el paquete ya lo incluye, no se suma otra vez.
   if (packageIncludesForfait) c.push({ key: 'forfait', label: 'Forfait', status: 'not_applicable', totalCents: null, note: 'Incluido en el paquete.' });
   else if (i.skiers === 0) c.push({ key: 'forfait', label: 'Forfait', status: 'not_applicable', totalCents: null, note: 'Nadie esquía.' });
+  else if (i.unconfirmed?.forfait) pending('forfait', 'Forfait', i.unconfirmed.forfait);
   else if (i.forfaitCentsPerDay == null || i.skiers == null || i.skiDays == null) pending('forfait', 'Forfait', 'Falta precio por día, días de esquí o nº de esquiadores.');
   else c.push({ key: 'forfait', label: 'Forfait', status: 'known', totalCents: i.forfaitCentsPerDay * i.skiers * i.skiDays, note: `${eur(i.forfaitCentsPerDay)} × ${i.skiers} esquiador(es) × ${i.skiDays} día(s).` });
 
   if (i.renters === 0) c.push({ key: 'rental', label: 'Alquiler de material', status: 'not_applicable', totalCents: null, note: 'Nadie alquila.' });
+  else if (i.unconfirmed?.rental) pending('rental', 'Alquiler de material', i.unconfirmed.rental);
   else if (i.rentalCentsPerDay == null || i.renters == null || i.skiDays == null) pending('rental', 'Alquiler de material', 'Falta precio por día, días o nº de personas que alquilan.');
   else c.push({ key: 'rental', label: 'Alquiler de material', status: 'known', totalCents: i.rentalCentsPerDay * i.renters * i.skiDays, note: `${eur(i.rentalCentsPerDay)} × ${i.renters} × ${i.skiDays} día(s).` });
 
@@ -215,4 +227,24 @@ export function computeBudget(i: BudgetInput): BudgetResult {
     knownPerPersonCents: people ? Math.round(knownSubtotalCents / people) : null,
     warnings,
   };
+}
+
+/**
+ * Escenario hipotético de una candidatura: el viaje trasladado al destino de la candidatura, SIN modificar el viaje.
+ * - La comparación de condiciones usa el destino de la candidatura (otra estación no es «otro destino» aquí).
+ * - Las partidas que dependen de la estación solo se reutilizan si la candidatura es del mismo destino del viaje;
+ *   si no, quedan pendientes (nunca se toman como confirmadas las de otra estación).
+ * - El presupuesto elegido del viaje sigue usando computeBudget con el destino real y su validación estricta.
+ */
+export function candidateScenario(i: BudgetInput, candidateAreaId: string | null, areaLabel: (id: string) => string = (id) => id): { input: BudgetInput; hypothetical: boolean } {
+  const tripArea = i.trip?.areaId ?? null;
+  const area = candidateAreaId ?? tripArea;
+  const hypothetical = area !== tripArea;
+  if (!hypothetical) return { input: i, hypothetical };
+  const why = tripArea == null
+    ? `el viaje no tiene destino y el importe guardado no está confirmado para ${area ? areaLabel(area) : 'esta candidatura'}`
+    : `el importe guardado es de ${areaLabel(tripArea)}, no de ${area ? areaLabel(area) : 'esta candidatura'}`;
+  const unconfirmed: BudgetInput['unconfirmed'] = {};
+  for (const k of DESTINATION_COSTS) unconfirmed[k] = `Sin confirmar para este destino: ${why}.`;
+  return { input: { ...i, trip: i.trip ? { ...i.trip, areaId: area } : i.trip, unconfirmed }, hypothetical };
 }
