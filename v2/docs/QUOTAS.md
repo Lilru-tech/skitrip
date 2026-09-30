@@ -13,41 +13,128 @@ Fecha: 30/09/2026. Rama `rebuild/v2`. Límites consultados ese día en https://d
 | CPU por petición del Worker | 10 ms | Ver «CPU» más abajo. |
 | Filas leídas / escritas al día | 5 M / 100.000 | Uso previsto para 10–20 personas muy por debajo. |
 
-No se recomienda ni se necesita el plan de pago: todas las rutas medidas quedan por debajo de 12 sentencias.
+No se recomienda ni se necesita el plan de pago: **las 106 rutas del Worker** quedan en 17 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
 
 ## Sentencias medidas por ruta
 
-Medido con `test/worker/quota-audit.test.ts`, que ejecuta cada ruta con los volúmenes indicados contra D1 local (workerd). Se cuentan todas las sentencias de la petición: autenticación, límites de uso, lecturas, escrituras y cada sentencia de un batch. El test falla si alguna pasa de 40.
+Medido con `test/worker/quota-audit.test.ts` (34 rutas) y `test/worker/quota-audit-all.test.ts` (las 72 restantes), contra D1 local (workerd). Se cuentan todas las sentencias de la petición: autenticación, límites de uso, lecturas, escrituras y cada sentencia de un batch. Los tests fallan si alguna pasa de 40.
+
+**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 30/09/2026: «Rutas definidas: 106 · medidas: 106»). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
 
 | Ruta | Sentencias (máx.) | Volumen |
 |---|---|---|
+| `PUT /trips/:id/budget` | 17 | lista de 150, 20 candidaturas |
+| `POST /ingest/offers` | 12 | 180 ofertas (60 de escenario + 2 × 60 de catálogo) |
 | `PUT /trips/:id/expenses/:eid` | 11 | 8 beneficiarios |
 | `GET /trips/:id/budget` | 10 | 150 artículos, 30 productos × 10 fechas |
-| `POST /trips/:id/scenarios` | 9 | — |
-| `GET /trips/:id/cost-comparison` | 9 | 20 candidaturas |
+| `GET /trips/:id/cost-comparison` | 10 | 20 candidaturas |
 | `GET /public/areas/:id` | 9 | — |
+| `POST /trips/:id/scenarios` | 9 | — |
+| `POST /receipts/confirm` | 8 | 10 líneas asociadas |
 | `POST /trips/:id/invitations` | 8 | — |
 | `POST /trips/:id/shopping/items` | 8 | lista de 150 |
+| `POST /trips/:id/shopping/legacy-import` | 8 | 140 artículos |
+| `POST /friends/requests` | 7 | — |
+| `POST /ingest/snow` | 7 | 29 fuentes (catálogo completo) |
+| `POST /receipts/:rid/expense` | 7 | 8 participantes |
 | `POST /trips/:id/expenses` | 7 | 8 beneficiarios |
+| `POST /trips/:id/transfer` | 7 | — |
+| `POST /trips/invitations/accept-link` | 7 | 8 miembros |
+| `GET /admin/health` | 6 | capturas, fuentes y áreas del catálogo |
 | `GET /availability/trip/:id` | 6 | 8 miembros × 150 días |
-| `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `GET /public/catalog` | 6 | 24 áreas |
-| `POST /trips` | 5 | — |
-| `GET /trips/:id/expenses` | 5 | 40 gastos × 8 personas |
-| `GET /trips/:id/shopping/basket` | 5 | 150 artículos, 30 productos × 10 fechas |
-| `GET /trips/:id/scenarios` | 5 | 4 escenarios (máximo por viaje) |
-| `GET /trips/:id` | 5 | 8 miembros |
+| `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
+| `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
+| `POST /friends/blocks` | 6 | 38 amigos |
+| `POST /me` | 6 | — |
+| `DELETE /trips/:id/expenses/:eid` | 5 | 40 gastos × 8 |
+| `DELETE /trips/:id/members/:userId` | 5 | 9 miembros |
+| `DELETE /trips/:id/members/:userId (abandonar)` | 5 | 8 miembros |
+| `DELETE /trips/:id/settlements/:sid` | 5 | 40 gastos × 8 |
 | `GET /friends` | 5 | 7 amigos |
+| `GET /trips/:id` | 5 | 8 miembros |
+| `GET /trips/:id/expenses` | 5 | 40 gastos × 8 |
+| `GET /trips/:id/scenarios` | 5 | 4 escenarios |
+| `GET /trips/:id/shopping/basket` | 5 | 150 artículos, 30 productos × 10 fechas |
+| `PATCH /trips/:id` | 5 | — |
+| `POST /friends/requests/:id/accept` | 5 | — |
+| `POST /prices/import/confirm` | 5 | 500 filas |
+| `POST /trips` | 5 | — |
+| `POST /trips/:id/settlements` | 5 | 40 gastos × 8 |
+| `DELETE /comments/:cid` | 4 | — |
+| `DELETE /trips/:id` | 4 | viaje completo (gastos, compra, tickets, candidaturas, comentarios) |
+| `DELETE /trips/:id/candidates/:cid` | 4 | 20 candidaturas × 8 votos |
+| `DELETE /trips/:id/scenarios/:sid` | 4 | 4 escenarios |
+| `DELETE /trips/:id/shopping/items/:itemId` | 4 | lista de 150 |
+| `GET /availability/common` | 4 | 8 miembros × 150 días |
+| `GET /products/:pid/open-prices` | 4 | caché vigente |
+| `GET /products/:pid/prices (cadena de 10 sustituciones)` | 4 | 10 sustituciones, 5 precios |
+| `GET /trips/:id/shopping/legacy` | 4 | 200 artículos legacy, lista de 150 |
+| `GET /trips/:id/shopping/suggestions/:itemId` | 4 | 30 productos |
+| `PATCH /comments/:cid` | 4 | — |
+| `PATCH /trips/:id/candidates/:cid` | 4 | 20 candidaturas × 8 votos |
+| `POST /admin/legacy/availability/reconcile` | 4 | 150 días |
+| `POST /admin/legacy/comments/:lid/reconcile` | 4 | — |
+| `POST /comments` | 4 | privado de viaje |
+| `POST /legacy/availability/mine/incorporate` | 4 | 150 días |
+| `POST /prices` | 4 | — |
+| `POST /products` | 4 | — |
+| `POST /products/:pid/replace` | 4 | — |
+| `POST /trips/:id/candidates` | 4 | — |
+| `POST /trips/:id/invitations/:invId/revoke` | 4 | — |
 | `POST /trips/invitations/:id/accept` | 4 | — |
 | `PUT /availability/shares` | 4 | 1 viaje |
-| `GET /availability/common` | 4 | 8 miembros × 150 días |
-| `POST /products`, `POST /prices`, `POST /trips/:id/candidates` | 4 | — |
-| `PUT /availability/me` | 3 | temporada completa, 150 días |
-| `GET /trips/:id/expenses/history`, `GET /products/:pid/prices`, `GET /trips/:id/candidates` | 3 | 40 gastos / 10 observaciones / 20 candidaturas |
-| `GET /availability/me`, `GET /availability/visible`, `GET /products`, `GET /trips`, `GET /notifications` | 2 | — |
-| `GET /me`, `GET /public/sources` | 1 | 48 fuentes |
+| `PUT /availability/trip/:tripId/proposals/:pid/vote` | 4 | 6 propuestas × 8 |
+| `PUT /trips/:id/candidates/:cid/vote` | 4 | 20 candidaturas × 8 votos |
+| `PUT /trips/:id/shopping/list` | 4 | lista de 150 |
+| `GET /offers/:oid/history` | 3 | 367 observaciones |
+| `GET /products/:pid/prices` | 3 | 10 observaciones |
+| `GET /trips/:id/candidates` | 3 | 20 candidaturas |
+| `GET /trips/:id/comments` | 3 | 50 comentarios |
+| `GET /trips/:id/expenses/history` | 3 | 40 gastos |
+| `PATCH /me` | 3 | — |
+| `PATCH /trips/:id/members/:userId` | 3 | — |
+| `POST /admin/comments/:cid/hide` | 3 | — |
+| `POST /admin/users/:uid/block` | 3 | — |
+| `POST /admin/users/:uid/unblock` | 3 | — |
+| `POST /availability/trip/:tripId/proposals` | 3 | 0 propuestas previas |
+| `POST /friends/requests/:id/cancel` | 3 | — |
+| `POST /friends/requests/:id/reject` | 3 | — |
+| `POST /receipts/preview` | 3 | 42 productos, 10 líneas |
+| `POST /trips/invitations/:invId/decline` | 3 | — |
+| `PUT /availability/me` | 3 | 150 días |
+| `PUT /offers/:oid/save` | 3 | — |
+| `DELETE /friends/:userId` | 2 | 38 amigos |
+| `DELETE /friends/blocks/:userId` | 2 | — |
+| `DELETE /offers/:oid/save` | 2 | — |
+| `GET /admin/legacy/availability` | 2 | 8 personas × 150 días |
+| `GET /admin/legacy/comments` | 2 | 500 comentarios legacy |
+| `GET /admin/users` | 2 | 47 cuentas |
+| `GET /availability/me` | 2 | 150 días |
+| `GET /availability/shares` | 2 | 1 viaje + amigos |
+| `GET /availability/visible` | 2 | 8 miembros × 150 días |
+| `GET /friends/search` | 2 | 46 cuentas |
+| `GET /legacy/availability/mine` | 2 | 150 días |
+| `GET /me/prefs` | 2 | — |
+| `GET /notifications` | 2 | — |
+| `GET /products/:pid/open-prices (sin EAN)` | 2 | — |
+| `GET /products?q=` | 2 | 30 productos |
+| `GET /receipts` | 2 | 10 tickets |
+| `GET /trips` | 2 | 1 viaje |
+| `GET /trips/invitations/mine` | 2 | 5 pendientes |
+| `POST /notifications/read` | 2 | 60 avisos sin leer, todos |
+| `POST /notifications/read (100 ids)` | 2 | 100 IDs (máximo), todos sin leer |
+| `POST /prices/import/preview` | 2 | 500 filas |
+| `PUT /me/prefs` | 2 | — |
+| `GET /ingest/offer-sources` | 1 | 19 fuentes |
+| `GET /ingest/scenarios` | 1 | 4 escenarios activos |
+| `GET /ingest/snow-sources` | 1 | 29 fuentes |
+| `GET /me` | 1 | — |
+| `GET /public/sources` | 1 | 48 fuentes |
+| `GET /health` | 0 | — |
+| `GET /public/capabilities` | 0 | — |
 
-Medidas con su propio test (el test fija el máximo):
+Medidas también con su propio test:
 
 | Ruta | Máximo comprobado | Volumen | Test |
 |---|---|---|---|
@@ -55,8 +142,22 @@ Medidas con su propio test (el test fija el máximo):
 | `POST /ingest/offers` | ≤ 14 | 19 páginas × 10 ofertas (190) | `quotas.test.ts` |
 | `POST /prices/import/preview` | ≤ 10 | CSV de 500 filas | `review-fixes.test.ts` |
 | `POST /prices/import/confirm` | ≤ 12 | CSV de 500 filas | `review-fixes.test.ts` |
+| `POST /notifications/read` | 2 con 50 y con 100 IDs | IDs repetidos, ajenos y lista vacía | `review-fixes.test.ts` |
 
-Antes de esta revisión la ingesta hacía 54 consultas por POST, la importación CSV hacía 1–2 por fila (503 con 500 filas), el calendario una por día y la lista de escenarios dos por escenario.
+### Qué no se ha medido o tiene límites
+
+- `GET /products/:pid/open-prices` sin caché: haría una llamada real a prices.openfoodfacts.org, así que solo se midió con caché vigente (4) y sin EAN (2). Leyendo el código, el camino sin caché añade una escritura (5).
+- Los volúmenes son los de la tabla. Un viaje con más datos de los medidos no está medido, aunque las consultas no dependen del número de filas (listas por `json_each`).
+- Solo D1 local. No se ha ejecutado contra D1 remoto.
+
+### Bucles acotados
+
+- `POST /prices/import/confirm`: inserción en trozos de 250 filas; con el tope de 500 filas son como mucho 2 sentencias.
+- `GET /products/:pid/prices`: la cadena de sustituciones (máx. 10) era una consulta por salto y, además, se cortaba tras el primero. Ahora es una sola sentencia recursiva y devuelve la cadena completa (test con 10 sustituciones).
+- `PUT /trips/:id/budget` calcula el presupuesto antes y después de guardar: 17 sentencias fijas, la más alta.
+- No queda ninguna ruta que emita una sentencia por elemento. `POST /notifications/read` lo hacía (50 IDs → 503) y ahora usa una sola sentencia.
+
+Antes de las revisiones la ingesta hacía 54 consultas por POST, marcar avisos una por ID, la importación CSV hacía 1–2 por fila (503 con 500 filas), el calendario una por día y la lista de escenarios dos por escenario.
 
 ## Ejecuciones de captura por partes
 
