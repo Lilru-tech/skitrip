@@ -124,14 +124,23 @@ availabilityRoutes.get('/common', async (c) => {
   if (q.to < q.from || daysBetween(q.from, q.to) > MAX_RANGE_DAYS) throw new ApiError(422, 'validation', 'Rango no válido.');
   const ids = [...new Set([me, ...q.ids.split(',').map((s) => s.trim()).filter(Boolean)])].slice(0, 30);
   const people = await commonView(c.env.DB, me, ids, q.from, q.to);
-  return c.json(buildResponse(people, q));
+  const { results: aliases } = await c.env.DB.prepare(`SELECT id, alias FROM users WHERE id IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(people.map((p) => p.id))).all<{ id: string; alias: string }>();
+  const aliasBy = new Map(aliases.map((a) => [a.id, a.alias]));
+  return c.json(buildResponse(people, q, aliasBy));
 });
 
-function buildResponse(people: PersonDays[], q: { from: string; to: string; nights: number; min?: number }) {
+/**
+ * Sin mínimo explícito, «todos» significa todas las personas que comparten su disponibilidad con quien consulta.
+ * Quien no comparte no puede confirmarse ni descartarse: se informa en `requirement.notSharing`, nunca se cuenta como libre.
+ */
+function buildResponse(people: PersonDays[], q: { from: string; to: string; nights: number; min?: number }, aliasBy?: Map<string, string>) {
+  const sharing = people.filter((p) => p.days !== null).length;
+  const need = q.min ?? sharing;
   return {
-    people: people.map((p) => ({ id: p.id, shared: p.days !== null, days: p.days ? toObj(p.days) : null })),
+    people: people.map((p) => ({ id: p.id, ...(aliasBy ? { alias: aliasBy.get(p.id) ?? null } : {}), shared: p.days !== null, days: p.days ? toObj(p.days) : null })),
     daily: dailyCounts(people, q.from, q.to),
-    windows: findCandidateWindows(people, { from: q.from, to: q.to, nights: q.nights, minPeople: q.min, limit: 30 }),
+    requirement: { mode: q.min != null ? 'min' : 'all_sharing', need, total: people.length, sharing, notSharing: people.length - sharing },
+    windows: findCandidateWindows(people, { from: q.from, to: q.to, nights: q.nights, minPeople: need, limit: 30 }),
   };
 }
 

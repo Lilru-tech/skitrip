@@ -111,7 +111,15 @@ describe('calendario compartido', () => {
     await befriend(a, b);
     await api(a.token, 'PUT', '/api/availability/me', { set: [{ day: '2026-12-30', status: 'free' }] });
     const common = (await api(b.token, 'GET', `/api/availability/common?${range}&ids=${a.id}&nights=1`)).json;
-    expect(common.people.find((p: any) => p.id === a.id)).toEqual({ id: a.id, shared: false, days: null });
+    expect(common.people.find((p: any) => p.id === a.id)).toEqual({ id: a.id, alias: a.alias, shared: false, days: null });
+    // Quien no comparte no bloquea las ventanas de los demás, pero se informa y nunca cuenta como libre.
+    await api(b.token, 'PUT', '/api/availability/me', { set: [{ day: '2026-12-30', status: 'free' }, { day: '2026-12-31', status: 'free' }] });
+    const again = (await api(b.token, 'GET', `/api/availability/common?${range}&ids=${a.id}&nights=1`)).json;
+    expect(again.requirement).toEqual({ mode: 'all_sharing', need: 1, total: 2, sharing: 1, notSharing: 1 });
+    const w = again.windows.find((x: any) => x.start === '2026-12-30');
+    expect(w).toMatchObject({ free: [b.id], hidden: [a.id], meetsWithFree: true });
+    const strict = (await api(b.token, 'GET', `/api/availability/common?${range}&ids=${a.id}&nights=1&min=2`)).json;
+    expect(strict.windows).toEqual([]);
   });
 
   it('compartir con amigos, patrón semanal con excepción y revocación inmediata al eliminar la amistad', async () => {
