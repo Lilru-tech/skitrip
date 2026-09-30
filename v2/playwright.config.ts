@@ -1,0 +1,57 @@
+import { defineConfig } from '@playwright/test';
+
+// E2E de la SPA contra servicios locales oficiales: emulador de Firebase Auth (9099),
+// Worker en workerd con D1 local (8787) y Vite (5173). Sin servicios de terceros.
+// La D1 de E2E vive aparte (test/e2e/.state) y se recrea en cada ejecución, para no tocar
+// la base de desarrollo ni agotar MAX_PROFILES.
+const CHROME = process.env.PW_CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const STATE = 'test/e2e/.state';
+const reuse = !process.env.CI;
+
+export default defineConfig({
+  testDir: 'test/e2e',
+  timeout: 120_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : 2,
+  retries: 0,
+  reporter: [['list']],
+  outputDir: 'test-results',
+  use: {
+    baseURL: 'http://localhost:5173',
+    locale: 'es-ES',
+    timezoneId: 'Europe/Madrid',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    launchOptions: { executablePath: CHROME },
+  },
+  projects: [
+    { name: 'mobile-360', use: { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: 'mobile-390', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: 'desktop-1280', use: { viewport: { width: 1280, height: 800 } } },
+  ],
+  webServer: [
+    {
+      command: 'npx firebase emulators:start --only auth --project demo-skitrip',
+      url: 'http://127.0.0.1:9099/',
+      reuseExistingServer: reuse,
+      timeout: 120_000,
+      stdout: 'ignore',
+    },
+    {
+      command: `rm -rf ${STATE} && mkdir -p dist && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler dev --local --port 8787 --persist-to ${STATE} --var AUTH_MODE:emulator --var FIREBASE_PROJECT_ID:demo-skitrip --var MAX_PROFILES:100000`,
+      url: 'http://localhost:8787/api/health',
+      reuseExistingServer: reuse,
+      timeout: 180_000,
+      env: { CI: '1' },
+      stdout: 'ignore',
+    },
+    {
+      command: 'npx vite --port 5173 --strictPort',
+      url: 'http://localhost:5173/',
+      reuseExistingServer: reuse,
+      timeout: 60_000,
+      stdout: 'ignore',
+    },
+  ],
+});
