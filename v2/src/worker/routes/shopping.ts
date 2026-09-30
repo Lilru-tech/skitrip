@@ -7,7 +7,7 @@ import { parseFormat, unitPrice } from '../../core/parsers/unit-price';
 import { splitEqual } from '../../core/split';
 import { insertShares } from './expenses';
 import type { AppEnv } from '../env';
-import { requireTripMember } from '../access';
+import { requireTripEditor, requireTripMember } from '../access';
 import { sha256Hex } from '../crypto';
 import { ApiError, conflict, forbidden, newId, notFound, now, parseBody, parseQuery } from '../http';
 import { rateLimit } from '../ratelimit';
@@ -82,7 +82,8 @@ shoppingRoutes.get('/trips/:id/shopping', async (c) => {
       const e = priceOf(i.product_id);
       const up = e && i.p_net_qty ? unitPrice(e.amountCents, i.p_net_qty, i.p_net_unit) : null;
       return {
-        id: i.id, name: i.name, qty: i.qty, note: i.note, bought: !!i.bought, assigneeId: i.assignee_id, assigneeAlias: i.assignee_alias, legacyName: i.legacy_name, version: i.version,
+        id: i.id, name: i.name, qty: i.qty, note: i.note, bought: !!i.bought, assigneeId: i.assignee_id, assigneeAlias: i.assignee_alias, legacyName: i.legacy_name,
+        legacyItemId: i.legacy_item_id ?? null, version: i.version,
         product: i.product_id ? { id: i.product_id, name: i.p_name, brand: i.p_brand, format: i.p_format, netQty: i.p_net_qty, netUnit: i.p_net_unit, ean: i.p_ean } : null,
         // Origen y fecha visibles: tipo de precio (estantería o coste efectivo de ticket) y procedencia.
         price: e ? { amountCents: e.amountCents, observedOn: e.observedOn, priceType: e.priceType, source: e.source, unitPrice: up } : null,
@@ -241,6 +242,62 @@ shoppingRoutes.post('/products/:pid/replace', async (c) => {
     c.env.DB.prepare('UPDATE products SET replaced_by = ?1, retailer_ref = NULL WHERE id = ?2').bind(id, old.id),
   ]);
   return c.json({ id }, 201);
+});
+
+// ---------- Compra de la hoja antigua ----------
+// Vista previa sin nombres de personas (texto libre de la hoja, no identifica cuentas) y recuperación explícita a un
+// viaje eligiendo producto exacto y cantidad. La procedencia se guarda; repetir no duplica.
+shoppingRoutes.get('/trips/:id/shopping/legacy', async (c) => {
+  const tripId = c.req.param('id');
+  await requireTripEditor(c.env.DB, tripId, c.get('user').id);
+  const list = await ensureList(c.env.DB, tripId);
+  const { results } = await c.env.DB.prepare(
+    `SELECT l.id, l.name, l.quantity_text, l.price_text, f.file_name, EXISTS(SELECT 1 FROM shopping_items i WHERE i.list_id = ?1 AND i.legacy_item_id = l.id) AS here
+     FROM legacy_shopping_items l JOIN legacy_import_files f ON f.id = l.file_id ORDER BY l.name LIMIT 1000`,
+  ).bind(list.id).all<any>();
+  return c.json({
+    items: results.map((r) => ({ id: r.id, name: r.name, quantityText: r.quantity_text, priceText: r.price_text, file: r.file_name, importedHere: !!r.here })),
+    note: 'Artículos de la hoja antigua. Elige el producto exacto y la cantidad; el precio de la hoja no tiene fecha ni tienda y no se usa como precio.',
+  });
+});
+
+shoppingRoutes.post('/trips/:id/shopping/legacy-import', async (c) => {
+  const me = c.get('user').id;
+  const tripId = c.req.param('id');
+  await requireTripEditor(c.env.DB, tripId, me);
+  const b = await parseBody(c, z.object({ items: z.array(z.object({ legacyId: zId, productId: zId.nullable(), qty: z.number().int().min(1).max(999) })).min(1).max(200) }));
+  const db = c.env.DB;
+  const list = await ensureList(db, tripId);
+  const ids = [...new Set(b.items.map((i) => i.legacyId))];
+  if (ids.length !== b.items.length) throw new ApiError(422, 'validation', 'Un artículo legacy aparece dos veces.');
+  const pids = [...new Set(b.items.map((i) => i.productId).filter((x): x is string => !!x))];
+  const [{ results: legacy }, { results: prods }, { results: here }, count] = await db.batch([
+    db.prepare('SELECT id, name, quantity_text, price_text FROM legacy_shopping_items WHERE id IN (SELECT value FROM json_each(?1))').bind(JSON.stringify(ids)),
+    db.prepare('SELECT id, name FROM products WHERE id IN (SELECT value FROM json_each(?1))').bind(JSON.stringify(pids)),
+    db.prepare('SELECT legacy_item_id FROM shopping_items WHERE list_id = ?1 AND legacy_item_id IN (SELECT value FROM json_each(?2))').bind(list.id, JSON.stringify(ids)),
+    db.prepare('SELECT COUNT(*) AS n FROM shopping_items WHERE list_id = ?1').bind(list.id),
+  ]) as D1Result<any>[];
+  const L = new Map(legacy.map((l: any) => [l.id, l]));
+  const P = new Map(prods.map((p: any) => [p.id, p]));
+  if (ids.some((id) => !L.has(id))) throw notFound('Artículo legacy');
+  if (pids.some((id) => !P.has(id))) throw new ApiError(422, 'unknown_product', 'Algún producto elegido no existe; no se ha guardado nada.');
+  const done = new Set(here.map((h: any) => h.legacy_item_id));
+  const t = now();
+  const rows = b.items.filter((i) => !done.has(i.legacyId)).map((i) => {
+    const l = L.get(i.legacyId);
+    const note = [l.quantity_text && `Cantidad en la hoja: ${l.quantity_text}`, l.price_text && `Precio en la hoja (sin fecha ni tienda): ${l.price_text}`].filter(Boolean).join(' · ') || null;
+    return { id: newId(), name: i.productId ? P.get(i.productId).name : l.name, productId: i.productId, qty: i.qty, note, legacyName: l.name, legacyId: i.legacyId };
+  });
+  if (((count.results[0] as any)?.n ?? 0) + rows.length > 300) throw new ApiError(422, 'limit', 'La lista superaría el máximo de 300 artículos.');
+  let created = 0;
+  if (rows.length) {
+    const J = (k: string) => `json_extract(value, '$.${k}')`;
+    const r = await db.prepare(`INSERT OR IGNORE INTO shopping_items (id, list_id, name, product_id, qty, note, legacy_name, legacy_item_id, created_by, created_at, updated_at)
+      SELECT ${J('id')}, ?1, ${J('name')}, ${J('productId')}, ${J('qty')}, ${J('note')}, ${J('legacyName')}, ${J('legacyId')}, ?2, ?3, ?3 FROM json_each(?4)`)
+      .bind(list.id, me, t, JSON.stringify(rows)).run();
+    created = r.meta.changes ?? 0;
+  }
+  return c.json({ created, alreadyImported: b.items.length - created });
 });
 
 // ---------- Precios ----------

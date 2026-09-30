@@ -137,7 +137,8 @@ test('ticket sin gasto: se lista, «Crear gasto» lo vincula y repetirlo no dupl
   await page.goto(`/viajes/${trip.id}/gastos`);
   const expenses = page.getByRole('list', { name: 'Gastos del viaje' });
   await expect(expenses).toContainText('3,29 €');
-  await expect(expenses.getByText('Compra Mercadona')).toHaveCount(1);
+  await expect(expenses.getByRole('listitem')).toHaveCount(1);
+  await expect(expenses).toContainText('desde ticket');
 });
 
 test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto y cotización manual', async ({ page, request }, info) => {
@@ -169,8 +170,8 @@ test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto
   await expectNoHorizontalOverflow(page, `diálogo búsqueda (${info.project.name})`);
 
   // La capacidad sigue al proveedor y la modalidad elegidos.
-  await dialog.getByLabel('Proveedor').selectOption('estiber');
-  await dialog.getByLabel('Modalidad').selectOption('lodging_forfait');
+  await dialog.getByLabel('Proveedor', { exact: true }).selectOption('estiber');
+  await dialog.getByLabel('Modalidad', { exact: true }).selectOption('lodging_forfait');
   await expect(cap).toContainText('Estiber · Alojamiento + forfait');
   await expect(cap.getByRole('link', { name: /Consultar en Estiber/ })).toBeVisible();
 

@@ -349,3 +349,68 @@ describe('8 · Comparar: nieve fiable y coste completo', () => {
     expect(r.json.options[2].pending.join(' ')).toMatch(/Forfait/i);
   });
 });
+
+describe('9 · recorridos de migración legacy', () => {
+  beforeAll(async () => {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, imported_at) VALUES ('rv-lf','sheets_test','test.csv','rv-sha',0,0,0)`),
+      env.DB.prepare(`INSERT OR IGNORE INTO legacy_id_map (legacy_kind, legacy_id, new_kind, new_id) VALUES ('resort','cerler-old','area','rv-cerler')`),
+      env.DB.prepare(`INSERT OR IGNORE INTO legacy_comments (id, file_id, row_hash, legacy_author_name, legacy_resort_id, body, created_at_text, published) VALUES
+        ('rv-lc1','rv-lf','rv-lc1','Pepe','cerler-old','Buen après en el pueblo','12/02/2024',0), ('rv-lc2','rv-lf','rv-lc2','Ana','cerler-old','Cola larga el sábado','13/02/2024',0)`),
+      env.DB.prepare(`INSERT OR IGNORE INTO legacy_shopping_items (id, file_id, row_hash, name, quantity_text, price_text, legacy_person_name) VALUES
+        ('rv-ls1','rv-lf','rv-ls1','Leche','6','5,40 €','Pepe'), ('rv-ls2','rv-lf','rv-ls2','Pan','2 barras',NULL,'Ana')`),
+    ]);
+  });
+
+  it('un comentario legacy publicado aparece en la página pública con autoría legacy explícita; sin publicar no', async () => {
+    const adm = await signup();
+    await env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(adm.id).run();
+    expect((await api(adm.token, 'POST', '/api/admin/legacy/comments/rv-lc1/reconcile', { userId: null, publish: true })).status).toBe(200);
+    const area = await SELF.fetch('http://localhost/api/public/areas/rv-cerler').then((r) => r.json<any>());
+    expect(area.legacyComments).toHaveLength(1);
+    expect(area.legacyComments[0]).toMatchObject({ body: 'Buen après en el pueblo', legacyAuthorName: 'Pepe', dateText: '12/02/2024', linkedAlias: null });
+    expect(area.legacyCommentsNote).toMatch(/texto libre/);
+  });
+
+  it('compra legacy: previsualizar, elegir viaje y productos exactos, conservar procedencia y no duplicar al repetir', async () => {
+    const o = await signup();
+    const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Legacy compra', startDate: '2027-02-01', endDate: '2027-02-03', participantsPlanned: 2, skiDays: 2 })).json.trip;
+    const prod = (await api(o.token, 'POST', '/api/products', { name: 'Leche entera', format: '1 L' })).json.product;
+    const prev = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping/legacy`)).json;
+    expect(prev.items.map((i: any) => i.name)).toEqual(expect.arrayContaining(['Leche', 'Pan']));
+    expect(JSON.stringify(prev)).not.toMatch(/Pepe|Ana/); // los nombres de la hoja no se exponen ni se asocian a cuentas
+    const body = { items: [{ legacyId: 'rv-ls1', productId: prod.id, qty: 6 }, { legacyId: 'rv-ls2', productId: null, qty: 2 }] };
+    const r1 = await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/legacy-import`, body);
+    expect(r1.json).toMatchObject({ created: 2, alreadyImported: 0 });
+    const r2 = await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/legacy-import`, body);
+    expect(r2.json).toMatchObject({ created: 0, alreadyImported: 2 });
+    const list = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping`)).json.items;
+    expect(list).toHaveLength(2);
+    expect(list.find((i: any) => i.legacyName === 'Leche')).toMatchObject({ qty: 6, product: { id: prod.id }, legacyItemId: 'rv-ls1' });
+    expect((await api(o.token, 'GET', `/api/trips/${trip.id}/shopping/legacy`)).json.items.find((i: any) => i.id === 'rv-ls1').importedHere).toBe(true);
+    const stranger = await signup();
+    expect((await api(stranger.token, 'GET', `/api/trips/${trip.id}/shopping/legacy`)).status).toBe(404);
+  });
+
+  it('disponibilidad legacy: vista con estado actual e incorporación explícita; los días ausentes siguen sin indicar', async () => {
+    const u = await signup();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO legacy_availability (id, file_id, row_hash, legacy_person_name, day, legacy_status, mapped_status, reconciled_user_id) VALUES
+        ('rv-la1','rv-lf','rv-la1-${Math.random()}','Pepe','2027-03-01','Libre','free',?1), ('rv-la2','rv-lf','rv-la2-${Math.random()}','Pepe','2027-03-02','No','busy',?1),
+        ('rv-la3','rv-lf','rv-la3-${Math.random()}','Pepe','2027-03-04','¿?',NULL,?1)`).bind(u.id),
+    ]);
+    await api(u.token, 'PUT', '/api/availability/me', { set: [{ day: '2027-03-02', status: 'free' }] });
+    const v = (await api(u.token, 'GET', '/api/legacy/availability/mine')).json;
+    expect(v.days.map((d: any) => [d.day, d.mappedStatus, d.currentStatus])).toEqual([['2027-03-01', 'free', null], ['2027-03-02', 'busy', 'free'], ['2027-03-04', null, null]]);
+    // Sin sobrescribir: solo días sin indicar y con estado reconocible.
+    const inc = await api(u.token, 'POST', '/api/legacy/availability/mine/incorporate', { days: ['2027-03-01', '2027-03-02', '2027-03-04'], overwrite: false });
+    expect(inc.json).toMatchObject({ incorporated: 1, skippedExisting: 1, skippedUnmapped: 1 });
+    const cal = (await api(u.token, 'GET', '/api/availability/me?from=2027-03-01&to=2027-03-05')).json.days;
+    expect(cal).toEqual({ '2027-03-01': 'free', '2027-03-02': 'free' }); // 03 y 05 siguen sin indicar
+    const inc2 = await api(u.token, 'POST', '/api/legacy/availability/mine/incorporate', { days: ['2027-03-02'], overwrite: true });
+    expect(inc2.json.incorporated).toBe(1);
+    expect((await api(u.token, 'GET', '/api/availability/me?from=2027-03-02&to=2027-03-02')).json.days).toEqual({ '2027-03-02': 'busy' });
+    // Días no asignados a esta cuenta no se incorporan.
+    expect((await api(u.token, 'POST', '/api/legacy/availability/mine/incorporate', { days: ['2027-04-01'], overwrite: true })).json.incorporated).toBe(0);
+  });
+});

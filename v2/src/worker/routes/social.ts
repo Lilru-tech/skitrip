@@ -201,12 +201,43 @@ admin.post('/legacy/availability/reconcile', async (c) => {
   return c.json({ ok: true, days: r.meta.changes });
 });
 
-/** Cada persona ve solo sus días legacy ya asignados por un administrador, como referencia de solo lectura. */
+/**
+ * Cada persona ve solo sus días legacy ya asignados por un administrador, junto al estado actual de su calendario.
+ * Nada se copia sin una incorporación explícita; los días que la hoja no tenía siguen sin indicar.
+ */
 socialRoutes.get('/legacy/availability/mine', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT day, legacy_status, mapped_status FROM legacy_availability WHERE reconciled_user_id = ?1 ORDER BY day`,
-  ).bind(c.get('user').id).all();
-  return c.json({ days: results, note: 'Datos de la hoja antigua. No se han copiado a tu calendario.' });
+    `SELECT l.day, l.legacy_status, l.mapped_status, l.incorporated_at, a.status AS current_status
+     FROM legacy_availability l LEFT JOIN availability a ON a.user_id = l.reconciled_user_id AND a.day = l.day
+     WHERE l.reconciled_user_id = ?1 ORDER BY l.day LIMIT 2000`,
+  ).bind(c.get('user').id).all<any>();
+  return c.json({
+    days: results.map((r) => ({ day: r.day, legacyStatus: r.legacy_status, mappedStatus: r.mapped_status, currentStatus: r.current_status ?? null, incorporatedAt: r.incorporated_at })),
+    note: 'Datos de la hoja antigua, asignados a tu cuenta por administración. No se copian a tu calendario hasta que los incorpores. Los días que no estaban en la hoja siguen sin indicar.',
+  });
+});
+
+socialRoutes.post('/legacy/availability/mine/incorporate', async (c) => {
+  const me = c.get('user').id;
+  const { days, overwrite } = await parseBody(c, z.object({ days: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(400), overwrite: z.boolean().default(false) }));
+  const db = c.env.DB;
+  const { results } = await db.prepare(
+    `SELECT l.day, l.mapped_status, a.status AS current_status FROM legacy_availability l LEFT JOIN availability a ON a.user_id = l.reconciled_user_id AND a.day = l.day
+     WHERE l.reconciled_user_id = ?1 AND l.day IN (SELECT value FROM json_each(?2))`,
+  ).bind(me, JSON.stringify([...new Set(days)])).all<{ day: string; mapped_status: string | null; current_status: string | null }>();
+  const unmapped = results.filter((r) => !r.mapped_status);
+  const existing = results.filter((r) => r.mapped_status && r.current_status && !overwrite);
+  const take = results.filter((r) => r.mapped_status && (overwrite || !r.current_status)).map((r) => ({ day: r.day, status: r.mapped_status }));
+  if (take.length) {
+    const t = Date.now();
+    const J = (k: string) => `json_extract(value, '$.${k}')`;
+    await db.batch([
+      db.prepare(`INSERT INTO availability (user_id, day, status, updated_at) SELECT ?1, ${J('day')}, ${J('status')}, ?2 FROM json_each(?3) WHERE true
+                  ON CONFLICT (user_id, day) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`).bind(me, t, JSON.stringify(take)),
+      db.prepare(`UPDATE legacy_availability SET incorporated_at = ?2 WHERE reconciled_user_id = ?1 AND day IN (SELECT ${J('day')} FROM json_each(?3))`).bind(me, t, JSON.stringify(take)),
+    ]);
+  }
+  return c.json({ incorporated: take.length, skippedExisting: existing.length, skippedUnmapped: unmapped.length, notAssigned: new Set(days).size - results.length });
 });
 
 socialRoutes.route('/admin', admin);

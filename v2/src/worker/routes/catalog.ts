@@ -75,7 +75,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
   if (!area) throw notFound('Estación');
   const nowMs = Date.now();
   const since = nowMs - 90 * 86400_000;
-  const [links, sources, snow, legacySnow, legacyHotel, comments, offers] = await db.batch([
+  const [links, sources, snow, legacySnow, legacyHotel, comments, offers, legacyComments] = await db.batch([
     db.prepare(`SELECT l.parent_id, p.name AS parent_name, l.child_id, ch.name AS child_name, l.relation FROM area_links l
                 JOIN areas p ON p.id = l.parent_id JOIN areas ch ON ch.id = l.child_id WHERE l.parent_id = ?1 OR l.child_id = ?1`).bind(id),
     db.prepare(`SELECT s.*, h.last_attempt_at, h.last_success_at, h.last_status, h.last_error FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
@@ -93,6 +93,10 @@ catalogRoutes.get('/areas/:id', async (c) => {
                 WHERE o.area_id = ?1 AND ob.scenario_id IS NULL AND ob.observed_at >= ?2
                   AND ob.observed_at = (SELECT MAX(observed_at) FROM offer_observations x WHERE x.offer_id = o.id AND x.scenario_id IS NULL)
                 ORDER BY ob.amount_cents LIMIT 30`).bind(id, nowMs - 14 * 86400_000),
+    // Comentarios de la hoja antigua publicados por administración: autoría legacy explícita (texto libre).
+    db.prepare(`SELECT l.id, l.body, l.legacy_author_name, l.created_at_text, u.alias AS linked_alias FROM legacy_comments l LEFT JOIN users u ON u.id = l.reconciled_user_id
+                WHERE l.published = 1 AND (l.legacy_resort_id = ?1 OR l.legacy_resort_id IN (SELECT legacy_id FROM legacy_id_map WHERE legacy_kind = 'resort' AND new_id = ?1))
+                ORDER BY l.created_at_text DESC LIMIT 100`).bind(id),
   ]);
   c.header('Cache-Control', 'public, max-age=120');
   return c.json({
@@ -106,6 +110,8 @@ catalogRoutes.get('/areas/:id', async (c) => {
       hotel: legacyHotel.results,
     },
     comments: comments.results,
+    legacyComments: (legacyComments.results as any[]).map((l) => ({ id: l.id, body: l.body, legacyAuthorName: l.legacy_author_name, dateText: l.created_at_text, linkedAlias: l.linked_alias ?? null })),
+    legacyCommentsNote: 'Comentarios de la hoja antigua. El autor es el nombre escrito en la hoja (texto libre): no identifica una cuenta salvo vinculación explícita de administración.',
     offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.', items: offers.results },
   });
 });
