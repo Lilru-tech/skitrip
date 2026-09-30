@@ -171,4 +171,33 @@ admin.post('/legacy/comments/:lid/reconcile', async (c) => {
   return c.json({ ok: true });
 });
 
+// Disponibilidad legacy: resumen por nombre y asignación explícita a una cuenta. No se copia al calendario nuevo.
+admin.get('/legacy/availability', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT l.legacy_person_name AS person, COUNT(*) AS days, MIN(l.day) AS first_day, MAX(l.day) AS last_day,
+            SUM(l.mapped_status IS NULL) AS unmapped, l.reconciled_user_id, u.alias AS reconciled_alias
+     FROM legacy_availability l LEFT JOIN users u ON u.id = l.reconciled_user_id
+     GROUP BY l.legacy_person_name, l.reconciled_user_id ORDER BY l.legacy_person_name`,
+  ).all();
+  return c.json({ people: results, note: 'Solo contiene los días marcados en la hoja; el resto queda sin indicar, nunca libre.' });
+});
+
+admin.post('/legacy/availability/reconcile', async (c) => {
+  const me = c.get('user');
+  const { person, userId } = await parseBody(c, z.object({ person: z.string().min(1).max(120), userId: zId.nullable() }));
+  if (userId && !(await c.env.DB.prepare('SELECT 1 FROM users WHERE id = ?1').bind(userId).first())) throw notFound('Usuario');
+  const r = await c.env.DB.prepare('UPDATE legacy_availability SET reconciled_user_id = ?1 WHERE legacy_person_name = ?2').bind(userId, person).run();
+  if (!r.meta.changes) throw notFound('Persona legacy');
+  await audit(c.env.DB, me.id, 'legacy_availability.reconcile', 'legacy_person', person, { userId, days: r.meta.changes });
+  return c.json({ ok: true, days: r.meta.changes });
+});
+
+/** Cada persona ve solo sus días legacy ya asignados por un administrador, como referencia de solo lectura. */
+socialRoutes.get('/legacy/availability/mine', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT day, legacy_status, mapped_status FROM legacy_availability WHERE reconciled_user_id = ?1 ORDER BY day`,
+  ).bind(c.get('user').id).all();
+  return c.json({ days: results, note: 'Datos de la hoja antigua. No se han copiado a tu calendario.' });
+});
+
 socialRoutes.route('/admin', admin);

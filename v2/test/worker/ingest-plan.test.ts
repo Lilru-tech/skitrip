@@ -182,4 +182,23 @@ describe('comentarios', () => {
     await env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(a.id).run();
     expect((await api(a.token, 'GET', '/api/admin/health')).status).toBe(200);
   });
+
+  it('disponibilidad legacy: solo un administrador la asigna y no se copia al calendario', async () => {
+    const adm = await signup(); const u = await signup(); const other = await signup();
+    await env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(adm.id).run();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, imported_at) VALUES ('lf-av','sheets_availability','d.csv','h-av',1,2,1)`),
+      env.DB.prepare(`INSERT OR IGNORE INTO legacy_availability (id, file_id, row_hash, legacy_person_name, day, legacy_status, mapped_status) VALUES
+        ('la1','lf-av','rh1','Núria','2026-01-10','marcado','busy'), ('la2','lf-av','rh2','Núria','2026-01-12','marcado','busy')`),
+    ]);
+    expect((await api(u.token, 'POST', '/api/admin/legacy/availability/reconcile', { person: 'Núria', userId: u.id })).status).toBe(404);
+    const people = (await api(adm.token, 'GET', '/api/admin/legacy/availability')).json.people;
+    expect(people.find((p: any) => p.person === 'Núria')).toMatchObject({ days: 2, reconciled_user_id: null });
+    expect((await api(adm.token, 'POST', '/api/admin/legacy/availability/reconcile', { person: 'Núria', userId: u.id })).json.days).toBe(2);
+    expect((await api(u.token, 'GET', '/api/legacy/availability/mine')).json.days.map((d: any) => d.day)).toEqual(['2026-01-10', '2026-01-12']);
+    expect((await api(other.token, 'GET', '/api/legacy/availability/mine')).json.days).toEqual([]);
+    const cal = await api(u.token, 'GET', '/api/availability/me?from=2026-01-01&to=2026-01-31');
+    expect(cal.status).toBe(200);
+    expect(cal.json.days).toEqual({});
+  });
 });

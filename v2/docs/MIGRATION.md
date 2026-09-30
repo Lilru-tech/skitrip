@@ -25,11 +25,11 @@ Lo que el importador encontró en los datos del commit `d173625` (informe comple
 
 ### Identidades legacy
 
-Los nombres de autor de las hojas no prueban identidad. Nada legacy se asocia a una cuenta automáticamente: un administrador lo hace de forma explícita (`POST /api/admin/legacy/comments/:id/reconcile`), queda auditado y los comentarios legacy no se publican solos.
+Los nombres de autor de las hojas no prueban identidad. Nada legacy se asocia a una cuenta automáticamente: un administrador lo hace de forma explícita (`POST /api/admin/legacy/comments/:id/reconcile` y `POST /api/admin/legacy/availability/reconcile`), queda auditado y los comentarios legacy no se publican solos.
 
 ### Disponibilidad legacy
 
-La hoja solo guardaba los días marcados como ocupados. Se importan esos días con su valor original; los días que no aparecen siguen **sin indicar**, nunca libres. No se copian al calendario nuevo de nadie: cada persona marca su disponibilidad en la v2.
+La hoja solo guardaba los días marcados como ocupados. Se importan esos días con su valor original; los días que no aparecen siguen **sin indicar**, nunca libres. No se copian al calendario nuevo de nadie: cuando un administrador asigna un nombre a una cuenta, esa persona ve sus días antiguos como referencia de solo lectura (`GET /api/legacy/availability/mine`) y marca su disponibilidad en la v2.
 
 ## Exportar las hojas (sin tocarlas)
 
