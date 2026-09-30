@@ -4,6 +4,9 @@ export interface Snow {
   openRuns: number | null; totalRuns: number | null; openLifts: number | null; totalLifts: number | null;
   depthMinCm: number | null; depthMaxCm: number | null; quality: string; qualityNote: string | null; sourceId: string;
   freshness: 'fresh' | 'stale' | 'never';
+  /** Lo que puede puntuar en «Nieve abierta ahora»; un dato excluido se sigue mostrando con su fecha. */
+  rank?: { openKm: number | null; excluded: null | 'sin_dato' | 'antiguo' | 'dudoso' | 'estado_desconocido' | 'sin_km'; label: string | null };
+  sources?: number;
 }
 export interface Route { accessName: string; roadKm: number | null; durationMin: number | null; tollCents: number | null; source: string; checkedOn: string | null; validated: boolean; notes: string | null }
 export interface CatalogArea {
@@ -23,6 +26,7 @@ export interface AreaOffer {
   id: string; provider_id: string; hotel_name_raw: string | null; modality: 'lodging' | 'lodging_forfait'; board: string | null; nights: number | null; forfait_days: number | null;
   adults: number | null; check_in: string | null; check_out: string | null; url: string | null; observed_at: number; amount_cents: number | null; unit: string; price_kind: string; availability: string;
 }
+export interface LegacyComment { id: string; body: string; legacyAuthorName: string | null; dateText: string | null; linkedAlias: string | null }
 export interface AreaComment { id: string; body: string; created_at: number; updated_at: number; author_id: string; author_alias: string }
 export interface AreaDetail {
   area: { id: string; name: string; kind: string; country: string; region: string | null; official_total_km: number | null; total_km_source: string | null; official_url: string | null; notes: string | null; vibe_score: number | null; apres_score: number | null };
@@ -31,6 +35,8 @@ export interface AreaDetail {
   snow: Snow[];
   legacy: { warning: string; snow: { obs_date: string; open_km: number | null; total_km: number | null; anomalies: string[] }[]; hotel: { obs_date: string; provider: string; url: string | null; cheapest_unit_cents: number | null; top10_avg_unit_cents: number | null; sample_count: number }[] };
   comments: AreaComment[];
+  legacyComments?: LegacyComment[];
+  legacyCommentsNote?: string;
   offers: { note: string; items: AreaOffer[] };
 }
 

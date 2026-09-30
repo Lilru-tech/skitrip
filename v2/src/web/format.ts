@@ -51,7 +51,7 @@ export const UNIT_LABEL: Record<string, string> = {
   per_person_night: 'por persona y noche', per_stay: 'estancia completa', unknown: 'unidad desconocida',
 };
 export const PRICE_KIND_LABEL: Record<string, string> = {
-  advertised_from: 'desde, fechas del proveedor', quoted_for_search: 'cotizado para la búsqueda', manual_estimate: 'estimación manual', user_quote: 'cotización de un miembro',
+  advertised_from: 'orientativo · desde, fechas del proveedor', quoted_for_search: 'cotizado para la búsqueda', manual_estimate: 'estimación manual', user_quote: 'cotización de un miembro',
 };
 export const MODALITY_LABEL: Record<string, string> = { lodging: 'Solo alojamiento', lodging_forfait: 'Alojamiento + forfait' };
 export const AREA_KIND_LABEL: Record<string, string> = { resort: 'Estación', sector: 'Sector', domain: 'Dominio conjunto' };
@@ -63,3 +63,32 @@ export const RUN_STATUS_LABEL: Record<string, string> = { ok: 'correcta', empty:
 export const OP_STATUS_LABEL: Record<string, string> = { open: 'abierta', partial: 'parcial', closed_confirmed: 'cerrada', out_of_season: 'fuera de temporada', unknown: 'estado desconocido' };
 export const kmText = (v: number | null | undefined) => (v == null ? 'sin dato' : `${v.toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`);
 export const signedEuros = (cents: number) => (cents > 0 ? `+${euros(cents)}` : euros(cents));
+
+/** «8, 12» → [8, 12]; '' → []; algo que no sea una edad de 0 a 17 → null. */
+export function parseAges(s: string): number[] | null {
+  const parts = s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+  const ages = parts.map(Number);
+  return ages.every((a) => Number.isInteger(a) && a >= 0 && a <= 17) ? ages : null;
+}
+export const agesText = (a: number[]) => (a.length ? `${a.join(', ')} años` : 'sin menores');
+
+/** Sustituye fechas ISO dentro de un texto del servidor por «15 ene 2027». */
+export const humanDates = (s: string) => s.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (m, y) => `${dayMonth(m)} ${y}`);
+export const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+/** '2026-10-01' → '01/10/2026'. */
+export const numDate = (d: string) => { const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; };
+/** Origen corto de un precio de la compra. */
+export const PRICE_ORIGIN_LABEL: Record<string, string> = { shelf: 'estantería', receipt_effective: 'ticket', promo: 'promoción', personal_discount: 'descuento personal' };
+/** Serie de la cesta: promociones y descuentos personales se etiquetan como serie aparte. */
+export const PRICE_SERIES_LABEL: Record<string, string> = {
+  shelf: 'precio de estantería', receipt_effective: 'coste efectivo de ticket', promo: 'promoción (serie aparte)', personal_discount: 'descuento personal (serie aparte)',
+};
+export const CHANNEL_LABEL: Record<string, string> = { online: 'online', store: 'tienda física', unknown: 'canal desconocido' };
+/** «Mercadona online · 43007» (no repite el canal si la tienda ya lo nombra). */
+export const criterionText = (c: { storeLabel: string; postalCode: string | null; channel: string }) => {
+  const ch = CHANNEL_LABEL[c.channel] ?? c.channel;
+  const store = c.storeLabel.toLowerCase().includes(ch.toLowerCase()) ? c.storeLabel : `${c.storeLabel} ${ch}`;
+  return `${store}${c.postalCode ? ` · ${c.postalCode}` : ''}`;
+};
+export const pctText = (p: number | null) => (p == null ? '' : `${p > 0 ? '+' : ''}${p.toLocaleString('es-ES')} %`);

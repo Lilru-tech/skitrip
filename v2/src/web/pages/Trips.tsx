@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { errorMessage, get, post } from '../api';
+import { ApiError, errorMessage, get, post } from '../api';
 import { Dialog } from '../components/Dialog';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
@@ -18,11 +18,13 @@ export function TripsPage() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<TripFormValues>(emptyTripForm);
   const [formErr, setFormErr] = useState<string | null>(null);
+  const [nightsErr, setNightsErr] = useState<string | null>(null);
 
   const create = async () => {
     const v = validateTripForm(form);
     if (v) { setFormErr(v); return; }
     setFormErr(null);
+    setNightsErr(null);
     try {
       const r = await run('create', () => post<{ trip: Trip }>('/api/trips', formToPayload(form, false)));
       if (!r) return;
@@ -32,7 +34,8 @@ export function TripsPage() {
       navigate(`/viajes/${r.trip.id}`);
     } catch (e) {
       // Se conservan los datos del formulario para reintentar.
-      setFormErr(errorMessage(e));
+      if (e instanceof ApiError && e.code === 'nights_mismatch') setNightsErr(e.message);
+      else setFormErr(errorMessage(e));
     }
   };
 
@@ -50,7 +53,7 @@ export function TripsPage() {
     <div className="page">
       <div className="page-head">
         <h1>Mis viajes</h1>
-        <button type="button" className="btn btn-primary" onClick={() => { setFormErr(null); setCreating(true); }}>Nuevo viaje</button>
+        <button type="button" className="btn btn-primary" onClick={() => { setFormErr(null); setNightsErr(null); setCreating(true); }}>Nuevo viaje</button>
       </div>
 
       {invs.data && invs.data.invitations.length > 0 && (
@@ -108,7 +111,7 @@ export function TripsPage() {
             {busy === 'create' ? 'Creando…' : 'Crear viaje'}
           </button>
         </>}>
-        <TripForm id="trip-create" values={form} onChange={setForm} onSubmit={() => void create()} />
+        <TripForm id="trip-create" values={form} onChange={setForm} onSubmit={() => void create()} nightsError={nightsErr} />
         {formErr && <p className="form-error" role="alert">{formErr}</p>}
       </Dialog>
     </div>

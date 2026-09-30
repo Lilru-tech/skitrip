@@ -6,7 +6,7 @@ import { Copy } from '../components/Icons';
 import { TripTabs } from '../components/TripTabs';
 import { ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { dayLong, euros, instant, plural, ROLE_LABEL, TRIP_STATUS_LABEL } from '../format';
+import { agesText, dayLong, euros, instant, plural, ROLE_LABEL, TRIP_STATUS_LABEL } from '../format';
 import { useBusy, useResource } from '../hooks';
 import { Link, navigate, usePageTitle } from '../router';
 import { useProfile } from '../session';
@@ -30,6 +30,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<TripFormValues | null>(null);
+  const [nightsErr, setNightsErr] = useState<string | null>(null);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ reloaded: boolean; mine: string[] } | null>(null);
   const [baseVersion, setBaseVersion] = useState(0);
@@ -65,6 +66,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
     setForm(tripToForm(trip));
     setBaseVersion(trip.version);
     setFormErr(null);
+    setNightsErr(null);
     setConflict(null);
     setEditing(true);
   };
@@ -74,6 +76,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
     const v = validateTripForm(form);
     if (v) { setFormErr(v); return; }
     setFormErr(null);
+    setNightsErr(null);
     try {
       await run('edit', () => patch<{ trip: Trip }>(`/api/trips/${tripId}`, { ...formToPayload(form, isOwner), version: baseVersion }));
       toast.show('Cambios guardados.');
@@ -81,6 +84,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
       await detail.reload();
     } catch (e) {
       if (e instanceof ApiError && e.isConflict) setConflict({ reloaded: false, mine: [] });
+      else if (e instanceof ApiError && e.code === 'nights_mismatch') setNightsErr(e.message);
       else setFormErr(errorMessage(e));
     }
   };
@@ -201,6 +205,8 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
           <div><dt>Vuelta</dt><dd>{trip.endDate ? dayLong(trip.endDate) : 'Por decidir'}</dd></div>
           <div><dt>Noches</dt><dd>{trip.nights ?? '—'}</dd></div>
           <div><dt>Personas previstas</dt><dd>{trip.participantsPlanned ?? '—'}</dd></div>
+          <div><dt>Menores</dt><dd>{trip.childrenAges?.length ? agesText(trip.childrenAges) : 'Ninguno'}</dd></div>
+          <div><dt>Habitaciones</dt><dd>{trip.rooms ?? 'Sin indicar'}</dd></div>
           <div><dt>Presupuesto por persona</dt><dd>{trip.budgetCents != null ? euros(trip.budgetCents) : '—'}</dd></div>
           <div><dt>Última modificación</dt><dd>{instant(trip.updatedAt)}</dd></div>
         </dl>
@@ -338,7 +344,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
             )}
           </div>
         )}
-        {form && <TripForm id="trip-edit" values={form} onChange={(v) => { setForm(v); }} onSubmit={() => void saveEdit()} showStatus showOwnerFields={isOwner} />}
+        {form && <TripForm id="trip-edit" values={form} onChange={(v) => { setForm(v); }} onSubmit={() => void saveEdit()} showStatus showOwnerFields={isOwner} nightsError={nightsErr} />}
         {formErr && <p className="form-error" role="alert">{formErr}</p>}
       </Dialog>
 

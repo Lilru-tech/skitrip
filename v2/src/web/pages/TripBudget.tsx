@@ -1,4 +1,5 @@
-// Presupuesto honesto: cada parte es conocida, pendiente o no aplicable. Solo se suman las conocidas.
+// Presupuesto honesto: cada parte es conocida, estimada a mano, pendiente o no aplicable. Solo se suman las conocidas;
+// las estimaciones manuales se suman aparte y una cotización que no vale se muestra solo como referencia.
 import { useState } from 'react';
 import { ApiError, errorMessage, get, put } from '../api';
 import { Dialog } from '../components/Dialog';
@@ -6,11 +7,12 @@ import { Field, SelectField } from '../components/Field';
 import { ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
 import { TripShell } from '../components/TripTabs';
-import { centsToInput, euros, parseEuros, plural } from '../format';
+import { capitalize, centsToInput, euros, humanDates, kmText, parseEuros, plural } from '../format';
+import type { Catalog } from '../catalog';
 import { useResource } from '../hooks';
 import { Link } from '../router';
 import type { TripDetail } from '../types';
-import type { BudgetResult } from '../../core/budget';
+import type { BudgetComponent, BudgetResult } from '../../core/budget';
 
 interface BudgetParams {
   version: number; fuel_cents_per_litre: number | null; litres_per_100km_x10: number | null; tolls_cents_per_car: number | null; parking_cents_per_car: number | null;
@@ -18,9 +20,40 @@ interface BudgetParams {
 }
 interface BudgetResponse { params: BudgetParams; result: BudgetResult; input: { people: number | null; nights: number | null; skiDays: number | null; cars: number | null; roadKmOneWay: number | null } }
 
-const STATUS: Record<string, { label: string; tone: string }> = {
-  known: { label: 'Conocido', tone: 'tag-ok' }, pending: { label: 'Pendiente', tone: 'tag-warn' }, not_applicable: { label: 'No aplica', tone: 'tag-quiet' },
+const STATUS: Record<BudgetComponent['status'], { label: string; tone: string }> = {
+  known: { label: 'Conocido', tone: 'tag-ok' }, estimated: { label: 'Estimación manual', tone: 'tag-estimate' },
+  pending: { label: 'Pendiente', tone: 'tag-warn' }, not_applicable: { label: 'No aplica', tone: 'tag-quiet' },
 };
+const statusOf = (s: string) => STATUS[s as BudgetComponent['status']] ?? { label: s, tone: 'tag-quiet' };
+
+function amountText(c: BudgetComponent) {
+  if (c.status === 'known' && c.totalCents != null) return euros(c.totalCents);
+  if (c.status === 'estimated' && c.totalCents != null) return `≈ ${euros(c.totalCents)}`;
+  if (c.status === 'pending') return 'pendiente';
+  return '—';
+}
+
+/** Comparación de la cotización con el viaje, en frases: qué no coincide y qué no se puede comprobar. */
+function Comparison({ c }: { c: BudgetComponent }) {
+  const cmp = c.comparison;
+  const showRef = c.referenceCents != null && c.status !== 'known';
+  if (!cmp && !showRef) return null;
+  return (
+    <div className="quote-check small">
+      {showRef && (
+        <p className="quote-ref"><span className="tag tag-quiet">Referencia</span> {euros(c.referenceCents!)} de la cotización guardada
+          {c.status === 'estimated' ? ' (estimación, no se suma al total conocido).' : '. No se suma al total.'}</p>
+      )}
+      {cmp && cmp.status === 'compatible' && c.status === 'known' && <p className="text-ok">La cotización coincide con las condiciones del viaje.</p>}
+      {cmp && cmp.issues.length > 0 && (
+        <div><p><strong>No coincide con el viaje:</strong></p><ul>{cmp.issues.map((x) => <li key={x}>{capitalize(humanDates(x))}.</li>)}</ul></div>
+      )}
+      {cmp && cmp.unknown.length > 0 && (
+        <p><strong>Sin comprobar:</strong> {cmp.unknown.join(', ')}.</p>
+      )}
+    </div>
+  );
+}
 
 export function TripBudgetPage({ tripId }: { tripId: string }) {
   return <TripShell tripId={tripId} tab="presupuesto" title="Presupuesto">{(d) => <Budget tripId={tripId} detail={d} />}</TripShell>;
@@ -89,13 +122,20 @@ function Budget({ tripId, detail }: { tripId: string; detail: TripDetail }) {
       <section className="panel stack" aria-labelledby="b-total">
         <h2 id="b-total">Resumen</h2>
         <div className="totals">
-          <div><p className="muted small">Suma de lo conocido</p><p className="total-figure">{euros(result.knownSubtotalCents)}</p></div>
+          <div><p className="muted small">Suma de lo conocido</p><p className="total-figure" data-testid="known-subtotal">{euros(result.knownSubtotalCents)}</p></div>
+          {result.estimatedSubtotalCents > 0 && (
+            <div><p className="muted small">Estimaciones manuales (aparte)</p><p className="total-figure total-estimate">≈ {euros(result.estimatedSubtotalCents)}</p>
+              <p className="small muted">No son cotizaciones: no completan el presupuesto.</p></div>
+          )}
           <div><p className="muted small">Por persona</p><p className="total-figure">{result.complete && result.perPersonCents != null ? euros(result.perPersonCents) : 'Incompleto'}</p>
             {!result.complete && result.knownPerPersonCents != null && <p className="small muted">Parcial, solo lo conocido: {euros(result.knownPerPersonCents)}</p>}</div>
         </div>
         {result.complete
           ? <p className="notice notice-ok">Todas las partes están calculadas.</p>
-          : <p className="notice notice-warn"><strong>Pendiente:</strong> {result.pending.join(', ')}. No se suman como 0: el total real será mayor.</p>}
+          : <p className="notice notice-warn" data-testid="budget-incomplete">
+              {result.pending.length > 0 && <><strong>Pendiente:</strong> {result.pending.join(', ')}. No se suman como 0: el total real será mayor. </>}
+              {result.estimatedSubtotalCents > 0 && <><strong>Con estimaciones manuales:</strong> el presupuesto no estará completo hasta tener cotizaciones válidas.</>}
+            </p>}
         {result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
         <p className="small muted">Datos del viaje usados: {input.people ?? 'sin'} personas · {input.nights ?? 'sin'} noches · {input.skiDays ?? 'sin'} días de esquí · {input.cars ?? 'sin'} coches · {input.roadKmOneWay != null ? `${input.roadKmOneWay} km por carretera (ida)` : 'sin distancia por carretera'}. Se cambian en <Link to={`/viajes/${tripId}`}>Editar viaje</Link>.</p>
       </section>
@@ -103,16 +143,19 @@ function Budget({ tripId, detail }: { tripId: string; detail: TripDetail }) {
       <section className="panel stack" aria-labelledby="b-parts">
         <div className="toolbar"><h2 id="b-parts">Partes del presupuesto</h2>
           {canEdit && <button type="button" className="btn btn-secondary" onClick={() => { setForm(toForm(params)); setErr(null); setConflict(false); }}>Editar parámetros</button>}</div>
-        <ul className="list">
+        <ul className="list" aria-label="Partes del presupuesto">
           {result.components.map((c) => (
-            <li key={c.key} className="budget-row">
-              <div className="budget-row-head"><strong>{c.label}</strong> <span className={`tag ${STATUS[c.status].tone}`}>{STATUS[c.status].label}</span>
-                <span className="budget-amount">{c.status === 'known' ? euros(c.totalCents!) : c.status === 'pending' ? 'pendiente' : '—'}</span></div>
-              <p className="small muted">{c.note}</p>
+            <li key={c.key} className="budget-row" data-component={c.key} data-status={c.status}>
+              <div className="budget-row-head"><strong>{c.label}</strong> <span className={`tag ${statusOf(c.status).tone}`}>{statusOf(c.status).label}</span>
+                <span className="budget-amount">{amountText(c)}</span></div>
+              <p className="small muted">{humanDates(c.note)}</p>
+              <Comparison c={c} />
             </li>
           ))}
         </ul>
       </section>
+
+      <CostComparison tripId={tripId} version={params.version} />
 
       <Dialog open={form !== null} title="Parámetros del presupuesto" size="wide" onClose={() => setForm(null)} busy={busy}
         footer={<>
@@ -142,5 +185,76 @@ function Budget({ tripId, detail }: { tripId: string; detail: TripDetail }) {
         <p className="small muted">{plural(detail.members.length, 'miembro', 'miembros')} en el viaje.</p>
       </Dialog>
     </div>
+  );
+}
+
+interface CostRow {
+  id: string; title: string; areaId: string | null; roadKm: number | null; roadValidated: boolean; rank: number | null; complete: boolean;
+  perPersonCents: number | null; knownPerPersonCents: number | null; totalCents: number | null; knownSubtotalCents: number; pending: string[];
+  lodging: { status: string; comparison: BudgetComponent['comparison'] | null; referenceCents: number | null } | null; warnings: string[];
+}
+
+function lodgingText(l: CostRow['lodging']) {
+  if (!l) return 'sin alojamiento';
+  if (l.status === 'known') return 'cotización válida para el viaje';
+  if (l.status === 'estimated') return 'estimación manual (no es una cotización)';
+  if (l.comparison?.status === 'incompatible') return `la cotización no coincide con el viaje: ${l.comparison.issues.map(humanDates).join('; ')}`;
+  if (l.comparison?.status === 'incomplete') return `condiciones sin comprobar: ${l.comparison.unknown.join(', ')}`;
+  if (l.referenceCents != null) return 'precio orientativo, no es una cotización';
+  return 'sin precio';
+}
+
+/**
+ * Coste completo por persona de cada candidatura con el resto del viaje. Solo los completos tienen posición; un
+ * incompleto muestra lo que falta y lo conocido hasta ahora, nunca como el más barato.
+ */
+function CostComparison({ tripId, version }: { tripId: string; version: number }) {
+  const r = useResource(() => get<{ options: CostRow[]; note: string }>(`/api/trips/${tripId}/cost-comparison`), [tripId, version]);
+  const catalog = useResource(() => get<Catalog>('/api/public/catalog'), []);
+  const areaName = (id: string | null) => (id ? catalog.data?.areas.find((a) => a.id === id)?.name ?? id : 'destino sin indicar');
+  const rows = r.data?.options ?? [];
+  const ranked = rows.filter((x) => x.rank != null).sort((a, b) => a.rank! - b.rank!);
+  const incomplete = rows.filter((x) => x.rank == null);
+  const facts = (o: CostRow) => (
+    <p className="small muted">{areaName(o.areaId)} · {o.roadKm != null ? <>{kmText(o.roadKm)} por carretera{!o.roadValidated && ' (sin validar)'}</> : 'sin distancia por carretera'} · {lodgingText(o.lodging)}</p>
+  );
+  return (
+    <section className="panel stack" aria-labelledby="cc-h">
+      <h2 id="cc-h">Comparar coste por candidatura</h2>
+      {r.loading && !r.data && <Loading label="Calculando…" />}
+      {r.error && !r.data && <ErrorState message={r.error} onRetry={r.reload} />}
+      {r.data && (rows.length === 0 ? <p className="muted">Añade candidaturas para comparar su coste completo por persona.</p> : (
+        <>
+          {ranked.length > 0 ? (
+            <ol className="card-list" aria-label="Candidaturas completas por coste">
+              {ranked.map((o) => (
+                <li key={o.id} className="card cost-card" data-rank={o.rank}>
+                  <div className="card-head"><h3><span className="rank">{o.rank}.</span> {o.title}</h3><strong className="cost-figure">{euros(o.perPersonCents!)}/persona</strong></div>
+                  <p className="small">Total {euros(o.totalCents!)} · completo</p>
+                  {facts(o)}
+                  {o.warnings.length > 0 && <ul className="warnings small">{o.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+                </li>
+              ))}
+            </ol>
+          ) : <p className="notice notice-warn">Ninguna candidatura tiene todavía el presupuesto completo: no hay orden por coste.</p>}
+          {incomplete.length > 0 && (
+            <>
+              <h3 className="h3">Sin posición: presupuesto incompleto</h3>
+              <ul className="card-list" aria-label="Candidaturas con presupuesto incompleto">
+                {incomplete.map((o) => (
+                  <li key={o.id} className="card cost-card is-incomplete">
+                    <div className="card-head"><h3>{o.title}</h3><span className="tag tag-warn">incompleto</span></div>
+                    <p className="small"><strong>Incompleto: falta {o.pending.length ? o.pending.join(', ') : 'confirmar partidas estimadas'}.</strong>{' '}
+                      {o.knownPerPersonCents != null ? `Conocido hasta ahora: ${euros(o.knownPerPersonCents)}/persona` : `Conocido hasta ahora: ${euros(o.knownSubtotalCents)}`} (el total real será mayor).</p>
+                    {facts(o)}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="small muted">{r.data.note}</p>
+        </>
+      ))}
+    </section>
   );
 }

@@ -146,6 +146,22 @@ export function AreaPage({ areaId }: { areaId: string }) {
         <Comments comments={comments} meId={profile?.id ?? null} target={{ scope: 'area_public', areaId: area.id }} onChanged={() => void d.reload()}
           isAdmin={profile?.role === 'admin'} emptyText="Aún no hay comentarios sobre esta estación." />
       </section>
+
+      {(d.data!.legacyComments?.length ?? 0) > 0 && (
+        <section className="panel stack legacy-comments" aria-labelledby="a-lcom">
+          <h2 id="a-lcom">De la hoja antigua <span className="count">{d.data!.legacyComments!.length}</span></h2>
+          {d.data!.legacyCommentsNote && <p className="small muted">{d.data!.legacyCommentsNote}</p>}
+          <ul className="comment-list" aria-label="Comentarios de la hoja antigua">
+            {d.data!.legacyComments!.map((c) => (
+              <li key={c.id} className="comment comment-legacy">
+                <p className="comment-meta">De la hoja antigua · escrito por «{c.legacyAuthorName ?? 'sin nombre'}»{c.dateText && ` · ${c.dateText}`}
+                  {c.linkedAlias && <> · <span className="tag tag-quiet">vinculado a {c.linkedAlias}</span></>}</p>
+                <p className="comment-body">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

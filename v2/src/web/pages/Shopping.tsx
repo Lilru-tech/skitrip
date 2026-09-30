@@ -6,7 +6,9 @@ import { ConfirmDialog, Dialog } from '../components/Dialog';
 import { Field, SelectField } from '../components/Field';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { euros, parseEuros } from '../format';
+import { euros, humanDates, numDate, parseEuros, PRICE_ORIGIN_LABEL } from '../format';
+import { BasketPanel, CriterionEditor, LegacyImport } from './ShoppingExtras';
+import { useProfile } from '../session';
 import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import type { Trip, TripDetail } from '../types';
@@ -15,10 +17,15 @@ import { todayMadrid } from '../../core/dates';
 
 interface Product { id: string; name: string; brand: string | null; format: string | null; netQty: number | null; netUnit: NetUnit | null; ean: string | null; replacedBy?: string | null }
 interface Item {
-  id: string; name: string; qty: number; note: string | null; bought: boolean; assigneeId: string | null; assigneeAlias: string | null; legacyName: string | null; version: number;
-  product: Product | null; price: { amountCents: number; observedOn: string; unitPrice: { perKgOrL_cents: number | null; perUnit_cents: number | null; label: string } | null } | null;
+  id: string; name: string; qty: number; note: string | null; bought: boolean; assigneeId: string | null; assigneeAlias: string | null; legacyName: string | null; legacyItemId?: string | null; version: number;
+  product: Product | null; price: { amountCents: number; observedOn: string; priceType?: string; source?: string; unitPrice: { perKgOrL_cents: number | null; perUnit_cents: number | null; label: string } | null } | null;
 }
-interface ListResponse { list: { id: string }; items: Item[]; estimate: { items: number; priced: number; unpriced: number; knownCents: number; complete: boolean; oldestPriceOn: string | null }; note: string }
+interface ListResponse {
+  list: { id: string; storeLabel: string; postalCode: string | null; channel: string }; items: Item[];
+  estimate: { items: number; products?: number; genericItems?: number; priced: number; unpriced: number; knownCents: number; complete: boolean; oldestPriceOn: string | null;
+    criterion?: { storeLabel: string; postalCode: string | null; channel: string } | null };
+  note: string;
+}
 
 const upText = (u: { perKgOrL_cents: number | null; perUnit_cents: number | null; label: string } | null) =>
   !u ? null : u.perKgOrL_cents != null ? `${euros(u.perKgOrL_cents)} ${u.label.replace('€', '').trim()}` : u.perUnit_cents != null ? `${euros(u.perUnit_cents)}/ud` : null;
@@ -58,6 +65,7 @@ function TripShopping({ tripId }: { tripId: string }) {
   const toast = useToast();
   const list = useResource(() => get<ListResponse>(`/api/trips/${tripId}/shopping`), [tripId]);
   const detail = useResource(() => get<TripDetail>(`/api/trips/${tripId}`), [tripId]);
+  const receipts = useResource(() => get<{ receipts: ReceiptRow[] }>('/api/receipts'), []);
   const [name, setName] = useState('');
   const [qty, setQty] = useState('1');
   const [addErr, setAddErr] = useState<string | null>(null);
@@ -138,7 +146,8 @@ function TripShopping({ tripId }: { tripId: string }) {
   return (
     <>
       <section className="panel stack" aria-labelledby="sl-h">
-        <h2 id="sl-h">Lista de la compra <span className="count">{items.length}</span></h2>
+        <div className="toolbar"><h2 id="sl-h">Lista de la compra <span className="count">{items.length}</span></h2>
+          {detail.data && detail.data.trip.role !== 'member' && <LegacyImport tripId={tripId} onDone={() => void list.reload()} />}</div>
         <form className="form-row form-row-end" onSubmit={add} noValidate>
           <Field label="Artículo" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder="Por ejemplo: leche" />
           <Field label="Cantidad" type="number" min={1} max={999} value={qty} onChange={(e) => setQty(e.target.value)} />
@@ -152,10 +161,11 @@ function TripShopping({ tripId }: { tripId: string }) {
                 <div className="check">
                   <input id={`b-${it.id}`} type="checkbox" checked={it.bought} disabled={busy !== null} onChange={() => void toggle(it)} />
                   <label htmlFor={`b-${it.id}`}><span className="shop-name">{it.name}</span> × {it.qty}{it.bought && <span className="visually-hidden"> (comprado)</span>}</label>
+                  {it.legacyItemId && <span className="tag legacy-tag">de la hoja antigua</span>}
                 </div>
                 <p className="small muted">
                   {it.product ? <>Producto: {it.product.name}{it.product.format && ` · ${it.product.format}`}</> : 'Sin producto exacto'}
-                  {' · '}{it.price ? <>{euros(it.price.amountCents)} por envase ({it.price.observedOn}){upText(it.price.unitPrice) && ` · ${upText(it.price.unitPrice)}`}</> : <strong>precio pendiente</strong>}
+                  {' · '}{it.price ? <>{euros(it.price.amountCents)} por envase · <span className="price-origin">{PRICE_ORIGIN_LABEL[it.price.priceType ?? ''] ?? it.price.priceType ?? 'origen sin indicar'} · {numDate(it.price.observedOn)}</span>{upText(it.price.unitPrice) && ` · ${upText(it.price.unitPrice)}`}</> : <strong>precio pendiente</strong>}
                   {it.assigneeAlias && ` · se encarga ${it.assigneeAlias}`}{it.note && ` · ${it.note}`}
                 </p>
                 <div className="cluster-s">
@@ -170,13 +180,19 @@ function TripShopping({ tripId }: { tripId: string }) {
 
       <section className="panel stack" aria-labelledby="est-h">
         <h2 id="est-h">Estimación de la cesta</h2>
-        <p>Conocido: <strong>{euros(estimate.knownCents)}</strong> ({estimate.priced} de {estimate.items} artículos con precio)</p>
+        <CriterionEditor tripId={tripId} list={list.data!.list} onSaved={() => void list.reload()} />
+        <p>Conocido: <strong>{euros(estimate.knownCents)}</strong> ({estimate.priced} de {estimate.products ?? estimate.items} productos exactos con precio{(estimate.genericItems ?? 0) > 0 && `; ${estimate.genericItems} artículo(s) sin producto exacto`})</p>
+        {estimate.products != null && estimate.products < estimate.items - (estimate.genericItems ?? 0) && <p className="small muted">Las filas repetidas de un mismo producto se agrupan: cuentan como un producto con la suma de envases.</p>}
         {estimate.unpriced > 0 ? <p className="notice notice-warn">{estimate.unpriced} artículo(s) sin precio: la estimación está <strong>pendiente</strong> y no se cuentan como 0.</p>
           : estimate.items > 0 ? <p className="notice notice-ok">Todos los artículos tienen precio.</p> : null}
-        {estimate.oldestPriceOn && <p className="small muted">Precio más antiguo usado: {estimate.oldestPriceOn}.</p>}
+        {estimate.oldestPriceOn && <p className="small muted">Precio más antiguo usado: {numDate(estimate.oldestPriceOn)}.</p>}
         <p className="small muted">{note}</p>
-        <ReceiptImport tripId={tripId} members={detail.data?.members ?? []} onDone={() => void list.reload()} />
+        <ReceiptImport tripId={tripId} members={detail.data?.members ?? []} onDone={() => { void list.reload(); void receipts.reload(); }} />
       </section>
+
+      <BasketPanel tripId={tripId} listVersion={items.map((i) => `${i.id}:${i.qty}:${i.product?.id ?? ''}`).join('|')} />
+
+      <ReceiptsPanel tripId={tripId} tripName={detail.data?.trip.name ?? 'este viaje'} members={detail.data?.members ?? []} receipts={receipts} />
 
       <Dialog open={editing !== null} title="Editar artículo" size="wide" onClose={() => setEditing(null)} busy={busy === 'edit'}
         footer={<>
@@ -452,7 +468,7 @@ function CsvImport() {
 
 interface ReceiptPreview {
   parsed: { purchasedOn: string | null; totalCents: number | null; sumMatchesTotal: boolean; warnings: string[]; lines: { lineNo: number; rawText: string; description: string; qty: number; unitCents: number | null; amountCents: number; weightGrams: number | null }[] };
-  duplicate: { id: string } | null; suggestions: { lineNo: number; candidates: { id: string; name: string; format: string | null }[] }[]; note: string;
+  duplicate: { id: string; expense_id: string | null; expense_trip_id: string | null } | null; suggestions: { lineNo: number; candidates: { id: string; name: string; format: string | null }[] }[]; note: string;
 }
 
 function ReceiptImport({ tripId, members, onDone }: { tripId: string; members: { id: string; alias: string }[]; onDone: () => void }) {
@@ -477,13 +493,26 @@ function ReceiptImport({ tripId, members, onDone }: { tripId: string; members: {
   const confirm = async () => {
     setBusy(true); setErr(null);
     try {
-      const r = await post<{ receiptId: string; lines: number; prices: number }>('/api/receipts/confirm', {
+      const r = await post<{ receiptId: string; alreadyImported: boolean; expenseId: string | null; lines: number; prices?: number }>('/api/receipts/confirm', {
         ...body, tripId, mapping: prev!.parsed.lines.map((l) => ({ lineNo: l.lineNo, productId: mapping[l.lineNo] || null })),
       });
-      if (asExpense) await post(`/api/receipts/${r.receiptId}/expense`, { tripId, concept: `Compra ${meta.storeLabel}`, participants: members.map((m) => m.id) });
-      toast.show(`Ticket guardado: ${r.lines} líneas, ${r.prices} precios${asExpense ? ' y gasto añadido al viaje' : ''}.`);
+      // El ticket ya está guardado: a partir de aquí un fallo del gasto no obliga a reimportar (se completa desde «Tus tickets»).
       setOpen(false); setPrev(null); setMeta({ ...meta, text: '' });
       onDone();
+      let expense = '';
+      if (asExpense && !r.expenseId) {
+        try {
+          await post(`/api/receipts/${r.receiptId}/expense`, { tripId, concept: `Compra ${meta.storeLabel}`, participants: members.map((m) => m.id) });
+          expense = ' y gasto añadido al viaje';
+          onDone();
+        } catch (e) {
+          toast.show(`Ticket guardado, pero no se ha podido crear el gasto: ${errorMessage(e)} Puedes crearlo desde «Tus tickets» sin volver a importarlo.`, 'error');
+          return;
+        }
+      }
+      toast.show(r.alreadyImported
+        ? `Este ticket ya estaba importado; no se ha duplicado${r.expenseId ? ' y ya tiene su gasto' : expense}.`
+        : `Ticket guardado: ${r.lines} líneas, ${r.prices ?? 0} precios${expense}.`);
     } catch (e) { setErr(errorMessage(e)); } finally { setBusy(false); }
   };
 
@@ -507,7 +536,7 @@ function ReceiptImport({ tripId, members, onDone }: { tripId: string; members: {
           </div>
         ) : (
           <div className="stack">
-            {prev.duplicate && <p className="notice notice-warn" role="alert">Este ticket ya estaba importado.</p>}
+            {prev.duplicate && <p className="notice notice-warn" role="alert">Este ticket ya estaba importado.{prev.duplicate.expense_id ? ' Ya tiene su gasto.' : ' Aún no tiene gasto: créalo desde «Tus tickets», sin volver a importarlo.'}</p>}
             <p>Fecha: {prev.parsed.purchasedOn ?? 'no encontrada'} · Total: {prev.parsed.totalCents != null ? euros(prev.parsed.totalCents) : 'no encontrado'} · {prev.parsed.sumMatchesTotal ? 'las líneas suman el total' : <strong className="text-bad">las líneas no suman el total</strong>}</p>
             {prev.parsed.warnings.length > 0 && <ul className="warnings small">{prev.parsed.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
             {prev.note && <p className="small muted">{prev.note}</p>}
@@ -534,5 +563,101 @@ function ReceiptImport({ tripId, members, onDone }: { tripId: string; members: {
         {err && <p className="form-error" role="alert">{err}</p>}
       </Dialog>
     </>
+  );
+}
+
+interface ReceiptRow {
+  id: string; trip_id: string | null; store_label: string; postal_code: string | null; channel: string; purchased_on: string; total_cents: number; created_at: number;
+  lines: number; expense_id: string | null; expense_trip_id: string | null;
+}
+
+/**
+ * Tickets propios y su gasto. Un ticket sin gasto (p. ej. porque falló la red al crearlo) se completa aquí con
+ * «Crear gasto», sin reimportarlo. Repetirlo es inofensivo: el servidor devuelve el gasto ya vinculado.
+ */
+function ReceiptsPanel({ tripId, tripName, members, receipts }: {
+  tripId: string; tripName: string; members: { id: string; alias: string }[];
+  receipts: { data: { receipts: ReceiptRow[] } | null; loading: boolean; error: string | null; reload: () => Promise<void> };
+}) {
+  const toast = useToast();
+  const me = useProfile();
+  const [target, setTarget] = useState<ReceiptRow | null>(null);
+  const [concept, setConcept] = useState('');
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const open = (r: ReceiptRow) => {
+    setTarget(r); setConcept(`Compra ${r.store_label}`); setChosen(new Set(members.map((m) => m.id))); setErr(null);
+  };
+  const createExpense = async () => {
+    if (!target) return;
+    if (!concept.trim()) { setErr('Pon un concepto.'); return; }
+    if (chosen.size === 0) { setErr('Elige al menos una persona para repartir.'); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await post<{ expenseId: string; alreadyLinked: boolean }>(`/api/receipts/${target.id}/expense`, { tripId, concept: concept.trim(), participants: [...chosen] });
+      toast.show(r.alreadyLinked ? 'Este ticket ya tenía su gasto en este viaje; no se ha duplicado.' : 'Gasto creado a partir del ticket.');
+      setTarget(null);
+      await receipts.reload();
+    } catch (e) {
+      setErr(e instanceof ApiError && e.code === 'receipt_already_linked' ? `${e.message} No se ha creado otro.` : errorMessage(e));
+      void receipts.reload();
+    } finally { setBusy(false); }
+  };
+
+  const rows = receipts.data?.receipts ?? [];
+  return (
+    <section className="panel stack" aria-labelledby="rc-list-h">
+      <h2 id="rc-list-h">Tus tickets <span className="count">{rows.length}</span></h2>
+      <p className="small muted">Solo ves los tickets que has importado tú. Si uno se quedó sin gasto, créalo aquí: no hace falta volver a importarlo.</p>
+      {receipts.loading && !receipts.data && <Loading label="Cargando tickets…" />}
+      {receipts.error && !receipts.data && <ErrorState message={receipts.error} onRetry={() => void receipts.reload()} />}
+      {receipts.data && (rows.length === 0 ? <p className="muted">Aún no has importado tickets.</p> : (
+        <ul className="list" aria-label="Tickets importados">
+          {rows.map((r) => {
+            const here = r.expense_id && r.expense_trip_id === tripId;
+            const label = `${r.store_label} del ${humanDates(r.purchased_on)}`;
+            return (
+              <li key={r.id} className="receipt-row" data-receipt={r.id}>
+                <span className="list-main">
+                  <strong>{r.store_label}</strong> <span className="muted">· {humanDates(r.purchased_on)} · {euros(r.total_cents)} · {r.lines} línea(s)</span>
+                  {r.trip_id && r.trip_id !== tripId && <span className="small muted"> · importado en otro viaje</span>}
+                </span>
+                <span className="cluster-s">
+                  {here ? <><span className="tag tag-ok">Gasto creado</span><Link className="small" to={`/viajes/${tripId}/gastos`}>Ver gastos<span className="visually-hidden"> de {tripName}</span></Link></>
+                    : r.expense_id ? <span className="tag tag-quiet">Gasto en otro viaje</span>
+                    : <><span className="tag tag-warn">Sin gasto</span>
+                      <button type="button" className="btn btn-small btn-secondary" onClick={() => open(r)} disabled={members.length === 0}>Crear gasto<span className="visually-hidden"> del ticket {label}</span></button></>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ))}
+      <Dialog open={target !== null} title="Crear gasto del ticket" onClose={() => setTarget(null)} busy={busy}
+        footer={<>
+          <button type="button" className="btn btn-secondary" onClick={() => setTarget(null)} disabled={busy}>Cancelar</button>
+          <button type="submit" form="rc-exp-form" className="btn btn-primary" disabled={busy} aria-busy={busy || undefined}>{busy ? 'Creando…' : 'Crear gasto'}</button>
+        </>}>
+        {target && (
+          <form id="rc-exp-form" className="stack" onSubmit={(e) => { e.preventDefault(); void createExpense(); }} noValidate>
+            <p>{target.store_label} · {humanDates(target.purchased_on)} · <strong>{euros(target.total_cents)}</strong>. Se añade a «{tripName}», pagado por {me.alias}, a partes iguales.</p>
+            <Field label="Concepto" value={concept} maxLength={200} onChange={(e) => setConcept(e.target.value)} />
+            <fieldset className="participants">
+              <legend>Repartir entre</legend>
+              {members.map((m) => (
+                <div key={m.id} className="check">
+                  <input id={`rcp-${m.id}`} type="checkbox" checked={chosen.has(m.id)}
+                    onChange={(e) => { const n = new Set(chosen); if (e.target.checked) n.add(m.id); else n.delete(m.id); setChosen(n); }} />
+                  <label htmlFor={`rcp-${m.id}`}>{m.alias}</label>
+                </div>
+              ))}
+            </fieldset>
+          </form>
+        )}
+        {err && <p className="form-error" role="alert">{err}</p>}
+      </Dialog>
+    </section>
   );
 }

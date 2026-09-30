@@ -11,6 +11,8 @@ import { topLevel, type Catalog, type CatalogArea } from '../catalog';
 import { DEFAULT_WEIGHTS, scoreRows, type Weights } from '../../core/score';
 
 type Mode = 'lodging' | 'lodging_forfait';
+/** Km que puntúan en «Nieve abierta ahora»: solo los del dato elegido si es reciente y fiable (snow.rank), nunca snow.openKm tal cual. */
+const snowRankKm = (a: CatalogArea) => (a.snow?.rank ? a.snow.rank.openKm : null);
 const WEIGHT_LABEL: Record<keyof Weights, string> = { snowNow: 'Nieve abierta ahora', size: 'Km de pistas', distance: 'Cercanía', vibe: 'Ambiente', cost: 'Coste' };
 const SLIDERS: (keyof Weights)[] = ['snowNow', 'size', 'distance', 'vibe'];
 
@@ -33,7 +35,7 @@ export function ComparePage() {
     const noRoute = entries.filter((e) => e.area.route?.roadKm == null);
     const scored = scoreRows(near.map((e) => ({
       id: e.area.id, costPerPersonCents: null, roadKm: e.area.route?.roadKm ?? null,
-      totalKm: e.area.snow?.totalKm ?? e.area.officialTotalKm, openKmNow: e.area.snow?.openKm ?? null, vibe: e.area.vibe,
+      totalKm: e.area.snow?.totalKm ?? e.area.officialTotalKm, openKmNow: snowRankKm(e.area), vibe: e.area.vibe,
     })), weights);
     const byId = new Map(near.map((e) => [e.area.id, e]));
     return { ranked: scored.map((s) => ({ ...byId.get(s.id)!, score: s })), far, noRoute };
@@ -132,7 +134,8 @@ function AreaCard({ area, members, mode, score, rank, origin }: {
       </div>
       <dl className="area-facts">
         <div><dt>Carretera</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min`}{!r.validated && <span className="muted"> (sin validar)</span>}</> : `sin distancia desde ${origin === 'tarragona' ? 'Tarragona' : 'Sabadell'}`}</dd></div>
-        <div><dt>Nieve</dt><dd>{area.snow ? <><SnowKm open={area.snow.openKm} total={area.snow.totalKm} /> <Freshness state={area.snow.freshness} at={area.snow.observedAt} /></> : 'sin dato'}</dd></div>
+        <div><dt>Nieve</dt><dd>{area.snow ? <><SnowKm open={area.snow.openKm} total={area.snow.totalKm} /> <Freshness state={area.snow.freshness} at={area.snow.observedAt} />
+          {area.snow.rank?.excluded && <span className="snow-excluded small">no puntúa: {area.snow.rank.label ?? area.snow.rank.excluded}</span>}</> : 'sin dato'}</dd></div>
         <div><dt>Km totales</dt><dd>{kmText(area.officialTotalKm)}{area.totalKmSource && area.officialTotalKm != null && <span className="muted small"> ({area.totalKmSource})</span>}</dd></div>
         <div><dt>Ambiente / après</dt><dd>{area.vibe ?? 'sin dato'} / {area.apres ?? 'sin dato'} <span className="muted small">(0–10, subjetivo)</span></dd></div>
       </dl>

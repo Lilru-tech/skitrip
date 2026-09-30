@@ -18,6 +18,8 @@ export interface Trip {
   id: string; ownerId: string; name: string; originId: string | null; startDate: string | null; endDate: string | null;
   nights: number | null; skiDays: number | null; participantsPlanned: number | null; cars: number | null;
   budgetCents: number | null; areaId: string | null; status: TripStatus; membersCanInvite: boolean;
+  /** Edades de los menores (dentro de las personas previstas). [] = sin menores. */
+  childrenAges: number[]; rooms: number | null;
   version: number; createdAt: number; updatedAt: number; role?: TripRole;
 }
 export interface TripMember { id: string; alias: string; role: TripRole; joined_at: number }

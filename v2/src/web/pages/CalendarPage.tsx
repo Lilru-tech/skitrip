@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { errorMessage, get, put, qs } from '../api';
 import { ErrorState, Loading } from '../components/States';
+import { LegacyAvailabilityView, type LegacyAvailability } from '../calendar/LegacyAvailability';
 import { useToast } from '../components/Toast';
 import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
@@ -15,12 +16,17 @@ const TABS = [
   { id: 'mia', label: 'Mi disponibilidad' },
   { id: 'grupo', label: 'Vista común' },
   { id: 'compartir', label: 'Compartir' },
+  { id: 'hoja', label: 'Hoja antigua' },
 ] as const;
 
 export function CalendarPage() {
   usePageTitle('Calendario');
   const { query } = useLocation();
-  const tab = TABS.find((t) => t.id === query.get('vista'))?.id ?? 'mia';
+  // La pestaña de la hoja antigua solo aparece si administración te ha asignado días.
+  const legacy = useResource(() => get<LegacyAvailability>('/api/legacy/availability/mine').catch(() => ({ days: [], note: '' })), []);
+  const hasLegacy = (legacy.data?.days.length ?? 0) > 0;
+  const tabs = TABS.filter((t) => t.id !== 'hoja' || hasLegacy);
+  const tab = tabs.find((t) => t.id === query.get('vista'))?.id ?? 'mia';
   const all = useMemo(seasons, []);
   const [seasonIdx, setSeasonIdx] = useState(0);
   const season = all[seasonIdx];
@@ -29,7 +35,7 @@ export function CalendarPage() {
     <div className="page page-wide">
       <div className="page-head">
         <h1>Calendario</h1>
-        {tab !== 'compartir' && (
+        {(tab === 'mia' || tab === 'grupo') && (
           <div className="field field-inline">
             <label htmlFor="season">Temporada</label>
             <select id="season" value={seasonIdx} onChange={(e) => setSeasonIdx(Number(e.target.value))}>
@@ -39,7 +45,7 @@ export function CalendarPage() {
         )}
       </div>
       <nav className="tabs" aria-label="Secciones del calendario">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Link key={t.id} to={`/calendario?vista=${t.id}`} className="tab" aria-current={tab === t.id ? 'page' : undefined}
             onClick={(e) => { e.preventDefault(); setQuery('vista', t.id); }}>{t.label}</Link>
         ))}
@@ -47,6 +53,7 @@ export function CalendarPage() {
       {tab === 'mia' && <MyAvailability season={season} />}
       {tab === 'grupo' && <CommonView from={season.start} to={season.end} />}
       {tab === 'compartir' && <SharingSettings />}
+      {tab === 'hoja' && legacy.data && <LegacyAvailabilityView data={legacy.data} onChanged={() => void legacy.reload()} />}
     </div>
   );
 }

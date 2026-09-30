@@ -52,3 +52,10 @@ INSERT INTO offers (id, provider_id, hotel_name_raw, area_id, modality, check_in
 INSERT INTO offer_observations (id, offer_id, scenario_id, observed_at, price_kind, amount_cents, unit, availability, extractor, content_hash) VALUES
   ('e2e-ob1', 'e2e-o1', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 8900, 'per_person', 'available', 'e2e', 'c1'),
   ('e2e-ob2', 'e2e-o2', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000, 'advertised_from', 31000, 'per_room', 'unknown', 'e2e', 'c2');
+
+-- Hoja antigua (sintético): compra recuperable y un comentario publicado por administración.
+INSERT INTO legacy_shopping_items (id, file_id, row_hash, name, quantity_text, price_text, legacy_person_name, extra_json) VALUES
+  ('e2e-ls1', 'e2e-legacy', 'e2e-ls-h1', 'Leche (hoja sintética)', '6', '5,40', NULL, NULL),
+  ('e2e-ls2', 'e2e-legacy', 'e2e-ls-h2', 'Pan de molde (hoja sintética)', '2', NULL, NULL, NULL);
+INSERT INTO legacy_comments (id, file_id, row_hash, legacy_author_name, legacy_resort_id, body, created_at_text, published) VALUES
+  ('e2e-lc1', 'e2e-legacy', 'e2e-lc-h1', 'Pepe', 'e2e-beta', 'Buena nieve polvo por la mañana (sintético).', '2025-02-01', 1);

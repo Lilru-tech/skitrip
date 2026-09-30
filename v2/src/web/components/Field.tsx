@@ -16,7 +16,7 @@ export function Field({ label, hint, error, id, className, ...input }: FieldProp
       <label htmlFor={fid}>{label}</label>
       <input id={fid} aria-describedby={[hintId, errId].filter(Boolean).join(' ') || undefined} aria-invalid={error ? true : undefined} {...input} />
       {hint && <p className="field-hint" id={hintId}>{hint}</p>}
-      {error && <p className="field-error" id={errId}>{error}</p>}
+      {error && <p className="field-error" id={errId} role="alert">{error}</p>}
     </div>
   );
 }
