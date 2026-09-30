@@ -1,0 +1,7 @@
+# Copiar a .dev.vars para desarrollo local. Nunca subir .dev.vars.
+AUTH_MODE=emulator
+FIREBASE_PROJECT_ID=demo-skitrip
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8787
+MAX_PROFILES=50
+# Credencial de ingesta de los recolectores (GitHub Actions). En producción: wrangler secret put INGEST_TOKEN
+INGEST_TOKEN=dev-ingest-token-change-me
