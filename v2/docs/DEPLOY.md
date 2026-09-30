@@ -7,7 +7,7 @@ Nada de esto se ha ejecutado todavía: requiere las cuentas de David y su visto 
 | Servicio | Plan | Límite relevante | Qué pasa al superarlo |
 |---|---|---|---|
 | Cloudflare Workers | Free | 100.000 peticiones/día, 10 ms de CPU por petición, 5 cron por cuenta | Error 1027 hasta el día siguiente. No factura. |
-| Cloudflare D1 | Free | 500 MB por base, 5 M filas leídas y 100.000 escritas al día | Errores de consulta hasta el día siguiente. No factura. |
+| Cloudflare D1 | Free | 500 MB por base, 5 M filas leídas y 100.000 escritas al día; 50 consultas por invocación del Worker y 100 parámetros por sentencia | Errores de consulta hasta el día siguiente. No factura. El Worker se corta a 40 consultas por petición (ver `QUOTAS.md`). |
 | Firebase Authentication | Spark | 50.000 usuarios activos al mes (email + contraseña) | No se pueden crear sesiones nuevas. Spark no admite facturación. |
 | GitHub Actions | Repositorio público | Runners estándar gratuitos | — |
 | Dominio | `*.workers.dev` | Subdominio gratuito | — |
@@ -32,7 +32,7 @@ No hace falta cuenta de servicio ni Admin SDK: el Worker verifica los tokens con
 cd v2
 npx wrangler login                                  # abre el navegador; cuenta Free sin tarjeta
 npx wrangler d1 create skitrip                      # copia el database_id a wrangler.jsonc
-npx wrangler d1 migrations apply skitrip --remote   # crea las tablas
+npx wrangler d1 migrations apply skitrip --remote   # crea las tablas (migraciones 0001–0008; la 0007 y la 0008 son de la revisión del 30/09/2026)
 npx tsx tools/import-legacy.ts --dry-run            # revisa el informe (exports/legacy-import-report.json)
 npx tsx tools/import-legacy.ts --apply remote       # catálogo + históricos legacy
 ```
