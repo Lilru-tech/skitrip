@@ -13,6 +13,7 @@ import { ApiError, conflict, forbidden, newId, notFound, now, parseBody, parseQu
 import { rateLimit } from '../ratelimit';
 import { zDate, zId } from '../schemas';
 import { fetchOpenPrices } from '../open-prices';
+import { availableSeries, basketEvolution, estimate, type Criterion, type PriceObs } from '../../core/basket';
 
 // Compra: productos exactos, lista por viaje, precios manuales/CSV/ticket y capa colaborativa separada.
 // El adaptador directo de Mercadona está deshabilitado: ver src/worker/price-providers.ts.
@@ -36,28 +37,29 @@ async function ensureList(db: D1Database, tripId: string) {
   return l;
 }
 
+const obsOut = (r: any): PriceObs => ({ productId: r.product_id, observedOn: r.observed_on, amountCents: r.amount_cents, storeLabel: r.store_label, postalCode: r.postal_code,
+  channel: r.channel, priceType: r.price_type, source: r.source, createdAt: r.created_at, promoNote: r.promo_note });
+const OBS_COLS = 'po.product_id, po.observed_on, po.amount_cents, po.store_label, po.postal_code, po.channel, po.price_type, po.source, po.created_at, po.promo_note';
+
 /**
- * Estimación de la lista para el presupuesto: último precio de estantería o de ticket COMPARTIDO por un
- * miembro del viaje. Los datos colaborativos (otras tiendas) no entran en la estimación.
+ * Estimación de la lista para el presupuesto (2 consultas): productos agrupados, último precio de estantería (o coste
+ * efectivo de ticket) COMPARTIDO por un miembro del viaje EN LA TIENDA, CP Y CANAL DE LA LISTA. Otras tiendas y los datos
+ * colaborativos no entran. Artículos sin producto exacto quedan pendientes.
  */
 export async function estimateList(db: D1Database, tripId: string) {
-  const { results } = await db.prepare(
-    `SELECT i.id, i.qty, i.product_id,
-       (SELECT po.amount_cents FROM price_observations po WHERE po.product_id = i.product_id AND po.visibility = 'shared_trips' AND po.price_type IN ('shelf','receipt_effective')
-          AND po.owner_id IN (SELECT user_id FROM trip_members WHERE trip_id = ?1) ORDER BY po.observed_on DESC, po.created_at DESC LIMIT 1) AS amount_cents,
-       (SELECT po.observed_on FROM price_observations po WHERE po.product_id = i.product_id AND po.visibility = 'shared_trips' AND po.price_type IN ('shelf','receipt_effective')
-          AND po.owner_id IN (SELECT user_id FROM trip_members WHERE trip_id = ?1) ORDER BY po.observed_on DESC, po.created_at DESC LIMIT 1) AS observed_on
-     FROM shopping_items i JOIN shopping_lists l ON l.id = i.list_id WHERE l.trip_id = ?1`,
-  ).bind(tripId).all<{ id: string; qty: number; product_id: string | null; amount_cents: number | null; observed_on: string | null }>();
-  const priced = results.filter((r) => r.amount_cents != null);
+  const [{ results }, { results: obs }] = await db.batch([
+    db.prepare(`SELECT i.id, i.qty, i.product_id, l.store_label, l.postal_code, l.channel FROM shopping_items i JOIN shopping_lists l ON l.id = i.list_id WHERE l.trip_id = ?1`).bind(tripId),
+    db.prepare(`SELECT ${OBS_COLS} FROM price_observations po
+       WHERE po.product_id IN (SELECT i.product_id FROM shopping_items i JOIN shopping_lists l ON l.id = i.list_id WHERE l.trip_id = ?1 AND i.product_id IS NOT NULL)
+         AND po.visibility = 'shared_trips' AND po.price_type IN ('shelf','receipt_effective')
+         AND po.owner_id IN (SELECT user_id FROM trip_members WHERE trip_id = ?1)
+       ORDER BY po.observed_on DESC LIMIT 5000`).bind(tripId),
+  ]) as [D1Result<{ id: string; qty: number; product_id: string | null; store_label: string; postal_code: string; channel: 'online' | 'store' }>, D1Result<any>];
+  const list = results[0] ? { storeLabel: results[0].store_label, postalCode: results[0].postal_code, channel: results[0].channel } : null;
+  const e = estimate(results.map((r) => ({ productId: r.product_id, qty: r.qty })), obs.map(obsOut), list ?? { storeLabel: '', postalCode: null, channel: 'online' });
   return {
-    items: results.length,
-    priced: priced.length,
-    unpriced: results.length - priced.length,
-    knownCents: priced.reduce((s, r) => s + r.amount_cents! * r.qty, 0),
-    complete: results.length > 0 && priced.length === results.length,
-    oldestPriceOn: priced.map((r) => r.observed_on!).sort()[0] ?? null,
-    byItem: new Map(results.map((r) => [r.id, r])),
+    items: results.length, products: e.products, priced: e.priced, unpriced: e.unpriced, genericItems: e.genericItems,
+    knownCents: e.knownCents, complete: e.complete, oldestPriceOn: e.oldestPriceOn, criterion: list, byProduct: e.byProduct,
   };
 }
 
@@ -73,20 +75,34 @@ shoppingRoutes.get('/trips/:id/shopping', async (c) => {
      FROM shopping_items i LEFT JOIN users u ON u.id = i.assignee_id LEFT JOIN products p ON p.id = i.product_id WHERE i.list_id = ?1 ORDER BY i.bought, i.created_at`,
   ).bind(list.id).all<any>();
   const est = await estimateList(c.env.DB, tripId);
+  const priceOf = (pid: string | null) => (pid ? est.byProduct.get(pid) ?? null : null);
   return c.json({
     list: { id: list.id, storeLabel: list.store_label, postalCode: list.postal_code, channel: list.channel },
     items: results.map((i) => {
-      const e = est.byItem.get(i.id);
-      const up = e?.amount_cents != null && i.p_net_qty ? unitPrice(e.amount_cents, i.p_net_qty, i.p_net_unit) : null;
+      const e = priceOf(i.product_id);
+      const up = e && i.p_net_qty ? unitPrice(e.amountCents, i.p_net_qty, i.p_net_unit) : null;
       return {
         id: i.id, name: i.name, qty: i.qty, note: i.note, bought: !!i.bought, assigneeId: i.assignee_id, assigneeAlias: i.assignee_alias, legacyName: i.legacy_name, version: i.version,
         product: i.product_id ? { id: i.product_id, name: i.p_name, brand: i.p_brand, format: i.p_format, netQty: i.p_net_qty, netUnit: i.p_net_unit, ean: i.p_ean } : null,
-        price: e?.amount_cents != null ? { amountCents: e.amount_cents, observedOn: e.observed_on, unitPrice: up } : null,
+        // Origen y fecha visibles: tipo de precio (estantería o coste efectivo de ticket) y procedencia.
+        price: e ? { amountCents: e.amountCents, observedOn: e.observedOn, priceType: e.priceType, source: e.source, unitPrice: up } : null,
       };
     }),
-    estimate: { items: est.items, priced: est.priced, unpriced: est.unpriced, knownCents: est.knownCents, complete: est.complete, oldestPriceOn: est.oldestPriceOn },
-    note: 'Estimación con precios compartidos por miembros del viaje (manuales o de tickets). No es la tarifa actual de Mercadona online.',
+    estimate: { items: est.items, products: est.products, priced: est.priced, unpriced: est.unpriced, genericItems: est.genericItems, knownCents: est.knownCents,
+      complete: est.complete, oldestPriceOn: est.oldestPriceOn, criterion: est.criterion },
+    note: 'Estimación con precios compartidos por miembros del viaje (manuales o de tickets) en la tienda, código postal y canal de la lista. No es la tarifa actual de Mercadona online.',
   });
+});
+
+// Criterio explícito de la lista (tienda, CP, canal): define qué serie de precios estima la compra y sigue la cesta.
+shoppingRoutes.put('/trips/:id/shopping/list', async (c) => {
+  const me = c.get('user').id;
+  const tripId = c.req.param('id');
+  await requireTripMember(c.env.DB, tripId, me);
+  const b = await parseBody(c, z.object({ storeLabel: z.string().trim().min(2).max(80), postalCode: z.string().regex(/^\d{5}$/), channel: z.enum(['online', 'store']) }));
+  const list = await ensureList(c.env.DB, tripId);
+  await c.env.DB.prepare('UPDATE shopping_lists SET store_label = ?1, postal_code = ?2, channel = ?3 WHERE id = ?4').bind(b.storeLabel, b.postalCode, b.channel, list.id).run();
+  return c.json({ list: { id: list.id, ...b } });
 });
 
 const zItem = z.object({
@@ -281,20 +297,27 @@ shoppingRoutes.get('/products/:pid/prices', async (c) => {
 });
 
 // CSV: previsualizar y confirmar. Columnas: product_id|ean, amount, price_type, store, postal_code, channel, date (YYYY-MM-DD o DD/MM/YYYY), promo_note
+// Consultas fijas para cualquier tamaño (≤ 500 filas): 1 lectura de productos al previsualizar; al confirmar,
+// + límite de uso + 1 batch de inserción por conjuntos. Antes eran 1–2 consultas por fila.
 async function previewCsv(db: D1Database, csv: string) {
   const rows = parseCsv(csv);
   if (!rows.length) return [];
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const col = (name: string) => header.indexOf(name);
-  const out = [];
-  for (let n = 1; n < rows.length && n <= 500; n++) {
-    const r = rows[n];
-    const get = (name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '');
+  const body = rows.slice(1, 501);
+  const getter = (r: string[]) => (name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '');
+  const ids = [...new Set(body.map((r) => getter(r)('product_id')).filter(Boolean))];
+  const eans = [...new Set(body.map((r) => getter(r)('ean')).filter(Boolean))];
+  const { results: prods } = await db.prepare(
+    `SELECT id, name, format, ean, replaced_by FROM products WHERE id IN (SELECT value FROM json_each(?1)) OR (ean IN (SELECT value FROM json_each(?2)) AND replaced_by IS NULL)`,
+  ).bind(JSON.stringify(ids), JSON.stringify(eans)).all<any>();
+  const byId = new Map(prods.map((p) => [p.id, p]));
+  const byEan = new Map(prods.filter((p) => p.ean && !p.replaced_by).map((p) => [p.ean, p]));
+  return body.map((r, i) => {
+    const get = getter(r);
     const errors: string[] = [];
-    let productId = get('product_id') || null;
-    const ean = get('ean') || null;
-    if (!productId && ean) productId = (await db.prepare('SELECT id FROM products WHERE ean = ?1 AND replaced_by IS NULL').bind(ean).first<{ id: string }>())?.id ?? null;
-    const product = productId ? await db.prepare('SELECT id, name, format FROM products WHERE id = ?1').bind(productId).first<any>() : null;
+    const pid = get('product_id');
+    const product = pid ? byId.get(pid) ?? null : get('ean') ? byEan.get(get('ean')) ?? null : null;
     if (!product) errors.push('producto no encontrado (usa product_id o EAN de un producto existente)');
     const amount = parseAmount(get('amount'));
     if (!amount) errors.push('importe no válido');
@@ -310,14 +333,13 @@ async function previewCsv(db: D1Database, csv: string) {
     if (store.length < 2) errors.push('falta la tienda');
     const postal = get('postal_code') || null;
     if (postal && !/^\d{5}$/.test(postal)) errors.push('código postal no válido');
-    out.push({ line: n + 1, product: product ? { id: product.id, name: product.name, format: product.format } : null, amountCents: amount?.cents ?? null, observedOn: date,
-      priceType, channel, storeLabel: store, postalCode: postal, promoNote: get('promo_note') || null, errors });
-  }
-  return out;
+    return { line: i + 2, product: product ? { id: product.id, name: product.name, format: product.format } : null, amountCents: amount?.cents ?? null, observedOn: date,
+      priceType, channel, storeLabel: store, postalCode: postal, promoNote: get('promo_note') || null, errors };
+  });
 }
 
 shoppingRoutes.post('/prices/import/preview', async (c) => {
-  const { csv } = await parseBody(c, z.object({ csv: z.string().min(1).max(60_000) }));
+  const { csv } = await parseBody(c, z.object({ csv: z.string().min(1).max(100_000) }));
   const rows = await previewCsv(c.env.DB, csv);
   return c.json({ rows, valid: rows.filter((r) => !r.errors.length).length, invalid: rows.filter((r) => r.errors.length).length });
 });
@@ -325,16 +347,26 @@ shoppingRoutes.post('/prices/import/preview', async (c) => {
 // La confirmación vuelve a analizar el CSV en el servidor: no se confía en filas editadas por el navegador.
 shoppingRoutes.post('/prices/import/confirm', async (c) => {
   const me = c.get('user').id;
-  const { csv, visibility } = await parseBody(c, z.object({ csv: z.string().min(1).max(60_000), visibility: z.enum(['private', 'shared_trips']).default('shared_trips') }));
+  const { csv, visibility } = await parseBody(c, z.object({ csv: z.string().min(1).max(100_000), visibility: z.enum(['private', 'shared_trips']).default('shared_trips') }));
   await rateLimit(c.env.DB, `csv:${me}`, 20, 86400);
   const rows = await previewCsv(c.env.DB, csv);
-  let created = 0, duplicates = 0;
-  for (const r of rows.filter((x) => !x.errors.length)) {
-    const ok = await insertPrice(c.env.DB, me, { productId: r.product!.id, amountCents: r.amountCents!, priceType: r.priceType as any, promoNote: r.promoNote, storeLabel: r.storeLabel,
-      postalCode: r.postalCode, channel: r.channel as any, observedOn: r.observedOn, visibility }, 'csv');
-    ok ? created++ : duplicates++;
+  const valid = rows.filter((x) => !x.errors.length);
+  const t = now();
+  const payload = await Promise.all(valid.map(async (r) => ({
+    id: newId(), productId: r.product!.id, priceType: r.priceType, amount: r.amountCents, promo: r.promoNote, store: r.storeLabel, postal: r.postalCode, channel: r.channel, on: r.observedOn,
+    dedupe: await sha256Hex(JSON.stringify([me, r.product!.id, r.priceType, r.amountCents, r.storeLabel, r.postalCode ?? null, r.channel, r.observedOn])),
+  })));
+  const J = (k: string) => `json_extract(value, '$.${k}')`;
+  const ins = (chunk: typeof payload) => c.env.DB.prepare(
+    `INSERT OR IGNORE INTO price_observations (id, product_id, source, price_type, amount_cents, promo_note, store_label, postal_code, channel, observed_on, owner_id, visibility, dedupe_hash, created_at)
+     SELECT ${J('id')}, ${J('productId')}, 'csv', ${J('priceType')}, ${J('amount')}, ${J('promo')}, ${J('store')}, ${J('postal')}, ${J('channel')}, ${J('on')}, ?1, ?2, ${J('dedupe')}, ?3 FROM json_each(?4)`,
+  ).bind(me, visibility, t, JSON.stringify(chunk));
+  let created = 0;
+  if (payload.length) {
+    const res = await c.env.DB.batch([ins(payload.slice(0, 250)), ...(payload.length > 250 ? [ins(payload.slice(250))] : [])]);
+    created = res.reduce((n, r) => n + (r.meta.changes ?? 0), 0);
   }
-  return c.json({ created, duplicates, skippedInvalid: rows.filter((x) => x.errors.length).length });
+  return c.json({ created, duplicates: valid.length - created, skippedInvalid: rows.length - valid.length });
 });
 
 // ---------- Tickets ----------
@@ -514,25 +546,34 @@ shoppingRoutes.get('/trips/:id/shopping/basket', async (c) => {
   const me = c.get('user').id;
   const tripId = c.req.param('id');
   await requireTripMember(c.env.DB, tripId, me);
-  const { results: items } = await c.env.DB.prepare(
-    `SELECT i.product_id, i.qty, p.name FROM shopping_items i JOIN shopping_lists l ON l.id = i.list_id JOIN products p ON p.id = i.product_id WHERE l.trip_id = ?1`,
-  ).bind(tripId).all<{ product_id: string; qty: number; name: string }>();
-  if (!items.length) return c.json({ products: [], points: [], note: 'Asocia productos exactos a la lista para seguir una cesta fija.' });
-  const ids = items.map((i) => i.product_id);
-  const ph = ids.map((_, i) => `?${i + 2}`).join(',');
-  const { results: obs } = await c.env.DB.prepare(
-    `SELECT po.product_id, po.observed_on, MIN(po.amount_cents) AS amount_cents FROM price_observations po
-     WHERE po.product_id IN (${ph}) AND po.price_type IN ('shelf','receipt_effective') AND ${VISIBLE.replaceAll('?1', '?1')}
-     GROUP BY po.product_id, po.observed_on ORDER BY po.observed_on`,
-  ).bind(me, ...ids).all<{ product_id: string; observed_on: string; amount_cents: number }>();
-  // Un punto de cesta solo existe en fechas con precio observado de TODOS los productos: sin arrastrar precios.
-  const byDate = new Map<string, Map<string, number>>();
-  for (const o of obs) (byDate.get(o.observed_on) ?? byDate.set(o.observed_on, new Map()).get(o.observed_on)!).set(o.product_id, o.amount_cents);
-  const points = [...byDate].map(([date, m]) => ({
-    date, coverage: m.size / ids.length,
-    totalCents: m.size === ids.length ? items.reduce((s, i) => s + m.get(i.product_id)! * i.qty, 0) : null,
+  const q = parseQuery(c, z.object({
+    store: z.string().trim().min(2).max(80).optional(), postalCode: z.string().regex(/^\d{5}$/).optional(), channel: z.enum(['online', 'store', 'unknown']).optional(),
+    priceType: z.enum(['shelf', 'promo', 'personal_discount', 'receipt_effective']).optional(),
   }));
-  return c.json({ products: items, points, note: 'Solo hay total en fechas con precio de todos los productos. El resto muestra la cobertura.' });
+  const list = await ensureList(c.env.DB, tripId);
+  const [{ results: items }, { results: obs }] = await c.env.DB.batch([
+    c.env.DB.prepare(`SELECT i.product_id, i.qty, p.name, p.format, p.replaced_by FROM shopping_items i JOIN products p ON p.id = i.product_id WHERE i.list_id = ?1 ORDER BY i.created_at`).bind(list.id),
+    c.env.DB.prepare(`SELECT ${OBS_COLS} FROM price_observations po
+       WHERE po.product_id IN (SELECT product_id FROM shopping_items WHERE list_id = ?2 AND product_id IS NOT NULL) AND ${VISIBLE}
+       ORDER BY po.observed_on DESC LIMIT 5000`).bind(me, list.id),
+  ]) as [D1Result<{ product_id: string; qty: number; name: string; format: string | null; replaced_by: string | null }>, D1Result<any>];
+  const fromQuery = q.store !== undefined || q.postalCode !== undefined || q.channel !== undefined || q.priceType !== undefined;
+  const criterion: Criterion = { storeLabel: q.store ?? list.store_label, postalCode: q.postalCode ?? list.postal_code, channel: q.channel ?? list.channel, priceType: q.priceType ?? 'shelf' };
+  const basketItems = items.map((i) => ({ productId: i.product_id, qty: i.qty }));
+  const observations = obs.map(obsOut);
+  const evo = basketEvolution(basketItems, observations, criterion);
+  const meta = new Map(items.map((i) => [i.product_id, i]));
+  return c.json({
+    criterion: { ...criterion, origin: fromQuery ? 'query' : 'list' },
+    products: evo.products.map((p) => ({ ...p, name: meta.get(p.productId)?.name ?? null, format: meta.get(p.productId)?.format ?? null,
+      replacedBy: meta.get(p.productId)?.replaced_by ?? null })),
+    points: evo.points,
+    latest: evo.latest,
+    availableSeries: availableSeries(basketItems, observations),
+    note: items.length
+      ? 'Serie única: tienda, código postal, canal y tipo de precio. Solo hay total en fechas con precio de todos los productos; sin dato no se interpola. Promociones y descuentos personales son series aparte.'
+      : 'Asocia productos exactos a la lista para seguir una cesta fija.',
+  });
 });
 
 // ---------- Open Prices (colaborativo, ODbL) ----------

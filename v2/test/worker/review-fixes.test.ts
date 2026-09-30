@@ -234,3 +234,78 @@ describe('7 · capacidades de búsqueda publicadas antes de crear', () => {
     expect(sc.json.note).not.toMatch(/proveedor no/i);
   });
 });
+
+describe('6 · compra, cesta fija y evolución', () => {
+  const price = (tok: string, productId: string, amountCents: number, observedOn: string, over: Record<string, unknown> = {}) =>
+    api(tok, 'POST', '/api/prices', { productId, amountCents, priceType: 'shelf', storeLabel: 'Mercadona online', postalCode: '43007', channel: 'online', observedOn, visibility: 'shared_trips', ...over });
+  const setup = async () => {
+    const o = await signup();
+    const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Compra', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2 })).json.trip;
+    const leche = (await api(o.token, 'POST', '/api/products', { name: 'Leche entera Hacendado', format: '1 L' })).json.product;
+    const pan = (await api(o.token, 'POST', '/api/products', { name: 'Pan de molde Hacendado', format: '460 g' })).json.product;
+    return { o, trip, leche, pan };
+  };
+
+  it('producto repetido en dos filas (1 + 2): la cesta cubre el 100 % y suma 3 envases; la estimación también', async () => {
+    const { o, trip, leche } = await setup();
+    await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/items`, { name: 'Leche', productId: leche.id, qty: 1 });
+    await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/items`, { name: 'Leche (otra fila)', productId: leche.id, qty: 2 });
+    await price(o.token, leche.id, 95, '2026-10-01');
+    const b = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping/basket`)).json;
+    expect(b.points[0]).toMatchObject({ coverage: 1, totalCents: 285 });
+    expect(b.products).toHaveLength(1);
+    const est = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping`)).json.estimate;
+    expect(est).toMatchObject({ knownCents: 285, complete: true });
+  });
+
+  it('otra tienda, otro canal u otro tipo de precio no se mezclan; el criterio es explícito y cambiable', async () => {
+    const { o, trip, leche } = await setup();
+    await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/items`, { name: 'Leche', productId: leche.id, qty: 1 });
+    await price(o.token, leche.id, 95, '2026-10-01');
+    await price(o.token, leche.id, 80, '2026-10-02', { storeLabel: 'Mercadona Rambla', channel: 'store', postalCode: '43003' });
+    await price(o.token, leche.id, 70, '2026-10-03', { priceType: 'promo', promoNote: '3x2' });
+    const b = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping/basket`)).json;
+    expect(b.criterion).toMatchObject({ storeLabel: 'Mercadona online', postalCode: '43007', channel: 'online', priceType: 'shelf', origin: 'list' });
+    expect(b.points.map((p: any) => p.date)).toEqual(['2026-10-01']);
+    expect(b.availableSeries.length).toBe(3);
+    const store = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping/basket?store=Mercadona%20Rambla&postalCode=43003&channel=store`)).json;
+    expect(store.criterion.origin).toBe('query');
+    expect(store.points.map((p: any) => p.totalCents)).toEqual([80]);
+    // La estimación usa la tienda de la lista (43007 online), no el precio más bajo de otra tienda.
+    expect((await api(o.token, 'GET', `/api/trips/${trip.id}/shopping`)).json.estimate.knownCents).toBe(95);
+    const put = await api(o.token, 'PUT', `/api/trips/${trip.id}/shopping/list`, { storeLabel: 'Mercadona Rambla', postalCode: '43003', channel: 'store' });
+    expect(put.status).toBe(200);
+    expect((await api(o.token, 'GET', `/api/trips/${trip.id}/shopping`)).json.estimate.knownCents).toBe(80);
+  });
+
+  it('cobertura parcial sin total; diferencia en € y % contra el anterior comparable; historial por producto', async () => {
+    const { o, trip, leche, pan } = await setup();
+    await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/items`, { name: 'Leche', productId: leche.id, qty: 2 });
+    await api(o.token, 'POST', `/api/trips/${trip.id}/shopping/items`, { name: 'Pan', productId: pan.id, qty: 1 });
+    await price(o.token, leche.id, 100, '2026-10-01'); await price(o.token, pan.id, 150, '2026-10-01');
+    await price(o.token, leche.id, 110, '2026-10-08');
+    await price(o.token, leche.id, 105, '2026-10-15'); await price(o.token, pan.id, 160, '2026-10-15');
+    const b = (await api(o.token, 'GET', `/api/trips/${trip.id}/shopping/basket`)).json;
+    expect(b.points.map((p: any) => [p.date, p.coverage, p.totalCents, p.diffCents, p.diffPct])).toEqual([
+      ['2026-10-01', 1, 350, null, null], ['2026-10-08', 0.5, null, null, null], ['2026-10-15', 1, 370, 20, 5.7]]);
+    const hl = b.products.find((p: any) => p.productId === leche.id);
+    expect(hl.name).toBe('Leche entera Hacendado');
+    expect(hl.points.map((p: any) => p.diffCents)).toEqual([null, 10, -5]);
+  });
+
+  it('CSV de 500 filas se previsualiza y confirma dentro del presupuesto de consultas', async () => {
+    const o = await signup();
+    const p = (await api(o.token, 'POST', '/api/products', { name: 'Agua mineral', format: '1,5 L', ean: '8480000999999' })).json.product;
+    const lines = Array.from({ length: 500 }, (_, i) => `${i % 2 ? p.id : ''},${i % 2 ? '' : '8480000999999'},"0,${String(20 + (i % 70)).padStart(2, '0')}",shelf,Mercadona,43007,store,${new Date(Date.UTC(2026, 0, 1) + i * 86400_000).toISOString().slice(0, 10)}`);
+    const csv = `product_id,ean,amount,price_type,store,postal_code,channel,date\n${lines.join('\n')}\n`;
+    const prev = await api(o.token, 'POST', '/api/prices/import/preview', { csv });
+    expect(prev.status).toBe(200);
+    expect(prev.json.valid).toBe(500);
+    expect(prev.d1).toBeLessThanOrEqual(10);
+    const conf = await api(o.token, 'POST', '/api/prices/import/confirm', { csv });
+    expect(conf.status).toBe(200);
+    expect(conf.json).toMatchObject({ created: 500, duplicates: 0 });
+    expect(conf.d1).toBeLessThanOrEqual(12);
+    expect((await api(o.token, 'POST', '/api/prices/import/confirm', { csv })).json).toMatchObject({ created: 0, duplicates: 500 });
+  });
+});
