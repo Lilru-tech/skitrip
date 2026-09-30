@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+import { dailyCounts, findCandidateWindows, windowStatus, type DayStatus } from '../../src/core/calendar';
+import { addDays, daysBetween, eachDay, isValidDate, seasonFor, weekdayMon0 } from '../../src/core/dates';
+
+const m = (o: Record<string, DayStatus>) => new Map(Object.entries(o));
+
+describe('calendario', () => {
+  it('sin indicar NO es libre', () => {
+    expect(windowStatus(m({ '2026-12-30': 'free' }), '2026-12-30', '2026-12-31')).toBe('unknown');
+  });
+  it('cruza el cambio de año y el cambio de horario sin perder días', () => {
+    expect(eachDay('2026-12-30', '2027-01-02')).toEqual(['2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02']);
+    expect(daysBetween('2027-03-27', '2027-03-29')).toBe(2); // cambio de hora 28/03/2027
+    expect(addDays('2026-10-24', 2)).toBe('2026-10-26');
+    expect(weekdayMon0('2027-01-01')).toBe(4); // viernes
+  });
+  it('temporada diciembre–abril configurable y sin años fijos', () => {
+    expect(seasonFor('2027-02-10')).toEqual({ start: '2026-12-01', end: '2027-04-30' });
+    expect(seasonFor('2026-12-05')).toEqual({ start: '2026-12-01', end: '2027-04-30' });
+    expect(seasonFor('2026-09-30')).toEqual({ start: '2026-12-01', end: '2027-04-30' });
+    expect(isValidDate('2027-02-29')).toBe(false);
+  });
+  const people = [
+    { id: 'ana', days: m({ '2026-12-30': 'free', '2026-12-31': 'free', '2027-01-01': 'free', '2027-01-02': 'free' }) },
+    { id: 'bru', days: m({ '2026-12-30': 'free', '2026-12-31': 'maybe', '2027-01-01': 'free', '2027-01-02': 'busy' }) },
+    { id: 'car', days: m({ '2026-12-30': 'free' }) },
+    { id: 'dan', days: null },
+  ];
+  it('las ventanas incluyen llegada y salida', () => {
+    const w = findCandidateWindows(people, { from: '2026-12-30', to: '2027-01-02', nights: 2, minPeople: 1 });
+    const first = w.find((x) => x.start === '2026-12-30')!;
+    expect(first.end).toBe('2027-01-01');
+    expect(first.free).toEqual(['ana']);
+    expect(first.maybe).toEqual(['bru']);
+    expect(first.unknown).toEqual(['car']);
+    expect(first.hidden).toEqual(['dan']);
+  });
+  it('«todos» exige a todos libres; quizá no se convierte en confirmación', () => {
+    expect(findCandidateWindows(people.slice(0, 2), { from: '2026-12-30', to: '2027-01-02', nights: 1 }).filter((w) => w.meetsWithFree).map((w) => w.start)).toEqual([]);
+    const withMaybe = findCandidateWindows(people.slice(0, 2), { from: '2026-12-30', to: '2027-01-02', nights: 1 });
+    expect(withMaybe.map((w) => w.start)).toContain('2026-12-30');
+    expect(withMaybe.every((w) => !w.meetsWithFree || w.maybe.length === 0)).toBe(true);
+  });
+  it('mínimo de participantes', () => {
+    const w = findCandidateWindows(people, { from: '2026-12-30', to: '2027-01-02', nights: 0, minPeople: 3 });
+    expect(w.filter((x) => x.meetsWithFree).map((x) => x.start)).toEqual(['2026-12-30']);
+  });
+  it('recuentos diarios distinguen sin indicar y no compartido', () => {
+    const d = dailyCounts(people, '2027-01-02', '2027-01-02')[0];
+    expect(d).toMatchObject({ free: 1, busy: 1, unknown: 1, hidden: 1 });
+  });
+});
