@@ -34,6 +34,7 @@ export function Landing() {
           <p>Invita a tus amistades o comparte un enlace. Tu email nunca se muestra a nadie.</p>
         </div>
       </section>
+      <p className="landing-foot small"><Link to="/fuentes">De dónde salen los datos de nieve y ofertas</Link></p>
     </main>
   );
 }

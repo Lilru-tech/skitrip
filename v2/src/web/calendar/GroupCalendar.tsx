@@ -180,4 +180,17 @@ export function WindowsList({ windows, alias, action, emptyHint }: { windows: Ca
   );
 }
 
+/** Explica a quién cuenta el cálculo: quien no comparte no se cuenta (ni como libre ni como ocupado). */
+export function RequirementNote({ data }: { data: CommonResponse }) {
+  const r = data.requirement;
+  if (!r) return null;
+  const who = r.mode === 'min' ? `Se buscan ventanas con al menos ${r.need} ${r.need === 1 ? 'persona disponible' : 'personas disponibles'}.` : `Se buscan ventanas en las que encajen las ${r.need} ${r.need === 1 ? 'persona que comparte' : 'personas que comparten'}.`;
+  return (
+    <p className="requirement-note">
+      <strong>{r.sharing} de {r.total} {r.total === 1 ? 'persona comparte' : 'personas comparten'}</strong>
+      {r.notSharing > 0 && <>; {r.notSharing} no {r.notSharing === 1 ? 'comparte' : 'comparten'} y no se {r.notSharing === 1 ? 'cuenta' : 'cuentan'}</>}. {who}
+    </p>
+  );
+}
+
 export const statusWord = (s: keyof typeof STATUS_LABEL) => STATUS_LABEL[s];

@@ -3,6 +3,7 @@ import { ApiError, del, errorMessage, get, patch, post } from '../api';
 import { ConfirmDialog, Dialog } from '../components/Dialog';
 import { SelectField } from '../components/Field';
 import { Copy } from '../components/Icons';
+import { TripTabs } from '../components/TripTabs';
 import { ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
 import { dayLong, euros, instant, plural, ROLE_LABEL, TRIP_STATUS_LABEL } from '../format';
@@ -190,6 +191,8 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
           {canEdit && <button type="button" className="btn btn-secondary" onClick={openEdit}>Editar</button>}
         </div>
       </div>
+
+      <TripTabs tripId={trip.id} current="resumen" />
 
       <section className="panel" aria-labelledby="info-h">
         <h2 id="info-h" className="visually-hidden">Datos del viaje</h2>

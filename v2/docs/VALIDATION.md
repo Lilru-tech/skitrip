@@ -18,12 +18,12 @@ Fecha: 30/09/2026. Rama `rebuild/v2`. Todo lo que aparece aquí se ha ejecutado 
 | Typecheck (`tsc`) | — | ✔ |
 | Recorrido mínimo (`npm run demo:e2e`): emulador Auth + `wrangler dev` + D1 local | 12 comprobaciones | ✔ |
 
-| Playwright (`npm run e2e`) a 360 px, 390 px y 1280 px contra emulador Auth + Worker + D1 local | 27 (9 por tamaño) | ✔ 27/27 |
-| Build de la SPA (`vite build`) | — | ✔ (405 kB JS, 121 kB gzip; sin scripts ni estilos en línea) |
+| Playwright (`npm run e2e`) a 360 px, 390 px y 1280 px contra emulador Auth + Worker + D1 local | 45 (15 por tamaño) | ✔ 45/45 |
+| Build de la SPA (`vite build`) | — | ✔ (unos 518 kB de JS, la mayor parte el SDK de Firebase; sin scripts ni estilos en línea) |
 
-Recorridos e2e: registro y alias, amistad, compartir, marcar días, crear viaje e invitar, ventana común con ambos libres, proponer y votar fechas; contraseña errónea; ausencia de emails ajenos; sin desbordamiento horizontal en 14 páginas; calendario usable solo con teclado; foco devuelto al cerrar diálogos; patrón semanal con excepción.
+Recorridos e2e: registro y alias, amistad, compartir, marcar días, crear viaje e invitar, ventana común con ambos libres, proponer y votar fechas; gasto de 10 € entre tres con saldos que suman 0; editar y marcar un artículo de la compra y comprobar que persiste; votar y cambiar el voto de una candidatura; filtro de distancia de Comparar (dominios sin duplicar, estaciones sin ruta en su propio grupo); ofertas filtradas por modalidad; contraseña errónea; ausencia de emails ajenos; sin desbordamiento horizontal en 14 páginas; calendario usable solo con teclado; foco devuelto al cerrar diálogos; patrón semanal con excepción.
 
-Sin probar en la interfaz: lector de pantalla real (sí nombres y roles ARIA), restablecimiento de contraseña con Firebase real, acciones de administración de miembros y el diálogo de conflicto de versión (el 409 sí está probado en la API).
+Sin probar en la interfaz: lector de pantalla real (sí nombres y roles ARIA), restablecimiento de contraseña con Firebase real, la página de administración con una cuenta de administrador (sí sus endpoints en la API), acciones de administración de miembros y el diálogo de conflicto de versión (el 409 sí está probado en la API). Comparar no puntúa el coste (el catálogo no tiene coste por estación) ni el après; la página lo indica.
 
 ## Implementado y probado
 

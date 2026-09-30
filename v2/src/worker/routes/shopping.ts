@@ -95,6 +95,8 @@ const zItem = z.object({
   note: z.string().max(300).nullable().optional(),
   assigneeId: zId.nullable().optional(),
 });
+// En zod 4 `.partial()` conserva los valores por defecto: un PATCH sin qty la reiniciaría a 1. Esquema propio sin defaults.
+const zItemPatch = zItem.extend({ qty: z.number().int().min(1).max(999) }).partial();
 
 async function checkAssignee(db: D1Database, tripId: string, assigneeId: string | null | undefined) {
   if (!assigneeId) return;
@@ -132,7 +134,7 @@ shoppingRoutes.patch('/trips/:id/shopping/items/:itemId', async (c) => {
   const tripId = c.req.param('id');
   await requireTripMember(c.env.DB, tripId, me);
   await loadItem(c.env.DB, tripId, c.req.param('itemId'));
-  const b = await parseBody(c, zItem.partial().extend({ bought: z.boolean().optional(), version: z.number().int().positive() }));
+  const b = await parseBody(c, zItemPatch.extend({ bought: z.boolean().optional(), version: z.number().int().positive() }));
   await checkAssignee(c.env.DB, tripId, b.assigneeId);
   if (b.productId && !(await c.env.DB.prepare('SELECT 1 FROM products WHERE id = ?1').bind(b.productId).first())) throw notFound('Producto');
   const map: Record<string, string> = { name: 'name', productId: 'product_id', qty: 'qty', note: 'note', assigneeId: 'assignee_id', bought: 'bought' };

@@ -181,6 +181,11 @@ describe('comentarios', () => {
     expect((await api(a.token, 'GET', '/api/admin/health')).status).toBe(404);
     await env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(a.id).run();
     expect((await api(a.token, 'GET', '/api/admin/health')).status).toBe(200);
+    const b = await signup();
+    await api(a.token, 'POST', `/api/admin/users/${b.id}/block`, { reason: 'prueba' });
+    const blocked = (await api(a.token, 'GET', '/api/admin/users?status=blocked')).json.users;
+    expect(blocked.map((u: any) => u.id)).toContain(b.id);
+    expect(JSON.stringify(blocked)).not.toMatch(/@/);
   });
 
   it('disponibilidad legacy: solo un administrador la asigna y no se copia al calendario', async () => {

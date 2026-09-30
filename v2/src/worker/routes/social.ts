@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { offerPanel } from '../../core/analytics';
 import type { AppEnv } from '../env';
 import { audit, requireTripMember } from '../access';
-import { ApiError, forbidden, newId, notFound, now, parseBody } from '../http';
+import { ApiError, forbidden, newId, notFound, now, parseBody, parseQuery } from '../http';
 import { rateLimit } from '../ratelimit';
 import { zId } from '../schemas';
 
@@ -129,6 +129,15 @@ admin.get('/health', async (c) => {
     users: (users.results as any[])[0], maxProfiles: Number(c.env.MAX_PROFILES) || 50, rows: (sizes.results as any[])[0],
     quotas: { note: 'Workers Free: 100.000 peticiones/día y 10 ms de CPU por petición. D1 Free: 5 M filas leídas y 100.000 escritas al día, 500 MB por base. Al llegar al límite, las peticiones fallan: no se factura.' },
   });
+});
+
+/** Cuentas para moderación (sin emails): permite desbloquear a quien se bloqueó en cualquier sesión. */
+admin.get('/users', async (c) => {
+  const { status } = parseQuery(c, z.object({ status: z.enum(['active', 'blocked']).optional() }));
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, alias, role, status, created_at FROM users WHERE (?1 IS NULL OR status = ?1) ORDER BY alias_norm LIMIT 500`,
+  ).bind(status ?? null).all();
+  return c.json({ users: results });
 });
 
 admin.post('/users/:uid/:action{block|unblock}', async (c) => {

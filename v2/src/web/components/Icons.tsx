@@ -42,3 +42,6 @@ export const ChevronRight = (p: SVGProps<SVGSVGElement>) => (
 export const Copy = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
 );
+export const Bell = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>
+);

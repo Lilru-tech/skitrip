@@ -45,13 +45,14 @@ test('sin desbordamiento horizontal en las páginas principales', async ({ page,
   await expectNoHorizontalOverflow(page, `/calendario con selección (${info.project.name})`);
 });
 
-test('las secciones aún no disponibles lo dicen sin inventar datos', async ({ page, request }) => {
+test('Compra y Comparar no inventan datos', async ({ page, request }) => {
   await loggedIn(page, request);
-  for (const path of ['/comparar', '/compra']) {
-    await page.goto(path);
-    await expect(page.getByText('Sección en construcción')).toBeVisible();
-    await expect(page.locator('main')).not.toContainText('€');
-  }
+  await page.goto('/compra');
+  await expect(page.getByText('No hay precios automáticos de Mercadona')).toBeVisible();
+  await page.goto('/comparar');
+  await expect(page.getByRole('heading', { level: 1, name: 'Comparar' })).toBeVisible();
+  // Sin datos de nieve se muestra «sin dato», nunca 0 km.
+  await expect(page.getByRole('list', { name: 'Estaciones sin distancia por carretera' })).toContainText('sin dato');
 });
 
 test('el calendario se maneja solo con teclado', async ({ page, request }) => {

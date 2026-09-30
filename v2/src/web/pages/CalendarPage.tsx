@@ -8,7 +8,7 @@ import { useProfile } from '../session';
 import type { CommonResponse, FriendsResponse, PublicUser, SharesResponse, Trip } from '../types';
 import { seasons, type Selection } from '../calendar/dates';
 import { MyAvailability } from '../calendar/MyAvailability';
-import { GroupCalendar, Unanswered, WindowsList } from '../calendar/GroupCalendar';
+import { GroupCalendar, RequirementNote, Unanswered, WindowsList } from '../calendar/GroupCalendar';
 import { FiltersForm, type GroupFilters } from '../calendar/Filters';
 
 const TABS = [
@@ -76,7 +76,7 @@ function CommonView({ from, to }: { from: string; to: string }) {
   }, [chosen, friends.data, visible.data, people]);
 
   const aliasMap = useMemo(() => new Map([[me.id, `${me.alias} (tú)`], ...people.map((p) => [p.id, p.alias] as [string, string])]), [people, me]);
-  const alias = (id: string) => aliasMap.get(id) ?? 'Persona';
+  const alias = (id: string) => aliasMap.get(id) ?? data?.people.find((p) => p.id === id)?.alias ?? 'Persona';
   const ids = chosen ? [...chosen].sort().join(',') : null;
 
   const load = async () => {
@@ -102,7 +102,6 @@ function CommonView({ from, to }: { from: string; to: string }) {
     if (n.has(id)) n.delete(id); else n.add(id);
     return n;
   });
-  const hiddenCount = data?.people.filter((p) => !p.shared).length ?? 0;
 
   return (
     <div className="stack">
@@ -130,8 +129,8 @@ function CommonView({ from, to }: { from: string; to: string }) {
         <div className={loading ? 'is-refreshing' : undefined} aria-busy={loading || undefined}>
           <section className="stack" aria-labelledby="win-h">
             <h2 id="win-h">Ventanas candidatas <span className="muted small">(llegada → salida, {filters.nights} noches)</span></h2>
-            <WindowsList windows={data.windows} alias={alias}
-              emptyHint={hiddenCount > 0 && filters.mode === 'all' ? <p>{hiddenCount === 1 ? 'Una persona elegida no comparte' : `${hiddenCount} personas elegidas no comparten`} su calendario contigo: con «Todas» no puede haber ventanas. Usa un mínimo de personas.</p> : null} />
+            <RequirementNote data={data} />
+            <WindowsList windows={data.windows} alias={alias} />
           </section>
           <section className="panel stack" aria-labelledby="ans-h">
             <h2 id="ans-h">Quién falta por responder</h2>

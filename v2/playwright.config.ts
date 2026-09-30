@@ -39,7 +39,7 @@ export default defineConfig({
       stdout: 'ignore',
     },
     {
-      command: `rm -rf ${STATE} && mkdir -p dist && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler dev --local --port 8787 --persist-to ${STATE} --var AUTH_MODE:emulator --var FIREBASE_PROJECT_ID:demo-skitrip --var MAX_PROFILES:100000`,
+      command: `rm -rf ${STATE} && mkdir -p dist && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler d1 execute skitrip --local --persist-to ${STATE} --file test/e2e/seed.sql && npx wrangler dev --local --port 8787 --persist-to ${STATE} --var AUTH_MODE:emulator --var FIREBASE_PROJECT_ID:demo-skitrip --var MAX_PROFILES:100000`,
       url: 'http://localhost:8787/api/health',
       reuseExistingServer: reuse,
       timeout: 180_000,

@@ -1,0 +1,116 @@
+/* SkiTrip v2 — estilos de Comparar, pestañas de viaje, Compra, avisos y administración. */
+
+/* ---------- Cabecera: campana de avisos ---------- */
+.bell-link { margin-left: auto; position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch); border-radius: 999px; color: var(--text); text-decoration: none; flex: none; }
+.bell-link:hover { background: var(--surface-2); }
+.bell-link[aria-current="page"] { color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.bell-link + .profile-link { margin-left: 0; }
+.bell-count { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center; }
+
+.public-main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: var(--space-4) var(--space-4) var(--space-7); }
+.landing-foot { text-align: center; padding: var(--space-5) var(--space-4); }
+
+/* ---------- Utilidades ---------- */
+.h3 { font-size: 1rem; }
+.row-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--border); min-width: 0; }
+.row-between:first-child { border-top: 0; }
+.row-between > span { overflow-wrap: anywhere; min-width: 0; }
+.row-wrap { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.inline-list { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); font-size: 0.875rem; }
+.mono { font-family: var(--font-mono); font-size: 0.85em; overflow-wrap: anywhere; }
+.text-ok { color: var(--st-free-fg); font-weight: 650; }
+.text-bad { color: var(--danger); font-weight: 650; }
+.tag { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.tag-bad { background: var(--danger-soft); color: var(--danger); }
+.is-muted { opacity: 0.78; }
+.textarea { width: 100%; min-height: 88px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-s); background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
+.textarea:focus-visible { border-color: var(--accent); }
+.textarea.mono { font-family: var(--font-mono); font-size: 0.85rem; }
+
+/* Frescura: símbolo + texto, el color solo acompaña. */
+.badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 0 var(--space-2); min-height: 22px; border-radius: var(--radius-s); font-size: 0.8rem; font-weight: 600; max-width: 100%; }
+.badge-fresh { background: var(--st-free-bg); color: var(--st-free-fg); }
+.badge-stale { background: var(--st-maybe-bg); color: var(--st-maybe-fg); }
+.badge-never { background: var(--surface-2); color: var(--text-muted); }
+.badge-time { font-weight: 450; }
+
+/* ---------- Tablas ---------- */
+.table-scroll { max-width: 100%; overflow-x: auto; border-radius: var(--radius-s); }
+.table-scroll:focus-visible { box-shadow: var(--focus); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.data-table th, .data-table td { text-align: left; padding: var(--space-2); border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
+.data-table thead th { font-size: 0.8rem; color: var(--text-muted); font-weight: 650; }
+.data-table.compact th, .data-table.compact td { padding: var(--space-1) var(--space-2); font-size: 0.84rem; }
+.data-table tbody th { font-weight: 600; }
+
+/* ---------- Tarjetas genéricas ---------- */
+.card-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.card-head h2, .card-head h3 { min-width: 0; }
+.panel > .card-list .card { background: var(--bg); }
+
+/* ---------- Pestañas del viaje ---------- */
+.trip-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.trip-tab { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--space-3); border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font-weight: 550; font-size: 0.9rem; }
+.trip-tab:hover { border-color: var(--border-strong); }
+.trip-tab[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+/* ---------- Comparar ---------- */
+.weights { display: flex; flex-direction: column; gap: var(--space-3); }
+.weights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--space-3) var(--space-4); }
+.weights-grid input[type="range"] { width: 100%; min-height: var(--touch); accent-color: var(--accent); padding: 0; border: 0; background: none; }
+.area-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); counter-reset: none; }
+.area-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; overflow-wrap: anywhere; }
+.area-card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.area-card-head h3 { font-family: var(--font-serif); font-size: 1.15rem; min-width: 0; }
+.area-card-head a { color: var(--text); }
+.rank { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.area-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: var(--space-2) var(--space-4); }
+.area-facts dt { font-size: 0.78rem; color: var(--text-muted); font-weight: 650; }
+.area-facts dd { overflow-wrap: anywhere; }
+.members { line-height: 1.7; }
+.score-line { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: 0.9rem; }
+.legacy-ref { font-size: 0.85rem; color: var(--warn-text); background: var(--warn-soft); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); }
+.requirement-note { font-size: 0.92rem; color: var(--text-muted); max-width: 70ch; }
+
+/* ---------- Estación ---------- */
+.offer-row, .source-row { padding: var(--space-3) 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.offer-row:first-child, .source-row:first-child { border-top: 0; }
+.offer-row .data-table { margin-top: var(--space-1); }
+.snow-chart { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.snow-chart svg { width: 100%; height: 120px; background: var(--surface-2); border-radius: var(--radius-s); display: block; }
+.snow-chart .bar { fill: var(--accent); }
+.snow-chart .bar-missing { fill: var(--border-strong); }
+
+/* ---------- Comentarios ---------- */
+.comment-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
+.comment { border-top: 1px solid var(--border); padding-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.comment:first-child { border-top: 0; padding-top: 0; }
+.comment-meta { font-size: 0.84rem; color: var(--text-muted); }
+.comment-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---------- Presupuesto ---------- */
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: var(--space-4); }
+.total-figure { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.budget-row { padding: var(--space-3) 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-1); }
+.budget-row:first-child { border-top: 0; }
+.budget-row-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.budget-amount { margin-left: auto; font-weight: 650; font-variant-numeric: tabular-nums; }
+.warnings { padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--space-1); color: var(--warn-text); }
+
+/* ---------- Candidaturas ---------- */
+.vote-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+
+/* ---------- Gastos ---------- */
+.expense-row { border-top: 1px solid var(--border); padding: var(--space-2) 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.expense-row:first-child { border-top: 0; }
+.expense-row .list-row { border-top: 0; min-height: 0; }
+
+/* ---------- Compra ---------- */
+.shop-row { border-top: 1px solid var(--border); padding: var(--space-2) 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.shop-row:first-child { border-top: 0; }
+.shop-row .check label { min-width: 0; }
+.shop-name { font-weight: 600; }
+.shop-row.is-bought .shop-name { text-decoration: line-through; color: var(--text-muted); }
+.openprices { border-left: 3px solid var(--border-strong); padding-left: var(--space-3); font-size: 0.875rem; }

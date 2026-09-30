@@ -4,7 +4,7 @@ import { authErrorMessage, logout, resetPassword } from '../auth';
 import { Field } from '../components/Field';
 import { useToast } from '../components/Toast';
 import { instantDate } from '../format';
-import { usePageTitle } from '../router';
+import { Link, usePageTitle } from '../router';
 import { useProfile, useSession } from '../session';
 import type { OwnProfile } from '../types';
 import { aliasProblem } from './AuthPages';
@@ -71,6 +71,14 @@ export function ProfilePage() {
           <div><dt>Email</dt><dd>{profile.email ?? '—'} <span className="muted">(privado, solo tú lo ves)</span></dd></div>
           <div><dt>Miembro desde</dt><dd>{instantDate(profile.createdAt)}</dd></div>
         </dl>
+      </section>
+      <section className="panel stack" aria-labelledby="profile-more">
+        <h2 id="profile-more">Más</h2>
+        <ul className="list">
+          <li><Link to="/avisos">Avisos</Link></li>
+          <li><Link to="/fuentes">Fuentes de datos</Link></li>
+          {profile.role === 'admin' && <li><Link to="/admin">Administración</Link></li>}
+        </ul>
       </section>
       <section className="panel stack">
         <h2>Sesión y seguridad</h2>

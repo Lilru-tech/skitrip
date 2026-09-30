@@ -117,6 +117,7 @@ describe('compra y precios', () => {
     expect((await api(b.token, 'PATCH', `/api/trips/${trip.id}/shopping/items/${it1.id}`, { bought: true, version: 1 })).status).toBe(200);
     expect((await api(a.token, 'PATCH', `/api/trips/${trip.id}/shopping/items/${it1.id}`, { qty: 3, version: 1 })).json.error.code).toBe('version_conflict');
     const list = (await api(a.token, 'GET', `/api/trips/${trip.id}/shopping`)).json;
+    expect(list.items.find((i: any) => i.id === it1.id)).toMatchObject({ qty: 2 }); // marcar comprado no reinicia la cantidad
     expect(list.estimate).toMatchObject({ items: 1, priced: 0, unpriced: 1, complete: false });
     const budget = (await api(a.token, 'GET', `/api/trips/${trip.id}/budget`)).json;
     expect(budget.result.pending).toContain('Compra');

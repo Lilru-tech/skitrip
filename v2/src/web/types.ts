@@ -33,8 +33,9 @@ export interface CandidateWindow {
   free: string[]; maybe: string[]; unknown: string[]; busy: string[]; hidden: string[];
   meetsWithFree: boolean; meetsWithMaybe: boolean;
 }
-export interface PersonAvailability { id: string; shared: boolean; days: Record<string, DayStatus> | null }
-export interface CommonResponse { people: PersonAvailability[]; daily: DailyCount[]; windows: CandidateWindow[] }
+export interface PersonAvailability { id: string; alias?: string | null; shared: boolean; days: Record<string, DayStatus> | null }
+export interface Requirement { mode: 'min' | 'all_sharing'; need: number; total: number; sharing: number; notSharing: number }
+export interface CommonResponse { people: PersonAvailability[]; daily: DailyCount[]; windows: CandidateWindow[]; requirement?: Requirement }
 export interface Proposal {
   id: string; start_date: string; end_date: string; proposed_by: string; proposed_by_alias: string;
   votes: { userId: string; value: 'yes' | 'maybe' | 'no' }[];

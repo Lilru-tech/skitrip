@@ -3,19 +3,22 @@ import { useState, type FormEvent } from 'react';
 import { Field, SelectField } from '../components/Field';
 import { TRIP_STATUS_LABEL } from '../format';
 import type { Trip, TripStatus } from '../types';
+import { get } from '../api';
+import { useResource } from '../hooks';
+import type { Catalog } from '../catalog';
 
 export interface TripFormValues {
   name: string; startDate: string; endDate: string; nights: string; participantsPlanned: string; budgetEuros: string;
-  status: TripStatus; membersCanInvite: boolean;
+  status: TripStatus; membersCanInvite: boolean; cars: string; skiDays: string; areaId: string;
 }
 
-export const emptyTripForm = (): TripFormValues => ({ name: '', startDate: '', endDate: '', nights: '', participantsPlanned: '', budgetEuros: '', status: 'planning', membersCanInvite: false });
+export const emptyTripForm = (): TripFormValues => ({ name: '', startDate: '', endDate: '', nights: '', participantsPlanned: '', budgetEuros: '', status: 'planning', membersCanInvite: false, cars: '', skiDays: '', areaId: '' });
 
 export const tripToForm = (t: Trip): TripFormValues => ({
   name: t.name, startDate: t.startDate ?? '', endDate: t.endDate ?? '', nights: t.nights?.toString() ?? '',
   participantsPlanned: t.participantsPlanned?.toString() ?? '',
   budgetEuros: t.budgetCents != null ? (t.budgetCents / 100).toString().replace('.', ',') : '',
-  status: t.status, membersCanInvite: t.membersCanInvite,
+  status: t.status, membersCanInvite: t.membersCanInvite, cars: t.cars?.toString() ?? '', skiDays: t.skiDays?.toString() ?? '', areaId: t.areaId ?? '',
 });
 
 const int = (s: string) => (s.trim() === '' ? null : Number.parseInt(s, 10));
@@ -30,6 +33,7 @@ export function formToPayload(v: TripFormValues, includeOwnerFields: boolean) {
   const p: Record<string, unknown> = {
     name: v.name.trim(), startDate: v.startDate || null, endDate: v.endDate || null, nights: int(v.nights),
     participantsPlanned: int(v.participantsPlanned), budgetCents: cents(v.budgetEuros), status: v.status,
+    cars: int(v.cars), skiDays: int(v.skiDays), areaId: v.areaId || null,
   };
   if (includeOwnerFields) p.membersCanInvite = v.membersCanInvite;
   return p;
@@ -44,6 +48,10 @@ export function validateTripForm(v: TripFormValues): string | null {
   if (n !== null && (Number.isNaN(n) || n < 0 || n > 60)) return 'Las noches deben ser un número entre 0 y 60.';
   const pp = int(v.participantsPlanned);
   if (pp !== null && (Number.isNaN(pp) || pp < 1 || pp > 60)) return 'Las personas previstas deben ser entre 1 y 60.';
+  const cs = int(v.cars);
+  if (cs !== null && (Number.isNaN(cs) || cs < 0 || cs > 20)) return 'Los coches deben ser entre 0 y 20.';
+  const sd = int(v.skiDays);
+  if (sd !== null && (Number.isNaN(sd) || sd < 0 || sd > 60)) return 'Los días de esquí deben ser entre 0 y 60.';
   return null;
 }
 
@@ -51,7 +59,7 @@ export function validateTripForm(v: TripFormValues): string | null {
 export function diffForms(mine: TripFormValues, latest: TripFormValues): string[] {
   const labels: Record<keyof TripFormValues, string> = {
     name: 'Nombre', startDate: 'Ida', endDate: 'Vuelta', nights: 'Noches', participantsPlanned: 'Personas previstas', budgetEuros: 'Presupuesto (€)',
-    status: 'Estado', membersCanInvite: 'Miembros pueden invitar',
+    status: 'Estado', membersCanInvite: 'Miembros pueden invitar', cars: 'Coches', skiDays: 'Días de esquí', areaId: 'Estación',
   };
   return (Object.keys(labels) as (keyof TripFormValues)[])
     .filter((k) => mine[k] !== latest[k])
@@ -69,6 +77,7 @@ interface Props {
 
 export function TripForm({ id, values: v, onChange, onSubmit, showStatus, showOwnerFields }: Props) {
   const [touched, setTouched] = useState(false);
+  const areas = useResource(() => get<Catalog>('/api/public/catalog'), []);
   const set = <K extends keyof TripFormValues>(k: K, val: TripFormValues[K]) => onChange({ ...v, [k]: val });
   const submit = (e: FormEvent) => { e.preventDefault(); setTouched(true); onSubmit(); };
   return (
@@ -80,6 +89,13 @@ export function TripForm({ id, values: v, onChange, onSubmit, showStatus, showOw
       <Field label="Noches" type="number" inputMode="numeric" min={0} max={60} value={v.nights} onChange={(e) => set('nights', e.target.value)} hint="Para buscar ventanas en el calendario" />
       <Field label="Personas previstas" type="number" inputMode="numeric" min={1} max={60} value={v.participantsPlanned} onChange={(e) => set('participantsPlanned', e.target.value)} />
       <Field label="Presupuesto por persona (€)" inputMode="decimal" value={v.budgetEuros} onChange={(e) => set('budgetEuros', e.target.value)} hint="Opcional, en euros" />
+      <Field label="Días de esquí" type="number" inputMode="numeric" min={0} max={60} value={v.skiDays} onChange={(e) => set('skiDays', e.target.value)} hint="Para forfait y alquiler" />
+      <Field label="Coches" type="number" inputMode="numeric" min={0} max={20} value={v.cars} onChange={(e) => set('cars', e.target.value)} hint="Para combustible, peajes y parking" />
+      <SelectField label="Estación" value={v.areaId} onChange={(e) => set('areaId', e.target.value)} hint="Para la distancia por carretera del presupuesto">
+        <option value="">Sin decidir</option>
+        {(areas.data?.areas ?? []).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        {v.areaId && !areas.data?.areas.some((a) => a.id === v.areaId) && <option value={v.areaId}>{v.areaId}</option>}
+      </SelectField>
       {showStatus && (
         <SelectField label="Estado" value={v.status} onChange={(e) => set('status', e.target.value as TripStatus)}>
           {(Object.keys(TRIP_STATUS_LABEL) as TripStatus[]).map((s) => <option key={s} value={s}>{TRIP_STATUS_LABEL[s]}</option>)}

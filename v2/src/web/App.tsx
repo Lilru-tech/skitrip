@@ -15,7 +15,17 @@ import { TripDetailPage } from './pages/TripDetail';
 import { TripCalendarPage } from './pages/TripCalendar';
 import { CalendarPage } from './pages/CalendarPage';
 import { JoinPage } from './pages/Join';
-import { ComingSoon } from './pages/ComingSoon';
+import { ComparePage } from './pages/Compare';
+import { AreaPage } from './pages/Area';
+import { SourcesPage } from './pages/Sources';
+import { ShoppingPage } from './pages/Shopping';
+import { NotificationsBell, NotificationsPage } from './pages/Notifications';
+import { AdminPage } from './pages/Admin';
+import { TripBudgetPage } from './pages/TripBudget';
+import { TripCandidatesPage } from './pages/TripCandidates';
+import { TripSearchesPage } from './pages/TripSearches';
+import { TripExpensesPage } from './pages/TripExpenses';
+import { TripCommentsPage } from './pages/TripComments';
 
 export function App() {
   return (
@@ -42,6 +52,8 @@ export function Wordmark() {
 }
 
 const PUBLIC_PATHS = ['/', '/entrar', '/registro', '/recuperar'];
+/** Páginas visibles también sin sesión, pero que no redirigen a la app al entrar. */
+const OPEN_PATHS = ['/fuentes'];
 
 function Root() {
   const { state } = useSession();
@@ -54,7 +66,7 @@ function Root() {
       try { next = sessionStorage.getItem('skitrip.next'); sessionStorage.removeItem('skitrip.next'); } catch { /* sin almacenamiento */ }
       navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : '/viajes', { replace: true });
     }
-    if (state.status === 'anonymous' && !PUBLIC_PATHS.includes(path)) {
+    if (state.status === 'anonymous' && !PUBLIC_PATHS.includes(path) && !OPEN_PATHS.includes(path)) {
       try { sessionStorage.setItem('skitrip.next', path + location.search + location.hash); } catch { /* sin almacenamiento */ }
       navigate('/entrar', { replace: true });
     }
@@ -65,7 +77,7 @@ function Root() {
   if (state.status === 'anonymous') {
     return (
       <PublicShell>
-        {path === '/entrar' ? <LoginPage /> : path === '/registro' ? <SignupPage /> : path === '/recuperar' ? <ResetPage /> : <Landing />}
+        {path === '/fuentes' ? <main id="main" className="public-main"><SourcesPage /></main> : path === '/entrar' ? <LoginPage /> : path === '/registro' ? <SignupPage /> : path === '/recuperar' ? <ResetPage /> : <Landing />}
       </PublicShell>
     );
   }
@@ -106,19 +118,29 @@ function AppShell({ path }: { path: string }) {
     window.scrollTo(0, 0);
   }, [path]);
   const alias = state.status === 'ready' ? state.profile.alias : '';
-  const section = '/' + (path.split('/')[1] ?? '');
+  const rawSection = '/' + (path.split('/')[1] ?? '');
+  const section = rawSection === '/estaciones' ? '/comparar' : rawSection;
 
   let page: React.ReactNode;
   let p: Record<string, string> | null;
   if ((p = match('/viajes/:id/calendario', path))) page = <TripCalendarPage key={p.id} tripId={p.id} />;
+  else if ((p = match('/viajes/:id/presupuesto', path))) page = <TripBudgetPage key={p.id} tripId={p.id} />;
+  else if ((p = match('/viajes/:id/candidaturas', path))) page = <TripCandidatesPage key={p.id} tripId={p.id} />;
+  else if ((p = match('/viajes/:id/busquedas', path))) page = <TripSearchesPage key={p.id} tripId={p.id} />;
+  else if ((p = match('/viajes/:id/gastos', path))) page = <TripExpensesPage key={p.id} tripId={p.id} />;
+  else if ((p = match('/viajes/:id/comentarios', path))) page = <TripCommentsPage key={p.id} tripId={p.id} />;
   else if ((p = match('/viajes/:id', path))) page = <TripDetailPage key={p.id} tripId={p.id} />;
   else if (match('/viajes', path)) page = <TripsPage />;
   else if (match('/calendario', path)) page = <CalendarPage />;
   else if (match('/amigos', path)) page = <FriendsPage />;
   else if (match('/perfil', path)) page = <ProfilePage />;
   else if (match('/unirse', path)) page = <JoinPage />;
-  else if (match('/comparar', path)) page = <ComingSoon title="Comparar" what="comparar estaciones, nieve, alojamiento y precios para elegir destino" />;
-  else if (match('/compra', path)) page = <ComingSoon title="Compra" what="preparar la lista de la compra del viaje y repartir los gastos" />;
+  else if (match('/comparar', path)) page = <ComparePage />;
+  else if ((p = match('/estaciones/:id', path))) page = <AreaPage key={p.id} areaId={p.id} />;
+  else if (match('/fuentes', path)) page = <SourcesPage />;
+  else if (match('/compra', path)) page = <ShoppingPage />;
+  else if (match('/avisos', path)) page = <NotificationsPage />;
+  else if (match('/admin', path)) page = <AdminPage />;
   else page = <NotFound />;
 
   return (
@@ -132,6 +154,7 @@ function AppShell({ path }: { path: string }) {
               <Link key={n.to} to={n.to} className="top-nav-link" aria-current={section === n.to ? 'page' : undefined}>{n.label}</Link>
             ))}
           </nav>
+          <NotificationsBell path={path} />
           <Link to="/perfil" className="profile-link" aria-current={section === '/perfil' ? 'page' : undefined} aria-label={`Tu perfil: ${alias}`}>
             <UserIcon /><span className="profile-alias">{alias}</span>
           </Link>

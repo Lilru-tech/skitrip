@@ -9,8 +9,9 @@ import { Link, usePageTitle } from '../router';
 import { useProfile } from '../session';
 import type { CandidateWindow, Proposal, SharesResponse, TripCalendarResponse, TripDetail } from '../types';
 import { daysBetween, seasons, type Selection } from '../calendar/dates';
-import { GroupCalendar, Unanswered, WindowsList } from '../calendar/GroupCalendar';
+import { GroupCalendar, RequirementNote, Unanswered, WindowsList } from '../calendar/GroupCalendar';
 import { FiltersForm, type GroupFilters } from '../calendar/Filters';
+import { TripTabs } from '../components/TripTabs';
 
 const VOTE_LABEL = { yes: 'Sí', maybe: 'Quizá', no: 'No' } as const;
 type Vote = keyof typeof VOTE_LABEL;
@@ -125,7 +126,6 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
     );
   };
 
-  const hiddenCount = data?.people.filter((p) => !p.shared).length ?? 0;
 
   return (
     <div className="page page-wide">
@@ -139,6 +139,8 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
           </select>
         </div>
       </div>
+
+      <TripTabs tripId={tripId} current="calendario" />
 
       {sharingHere === false && (
         <div className="notice notice-info cluster">
@@ -161,8 +163,8 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
         <div className={loading ? 'is-refreshing' : undefined} aria-busy={loading || undefined}>
           <section className="stack" aria-labelledby="w-h">
             <h2 id="w-h">Ventanas candidatas <span className="muted small">(llegada → salida, {filters?.nights} noches)</span></h2>
-            <WindowsList windows={data.windows} alias={alias} action={windowAction}
-              emptyHint={hiddenCount > 0 && filters?.mode === 'all' ? <p>{plural(hiddenCount, 'miembro no comparte', 'miembros no comparten')} su calendario contigo: con «Todas» no puede haber ventanas. Usa un mínimo de personas.</p> : null} />
+            <RequirementNote data={data} />
+            <WindowsList windows={data.windows} alias={alias} action={windowAction} />
           </section>
 
           <section className="panel stack" aria-labelledby="p-h">
