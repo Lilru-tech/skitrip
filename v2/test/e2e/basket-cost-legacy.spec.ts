@@ -68,12 +68,12 @@ test('comparar coste: la opción completa tiene posición y la incompleta no', a
   await page.goto(`/viajes/${trip.id}/presupuesto`);
   const ranked = page.getByRole('list', { name: 'Candidaturas completas por coste' });
   const incomplete = page.getByRole('list', { name: 'Candidaturas con presupuesto incompleto' });
-  await expect(ranked.getByRole('listitem')).toHaveCount(1);
+  await expect(ranked.locator(':scope > li')).toHaveCount(1);
   await expect(ranked).toContainText('1. Apartamento completo');
   await expect(ranked).toContainText('250,00 €/persona');
   await expect(ranked).toContainText('190 km por carretera');
   await expect(ranked).toContainText('cotización válida para el viaje');
-  const inc = incomplete.getByRole('listitem');
+  const inc = incomplete.locator(':scope > li'); // tarjetas (los avisos de cada tarjeta son una lista anidada)
   await expect(inc).toHaveCount(1);
   await expect(inc).toContainText('Hotel sin precio');
   await expect(inc).toContainText('Incompleto: falta Alojamiento');
@@ -82,6 +82,37 @@ test('comparar coste: la opción completa tiene posición y la incompleta no', a
   await expect(inc).not.toContainText(/^\d+\./);
   await expect(inc.locator('[data-rank]')).toHaveCount(0);
   await expectNoHorizontalOverflow(page, `comparar coste (${info.project.name})`);
+});
+
+test('comparar coste: cada candidatura en su estación sin cambiar el viaje; forfait de otra estación pendiente', async ({ page, request }, info) => {
+  const { token } = await loggedIn(page, request, 'cdx');
+  const start = future(50), end = future(52);
+  const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Coste en varias estaciones', startDate: start, endDate: end, participantsPlanned: 2, skiDays: 2, rooms: 1, areaId: 'e2e-dominio', cars: 0 });
+  const cond = { unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1 };
+  await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Hotel en Alfa', modality: 'lodging', amountCents: 40000, areaId: 'e2e-dominio', forfaitIncluded: 'no', ...cond });
+  await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Paquete en Beta', modality: 'lodging_forfait', amountCents: 50000, areaId: 'e2e-beta', forfaitIncluded: 'yes', forfaitDays: 2, ...cond });
+  await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Hotel en Gamma', modality: 'lodging', amountCents: 30000, areaId: 'e2e-lejana', forfaitIncluded: 'no', ...cond });
+  const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
+  await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0 });
+
+  await page.goto(`/viajes/${trip.id}/presupuesto`);
+  const ranked = page.getByRole('list', { name: 'Candidaturas completas por coste' });
+  await expect(ranked.locator(':scope > li')).toHaveCount(2);
+  await expect(ranked.locator(':scope > li').nth(0)).toContainText('1. Paquete en Beta');
+  await expect(ranked.locator(':scope > li').nth(0)).toContainText('250,00 €/persona');
+  await expect(ranked.locator(':scope > li').nth(0)).toContainText('hipotético');
+  await expect(ranked.locator(':scope > li').nth(1)).toContainText('2. Hotel en Alfa');
+  await expect(ranked.locator(':scope > li').nth(1)).toContainText('280,00 €/persona');
+  await expect(ranked.locator(':scope > li').nth(1)).not.toContainText('hipotético');
+  const inc = page.getByRole('list', { name: 'Candidaturas con presupuesto incompleto' }).locator(':scope > li');
+  await expect(inc).toHaveCount(1);
+  await expect(inc).toContainText('Hotel en Gamma');
+  await expect(inc).toContainText('Incompleto: falta Forfait');
+  await expect(inc).toContainText('hipotético');
+  await expect(inc).toContainText('el viaje tiene otro destino y no se modifica');
+  // El presupuesto del viaje sigue en su destino.
+  expect((await apiAs(request, token, 'GET', `/api/trips/${trip.id}`)).trip.areaId).toBe('e2e-dominio');
+  await expectNoHorizontalOverflow(page, `comparar coste en varias estaciones (${info.project.name})`);
 });
 
 test('compra de la hoja antigua: se recupera con producto exacto y repetir no duplica', async ({ page, request }, info) => {

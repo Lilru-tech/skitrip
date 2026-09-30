@@ -4,9 +4,16 @@ import { defineConfig } from '@playwright/test';
 // Worker en workerd con D1 local (8787) y Vite (5173). Sin servicios de terceros.
 // La D1 de E2E vive aparte (test/e2e/.state) y se recrea en cada ejecución, para no tocar
 // la base de desarrollo ni agotar MAX_PROFILES.
-const CHROME = process.env.PW_CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+//
+// Configuración explícita y sin secretos (test/e2e/env.ts): no se lee nada de .dev.vars ni de otros archivos ignorados.
+// Con CI=1 no se reutiliza ningún servidor ya arrancado (si un puerto está ocupado, la ejecución falla).
+// Chromium: el que instala `npx playwright install chromium`; PW_CHROMIUM_PATH solo si hay que usar otro binario.
+import { E2E_WORKER_VARS } from './test/e2e/env';
+
+const CHROME = process.env.PW_CHROMIUM_PATH || undefined;
 const STATE = 'test/e2e/.state';
 const reuse = !process.env.CI;
+const vars = Object.entries(E2E_WORKER_VARS).map(([k, v]) => `--var ${k}:${v}`).join(' ');
 
 export default defineConfig({
   testDir: 'test/e2e',
@@ -23,7 +30,7 @@ export default defineConfig({
     timezoneId: 'Europe/Madrid',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    launchOptions: { executablePath: CHROME },
+    launchOptions: CHROME ? { executablePath: CHROME } : {},
   },
   projects: [
     { name: 'mobile-360', use: { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
@@ -39,7 +46,7 @@ export default defineConfig({
       stdout: 'ignore',
     },
     {
-      command: `rm -rf ${STATE} && mkdir -p dist && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler d1 execute skitrip --local --persist-to ${STATE} --file test/e2e/seed.sql && npx wrangler dev --local --port 8787 --persist-to ${STATE} --var AUTH_MODE:emulator --var FIREBASE_PROJECT_ID:demo-skitrip --var MAX_PROFILES:100000`,
+      command: `rm -rf ${STATE} && mkdir -p dist && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler d1 execute skitrip --local --persist-to ${STATE} --file test/e2e/seed.sql && npx wrangler dev --local --port 8787 --persist-to ${STATE} ${vars}`,
       url: 'http://localhost:8787/api/health',
       reuseExistingServer: reuse,
       timeout: 180_000,

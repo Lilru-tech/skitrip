@@ -28,7 +28,9 @@ INSERT INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fi
   ('e2e-dominio-snow', 'e2e-dominio', 'e2e-dominio', 'snow', 'official', 'https://example.invalid/alfa', 'html', '["open_km","total_km"]', 10, 'verified', '2026-09-01', 'Fuente sintética.', 'e2e'),
   ('e2e-beta-snow', 'e2e-beta', 'e2e-beta', 'snow', 'official', 'https://example.invalid/beta', 'html', '["open_km","total_km"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
   ('e2e-lejana-snow', 'e2e-lejana', 'e2e-lejana', 'snow', 'official', 'https://example.invalid/gamma', 'html', '["open_km","total_km","source_date"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
-  ('e2e-beta-offers', 'e2e-beta', 'e2e-beta', 'offers', 'esquiades', 'https://example.invalid/ofertas', 'html', '["price"]', 20, 'broken', '2026-09-01', 'Adaptador roto (sintético).', 'e2e');
+  ('e2e-beta-offers', 'e2e-beta', 'e2e-beta', 'offers', 'esquiades', 'https://example.invalid/ofertas', 'html', '["price"]', 20, 'broken', '2026-09-01', 'Adaptador roto (sintético).', 'e2e'),
+  -- Fuente de ofertas para el recorrido de avisos (extracción → ingesta → aviso → «Marcar todos»).
+  ('e2e-alfa-sur-offers', 'e2e-alfa-sur', 'e2e-alfa-sur', 'offers', 'estiber', 'https://example.invalid/ofertas-alfa', 'html', '["price"]', 20, 'unverified', '2026-09-01', 'Fuente sintética.', 'estiber-cards');
 
 INSERT INTO source_health (source_id, last_attempt_at, last_success_at, last_status, last_error, consecutive_fail) VALUES
   ('e2e-dominio-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, 'ok', NULL, 0),

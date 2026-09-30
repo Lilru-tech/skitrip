@@ -36,10 +36,10 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      # Configuración local aislada y sin secretos en v2/test/e2e/env.ts (orígenes locales, emulador, credencial de
+      # ingesta de prueba). No usa .dev.vars. CI=1: servidores nuevos, D1 de pruebas recreada en test/e2e/.state.
       - name: E2E (360 px, 390 px y escritorio)
-        run: |
-          export PW_CHROMIUM_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
-          npx playwright test
+        run: test ! -e .dev.vars && npx playwright test
         env:
           CI: '1'
       - if: failure()
