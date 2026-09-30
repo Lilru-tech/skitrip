@@ -435,7 +435,8 @@ describe('7 · fuente oficial de nieve (Grandvalira) con texto real', () => {
     const row = await env.DB.prepare('SELECT op_status, open_km, total_km, open_lifts, source_date FROM snow_observations WHERE source_id = ?1').bind('rv-gv-off').first<any>();
     expect(row).toEqual({ op_status: 'unknown', open_km: 0, total_km: 215, open_lifts: 4, source_date: '2026-09-23' });
     const cat = await SELF.fetch('http://localhost/api/public/catalog').then((x) => x.json<any>());
-    expect(cat.areas.find((a: any) => a.id === 'rv-gv').snow.rank.excluded).toBe('estado_desconocido');
+    // El extracto real es un parte del 23/09/2026: además de estado desconocido, es un parte antiguo (revisión final 3).
+    expect(cat.areas.find((a: any) => a.id === 'rv-gv').snow.rank).toMatchObject({ openKm: null, excluded: 'parte_antiguo' });
   });
 });
 

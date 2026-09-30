@@ -103,3 +103,42 @@ describe('presupuesto: condiciones exactas', () => {
     expect(r.perPersonCents).toBeNull();
   });
 });
+
+describe('revisión final 4 · condiciones que no se pueden dar por comprobadas', () => {
+  const trip: BudgetInput = { ...base, people: 2, skiers: 2, renters: 0, cars: 0, groceriesCents: 0,
+    trip: { startDate: '2027-01-15', endDate: '2027-01-17', areaId: 'a', adults: 2, childrenAges: [], rooms: null },
+    lodging: { modality: 'lodging', forfaitIncluded: 'no', amountCents: 10000, unit: 'per_person', priceKind: 'user_quote',
+      checkIn: '2027-01-15', checkOut: '2027-01-17', adults: 2, childrenAges: [], rooms: null, areaId: 'a', forfaitDays: null } };
+  const lodging = (i: BudgetInput) => computeBudget(i).components.find((c) => c.key === 'lodging')!;
+
+  it('el viaje pide dos habitaciones y la cotización no dice cuántas: pendiente', () => {
+    const l = lodging({ ...trip, trip: { ...trip.trip!, rooms: 2 } });
+    expect(l.status).toBe('pending');
+    expect(l.comparison!.unknown.join(' ')).toMatch(/habitaciones de la cotización/);
+  });
+  it('control: ninguna parte fija habitaciones y el precio es por persona → conocido; ambas coinciden → conocido', () => {
+    expect(lodging(trip)).toMatchObject({ status: 'known', totalCents: 20000 });
+    expect(lodging({ ...trip, trip: { ...trip.trip!, rooms: 2 }, lodging: { ...trip.lodging!, rooms: 2 } })).toMatchObject({ status: 'known', totalCents: 20000 });
+  });
+  it('la cotización fija habitaciones y el viaje no: pendiente hasta indicarlas en el viaje', () => {
+    const l = lodging({ ...trip, lodging: { ...trip.lodging!, rooms: 1 } });
+    expect(l.status).toBe('pending');
+    expect(l.comparison!.unknown.join(' ')).toMatch(/habitaciones del viaje/);
+  });
+  it('paquete con 2 días de forfait y viaje sin días de esquí: no está completo', () => {
+    const pkg: BudgetInput = { ...trip, skiDays: null, lodging: { ...trip.lodging!, modality: 'lodging_forfait', forfaitIncluded: 'yes', forfaitDays: 2 } };
+    const r = computeBudget(pkg);
+    expect(r.complete).toBe(false);
+    expect(r.components.find((c) => c.key === 'lodging')!.comparison!.unknown.join(' ')).toMatch(/días de esquí del viaje/);
+    expect(computeBudget({ ...pkg, skiDays: 2 }).complete).toBe(true); // control compatible
+  });
+  it('menores: la cotización no los declara → pendiente, también si el viaje no tiene menores', () => {
+    expect(lodging({ ...trip, lodging: { ...trip.lodging!, childrenAges: null } }).comparison!.unknown.join(' ')).toMatch(/menores de la cotización/);
+    expect(lodging({ ...trip, trip: { ...trip.trip!, childrenAges: [8] }, lodging: { ...trip.lodging!, childrenAges: null } }).status).toBe('pending');
+  });
+  it('se mantiene la estimación manual aparte aunque falten condiciones', () => {
+    const l = lodging({ ...trip, trip: { ...trip.trip!, rooms: 2 }, lodging: { ...trip.lodging!, priceKind: 'manual_estimate' } });
+    expect(l.status).toBe('estimated');
+    expect(l.note).toMatch(/Sin comprobar: .*habitaciones/);
+  });
+});

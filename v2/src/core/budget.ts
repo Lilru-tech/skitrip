@@ -79,11 +79,16 @@ export function compareQuote(i: Pick<BudgetInput, 'nights' | 'skiDays'> & { trip
   else if (t?.adults == null) unknown.push('adultos del viaje');
   else if (q.adults !== t.adults) issues.push(`la cotización es para ${q.adults} adulto(s) y el viaje tiene ${t.adults}`);
   const tripKids = t?.childrenAges ?? [];
-  if (q.childrenAges == null) { if (tripKids.length) unknown.push('menores de la cotización'); }
+  // Que la cotización no mencione menores no prueba que sea para un grupo sin menores.
+  if (q.childrenAges == null) unknown.push('menores de la cotización');
   else if (agesKey(q.childrenAges) !== agesKey(tripKids)) issues.push(`menores distintos (cotización: ${q.childrenAges.length ? q.childrenAges.join(', ') + ' años' : 'ninguno'}; viaje: ${tripKids.length ? tripKids.join(', ') + ' años' : 'ninguno'})`);
-  // Habitaciones: importan si la cotización o el viaje las fijan, o si el precio es por habitación.
-  if (q.rooms != null && t?.rooms != null && q.rooms !== t.rooms) issues.push(`la cotización es para ${q.rooms} habitación(es) y el viaje prevé ${t.rooms}`);
-  else if (q.unit === 'per_room' && (q.rooms == null || t?.rooms == null)) unknown.push('habitaciones');
+  // Habitaciones: si una parte fija una distribución, la otra tiene que declararla; si ninguna la fija, solo importa
+  // cuando el precio es por habitación.
+  const tRooms = t?.rooms ?? null;
+  if (q.rooms != null && tRooms != null) { if (q.rooms !== tRooms) issues.push(`la cotización es para ${q.rooms} habitación(es) y el viaje prevé ${tRooms}`); }
+  else if (tRooms != null) unknown.push(`habitaciones de la cotización (el viaje pide ${tRooms})`);
+  else if (q.rooms != null) unknown.push(`habitaciones del viaje (la cotización es para ${q.rooms})`);
+  else if (q.unit === 'per_room') unknown.push('habitaciones');
   // Destino.
   if (q.areaId && t?.areaId && q.areaId !== t.areaId) issues.push('la cotización es de otro destino');
   else if (!q.areaId || !t?.areaId) unknown.push('destino');
@@ -92,7 +97,8 @@ export function compareQuote(i: Pick<BudgetInput, 'nights' | 'skiDays'> & { trip
   if (forfait === 'unknown') unknown.push('si incluye forfait');
   if (forfait === 'yes') {
     if (q.forfaitDays == null) unknown.push('días de forfait');
-    else if (i.skiDays != null && q.forfaitDays !== i.skiDays) issues.push(`el paquete incluye ${q.forfaitDays} día(s) de forfait y planeáis ${i.skiDays}`);
+    else if (i.skiDays == null) unknown.push(`días de esquí del viaje (el paquete incluye ${q.forfaitDays})`);
+    else if (q.forfaitDays !== i.skiDays) issues.push(`el paquete incluye ${q.forfaitDays} día(s) de forfait y planeáis ${i.skiDays}`);
   }
   return { status: issues.length ? 'incompatible' : unknown.length ? 'incomplete' : 'compatible', issues, unknown };
 }
