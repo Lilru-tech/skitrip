@@ -489,3 +489,32 @@ describe('revisión final 3 · parte antiguo re-descargado hoy', () => {
     expect(b).toMatchObject({ sourceId: 'rv-sd2-agg', openKm: 60, rank: { openKm: 60, excluded: null } });
   });
 });
+
+describe('revisión final 5 · marcar avisos como leídos en lote', () => {
+  const seed = async (userId: string, n: number, prefix: string) => {
+    const rows = Array.from({ length: n }, (_, i) => ({ id: `${prefix}-${i}`, key: `${prefix}-k${i}` }));
+    await env.DB.prepare(`INSERT INTO notifications (id, user_id, kind, dedupe_key, payload, created_at)
+      SELECT json_extract(value,'$.id'), ?1, 'price_change', json_extract(value,'$.key'), '{}', ?2 FROM json_each(?3)`).bind(userId, Date.now(), JSON.stringify(rows)).run();
+    return rows.map((r) => r.id);
+  };
+  const unread = async (userId: string) => (await env.DB.prepare('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ?1 AND read_at IS NULL').bind(userId).first<{ n: number }>())!.n;
+
+  it('50 y 100 IDs en consultas fijas; repetidos, ajenos y lista vacía no fallan ni tocan avisos de otros', async () => {
+    const a = await signup(); const b = await signup();
+    const mine = await seed(a.id, 100, `rv-na-${a.id}`);
+    const theirs = await seed(b.id, 5, `rv-nb-${b.id}`);
+    const r50 = await api(a.token, 'POST', '/api/notifications/read', { ids: mine.slice(0, 50) });
+    expect(r50.status).toBe(200);
+    expect(r50.json).toMatchObject({ updated: 50 });
+    expect(await unread(a.id)).toBe(50);
+    const r100 = await api(a.token, 'POST', '/api/notifications/read', { ids: [...mine.slice(40, 90), ...mine.slice(40, 90)] });
+    expect(r100.status).toBe(200);
+    expect(r100.json.updated).toBe(40); // 40–49 ya leídos; repetidos cuentan una vez
+    expect(r100.d1).toBe(r50.d1);
+    const other = await api(a.token, 'POST', '/api/notifications/read', { ids: [...theirs, ...mine.slice(90)] });
+    expect(other.json.updated).toBe(10);
+    expect(await unread(b.id)).toBe(5);
+    expect((await api(a.token, 'POST', '/api/notifications/read', { ids: [] })).status).toBe(200);
+    expect(await unread(a.id)).toBe(0);
+  });
+});

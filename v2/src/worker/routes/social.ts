@@ -72,9 +72,11 @@ socialRoutes.get('/notifications', async (c) => {
 socialRoutes.post('/notifications/read', async (c) => {
   const { ids } = await parseBody(c, z.object({ ids: z.array(zId).max(100) }));
   const me = c.get('user').id;
-  const stmts = ids.map((id) => c.env.DB.prepare('UPDATE notifications SET read_at = ?1 WHERE id = ?2 AND user_id = ?3 AND read_at IS NULL').bind(now(), id, me));
-  if (stmts.length) await c.env.DB.batch(stmts);
-  return c.json({ ok: true });
+  // Una sola sentencia para cualquier número de IDs; solo avisos propios y aún sin leer.
+  if (!ids.length) return c.json({ ok: true, updated: 0 });
+  const r = await c.env.DB.prepare('UPDATE notifications SET read_at = ?1 WHERE user_id = ?2 AND read_at IS NULL AND id IN (SELECT value FROM json_each(?3))')
+    .bind(now(), me, JSON.stringify([...new Set(ids)])).run();
+  return c.json({ ok: true, updated: r.meta.changes ?? 0 });
 });
 
 // ---------- Ofertas guardadas e historial de una oferta ----------
