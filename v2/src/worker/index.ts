@@ -8,6 +8,12 @@ import { meRoutes } from './routes/me';
 import { tripRoutes } from './routes/trips';
 import { friendRoutes } from './routes/friends';
 import { availabilityRoutes } from './routes/availability';
+import { catalogRoutes } from './routes/catalog';
+import { ingestRoutes } from './routes/ingest';
+import { planRoutes } from './routes/plan';
+import { shoppingRoutes } from './routes/shopping';
+import { expenseRoutes } from './routes/expenses';
+import { socialRoutes } from './routes/social';
 import { purgeRateLimits } from './ratelimit';
 
 const app = new Hono<AppEnv>();
@@ -44,7 +50,14 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 
-app.use('/api/*', bodyLimit({ maxSize: 64 * 1024, onError: () => { throw new ApiError(413, 'too_large', 'La petición es demasiado grande.'); } }));
+// Límite de tamaño: 64 KB por defecto; ingesta por lotes e importaciones algo más.
+const tooLarge = () => { throw new ApiError(413, 'too_large', 'La petición es demasiado grande.'); };
+const smallBody = bodyLimit({ maxSize: 64 * 1024, onError: tooLarge });
+const largeBody = bodyLimit({ maxSize: 512 * 1024, onError: tooLarge });
+app.use('/api/*', (c, next) => {
+  const p = new URL(c.req.url).pathname;
+  return /^\/api\/(ingest\/|receipts\/|prices\/import\/)/.test(p) ? largeBody(c, next) : smallBody(c, next);
+});
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 
@@ -83,6 +96,12 @@ app.route('/api/me', meRoutes);
 app.route('/api/trips', tripRoutes);
 app.route('/api/friends', friendRoutes);
 app.route('/api/availability', availabilityRoutes);
+app.route('/api/public', catalogRoutes);
+app.route('/api/ingest', ingestRoutes);
+app.route('/api/trips', planRoutes);
+app.route('/api/trips', expenseRoutes);
+app.route('/api', shoppingRoutes);
+app.route('/api', socialRoutes);
 
 app.all('/api/*', () => {
   throw new ApiError(404, 'not_found', 'Ruta no encontrada.');
