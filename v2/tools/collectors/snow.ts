@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { esquiadesAdapter, matchResortRow, type StatusRow } from '../../src/core/parsers/snow.ts';
 import { chunkBy } from '../../src/core/chunk.ts';
+import { OFFICIAL_ADAPTERS } from '../../src/core/parsers/official-snow.ts';
 import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
 
 type Source = { id: string; area_id: string; scope_area_id: string; provider: string; url: string; adapter: string; match_aliases: string | null; area_name: string };
@@ -32,6 +33,24 @@ async function processGroup(load: ((url: string) => Promise<string>) | null, key
   const adapter = ADAPTERS[adapterId];
   const attemptedAt = Date.now();
   const mark = (s: Source, status: string, error: string | null) => health.push({ sourceId: s.id, status, error, attemptedAt });
+  const official = OFFICIAL_ADAPTERS[adapterId];
+  if (official) {
+    // Web oficial de una sola estación: una fila por página, sin emparejar nombres.
+    try {
+      if (!fixture && !(await allowedByRobots(url))) { group.forEach((s) => mark(s, 'unsupported', 'robots.txt no lo permite')); unsupported += group.length; return; }
+      const html = fixture ? readFileSync(fixture, 'utf8') : await withRetry(() => load!(url));
+      const r = official.parse(html);
+      if (!r) { group.forEach((s) => mark(s, 'empty', 'la página no contiene la línea de km reconocible')); failed += group.length; return; }
+      for (const s of group) {
+        observations.push({ sourceId: s.id, areaId: s.scope_area_id, observedAt: Date.now(), ...r, extractor: `${adapterId}@${official.version}` });
+        mark(s, 'ok', null); ok++;
+      }
+    } catch (e) {
+      group.forEach((s) => mark(s, e instanceof BlockedError ? 'blocked' : 'error', String((e as Error).message).slice(0, 300)));
+      failed += group.length;
+    }
+    return;
+  }
   if (!adapter) { group.forEach((s) => mark(s, 'unsupported', `sin adaptador ${adapterId}`)); unsupported += group.length; return; }
   let rows: StatusRow[];
   try {

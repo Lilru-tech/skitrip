@@ -85,13 +85,19 @@ planRoutes.get('/:id/scenarios', async (c) => {
   const { results: scenarios } = await db.prepare(
     `SELECT s.* FROM search_scenarios s JOIN trip_scenarios ts ON ts.scenario_id = s.id WHERE ts.trip_id = ?1 ORDER BY s.check_in`,
   ).bind(tripId).all<any>();
+  // Consultas fijas para todos los escenarios del viaje (antes, 2 por escenario).
+  const ids = JSON.stringify(scenarios.map((s) => s.id));
+  const [{ results: allRuns }, { results: allObs }] = await db.batch([
+    db.prepare(`SELECT scenario_id, observed_at, outcome, offers_found, error FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY scenario_id ORDER BY observed_at DESC) AS rn
+                FROM scenario_runs r WHERE scenario_id IN (SELECT value FROM json_each(?1))) WHERE rn <= 2 ORDER BY observed_at DESC`).bind(ids),
+    db.prepare(`SELECT ob.scenario_id, o.id AS offer_id, o.hotel_name_raw, o.board, o.cancellation, o.nights, o.forfait_days, o.adults, o.url, ob.observed_at, ob.amount_cents, ob.unit, ob.price_kind, ob.availability
+                FROM offer_observations ob JOIN offers o ON o.id = ob.offer_id WHERE ob.scenario_id IN (SELECT value FROM json_each(?1)) AND ob.observed_at >= ?2
+                ORDER BY ob.observed_at LIMIT 5000`).bind(ids, Date.now() - 120 * 86400_000),
+  ]) as D1Result<any>[];
   const out = [];
   for (const s of scenarios) {
-    const { results: runs } = await db.prepare('SELECT observed_at, outcome, offers_found, error FROM scenario_runs WHERE scenario_id = ?1 ORDER BY observed_at DESC LIMIT 2').bind(s.id).all<any>();
-    const { results: obs } = await db.prepare(
-      `SELECT o.id AS offer_id, o.hotel_name_raw, o.board, o.cancellation, o.nights, o.forfait_days, o.adults, o.url, ob.observed_at, ob.amount_cents, ob.unit, ob.price_kind, ob.availability
-       FROM offer_observations ob JOIN offers o ON o.id = ob.offer_id WHERE ob.scenario_id = ?1 AND ob.observed_at >= ?2 ORDER BY ob.observed_at`,
-    ).bind(s.id, Date.now() - 120 * 86400_000).all<any>();
+    const runs = allRuns.filter((r) => r.scenario_id === s.id);
+    const obs = allObs.filter((o) => o.scenario_id === s.id);
     const byOffer = new Map<string, any[]>();
     for (const o of obs) (byOffer.get(o.offer_id) ?? byOffer.set(o.offer_id, []).get(o.offer_id)!).push(o);
     const lastRun = runs[0]?.observed_at;

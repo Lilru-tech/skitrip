@@ -1288,8 +1288,8 @@
    "priority": 10,
    "status": "unverified",
    "checked_on": "2026-09-30",
-   "limitations": "Página comprobada manualmente el 30/09/2026: muestra «0 / 215km», pistas por color, remontes 4/73, espesores y «Última actualización». Falta adaptador probado.",
-   "adapter": null,
+   "limitations": "Adaptador de texto probado con un extracto REAL de la página del 30/09/2026 (fuera de temporada: 0/215 km, remontes 4/73, «Última actualización: 23/09/2026»). El HTML crudo no se ha capturado desde el entorno de desarrollo: pendiente de la primera ejecución online. Un 0 sin texto de estado queda como estado desconocido.",
+   "adapter": "grandvalira-official",
    "aliases": null
   },
   {

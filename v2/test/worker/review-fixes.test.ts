@@ -2,6 +2,8 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { api, signup } from './helpers';
+import { parseGrandvalira } from '../../src/core/parsers/official-snow';
+import grandvaliraReal from '../fixtures/real/grandvalira-estado-pistas.2026-09-30.txt?raw';
 
 const INGEST = 'test-ingest-token';
 const ingest = async (path: string, body: unknown) => {
@@ -412,5 +414,25 @@ describe('9 · recorridos de migración legacy', () => {
     expect((await api(u.token, 'GET', '/api/availability/me?from=2027-03-02&to=2027-03-02')).json.days).toEqual({ '2027-03-02': 'busy' });
     // Días no asignados a esta cuenta no se incorporan.
     expect((await api(u.token, 'POST', '/api/legacy/availability/mine/incorporate', { days: ['2027-04-01'], overwrite: true })).json.incorporated).toBe(0);
+  });
+});
+
+describe('7 · fuente oficial de nieve (Grandvalira) con texto real', () => {
+  it('la salida del adaptador pasa la ingesta; un 0 fuera de temporada queda con estado desconocido y no puntúa', async () => {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO areas (id, name, kind, country) VALUES ('rv-gv','Grandvalira (test)','resort','AD')`),
+      env.DB.prepare(`INSERT OR IGNORE INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, status, adapter, priority) VALUES
+        ('rv-gv-off','rv-gv','rv-gv','snow','official','https://www.grandvalira.com/es/estacion/estado-pistas','html','[]','unverified','grandvalira-official', 10)`),
+    ]);
+    const r = parseGrandvalira(grandvaliraReal)!;
+    const t = Date.now() - 60_000;
+    const res = await SELF.fetch('http://localhost/api/ingest/snow', { method: 'POST', headers: { Authorization: `Bearer ${INGEST}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run: { id: 'rv-gv-run', pipeline: 'snow', startedAt: t, finishedAt: t, expected: 1, ok: 1, failed: 0, unsupported: 0 },
+        observations: [{ sourceId: 'rv-gv-off', areaId: 'rv-gv', observedAt: t, ...r, extractor: 'grandvalira-official@1.0.0' }], health: [] }) }).then((x) => x.json<any>());
+    expect(res).toMatchObject({ accepted: 1, written: 1 });
+    const row = await env.DB.prepare('SELECT op_status, open_km, total_km, open_lifts, source_date FROM snow_observations WHERE source_id = ?1').bind('rv-gv-off').first<any>();
+    expect(row).toEqual({ op_status: 'unknown', open_km: 0, total_km: 215, open_lifts: 4, source_date: '2026-09-23' });
+    const cat = await SELF.fetch('http://localhost/api/public/catalog').then((x) => x.json<any>());
+    expect(cat.areas.find((a: any) => a.id === 'rv-gv').snow.rank.excluded).toBe('estado_desconocido');
   });
 });
