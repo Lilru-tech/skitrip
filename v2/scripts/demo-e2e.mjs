@@ -5,6 +5,7 @@
 //            → rechazo de acceso de otro usuario → recuperación de contraseña → logout.
 // Uso: npm run demo:e2e   (arranca y detiene los servicios por sí mismo)
 import { spawn, execSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const AUTH = 'http://127.0.0.1:9099';
@@ -14,7 +15,7 @@ const PROJECT = 'demo-skitrip';
 const procs = [];
 
 function start(cmd, args, name) {
-  const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, NO_COLOR: '1' } });
+  const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], detached: true, env: { ...process.env, NO_COLOR: '1' } });
   p.stdout.on('data', (d) => process.env.DEBUG && process.stdout.write(`[${name}] ${d}`));
   p.stderr.on('data', (d) => process.env.DEBUG && process.stderr.write(`[${name}] ${d}`));
   procs.push(p);
@@ -44,6 +45,7 @@ function check(name, cond, detail = '') {
 }
 
 try {
+  mkdirSync('dist', { recursive: true });
   execSync('npx wrangler d1 migrations apply skitrip --local', { stdio: 'ignore' });
   start('npx', ['firebase', 'emulators:start', '--only', 'auth', '--project', PROJECT], 'auth');
   start('npx', ['wrangler', 'dev', '--local', '--port', '8787', '--var', 'AUTH_MODE:emulator', '--var', `FIREBASE_PROJECT_ID:${PROJECT}`], 'api');
@@ -95,9 +97,11 @@ try {
   console.error('Error en la demo:', e.message);
   results.push({ name: 'ejecución', ok: false });
 } finally {
-  for (const p of procs) p.kill('SIGINT');
-  await sleep(1000);
-  for (const p of procs) if (!p.killed) p.kill('SIGKILL');
+  // Cada servicio arranca en su propio grupo de procesos: se detiene el grupo entero (npx → node → workerd/java).
+  const killAll = (sig) => { for (const p of procs) { try { process.kill(-p.pid, sig); } catch { /* ya terminó */ } } };
+  killAll('SIGINT');
+  await sleep(1500);
+  killAll('SIGKILL');
 }
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed}/${results.length} comprobaciones correctas (servicios locales; nada desplegado).`);
