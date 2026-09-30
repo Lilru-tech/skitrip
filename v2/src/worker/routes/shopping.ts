@@ -347,9 +347,14 @@ shoppingRoutes.get('/products/:pid/prices', async (c) => {
     const key = `${r.source === 'open_prices' ? 'colaborativo' : 'propio'}:${r.price_type}:${r.channel}`;
     (series[key] ??= []).push({ ...r, unitPrice: p.net_qty ? unitPrice(r.amount_cents, p.net_qty, p.net_unit) : null });
   }
-  const chain: any[] = [];
-  let cur = p;
-  while (cur?.replaced_by && chain.length < 10) { cur = await c.env.DB.prepare('SELECT id, name, format FROM products WHERE id = ?1').bind(cur.replaced_by).first(); chain.push(cur); }
+  // Cadena de sustituciones (máx. 10) en una sola sentencia recursiva. Antes era una consulta por salto y, además,
+  // se cortaba tras el primero porque no leía replaced_by.
+  const { results: chain } = p.replaced_by ? await c.env.DB.prepare(
+    `WITH RECURSIVE ch(id, name, format, replaced_by, depth) AS (
+       SELECT id, name, format, replaced_by, 1 FROM products WHERE id = ?1
+       UNION ALL SELECT n.id, n.name, n.format, n.replaced_by, ch.depth + 1 FROM products n JOIN ch ON n.id = ch.replaced_by WHERE ch.depth < 10)
+     SELECT id, name, format FROM ch ORDER BY depth`,
+  ).bind(p.replaced_by).all<any>() : { results: [] as any[] };
   return c.json({ product: productOut(p), series, replacedBy: chain, note: 'Sin observación un día = sin dato; no se rellena con el precio anterior.' });
 });
 
