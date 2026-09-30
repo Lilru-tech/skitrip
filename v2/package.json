@@ -14,7 +14,8 @@
     "demo:e2e": "node scripts/demo-e2e.mjs",
     "collect:snow": "tsx tools/collectors/snow.ts",
     "collect:offers": "tsx tools/collectors/offers.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "check:online": "tsx tools/online-check.ts"
   },
   "dependencies": {
     "firebase": "^12.19.0",
