@@ -10,6 +10,7 @@ import { sha256Hex } from '../crypto';
 import { ApiError, conflict, forbidden, newId, notFound, now, parseBody } from '../http';
 import { rateLimit } from '../ratelimit';
 import { estimateList } from './shopping';
+import { rankCosts } from '../../core/compare';
 import { zCents, zDate, zId } from '../schemas';
 
 // Escenarios de búsqueda, ofertas, candidaturas con votos y presupuesto del viaje.
@@ -261,7 +262,7 @@ const BCOLS: Record<string, string> = { fuelCentsPerLitre: 'fuel_cents_per_litre
   parkingCentsPerCar: 'parking_cents_per_car', forfaitCentsPerDay: 'forfait_cents_per_day', rentalCentsPerDay: 'rental_cents_per_day', skiers: 'skiers', renters: 'renters',
   groceriesCents: 'groceries_cents', chosenCandidateId: 'chosen_candidate_id' };
 
-async function budgetFor(db: D1Database, tripId: string) {
+async function budgetContext(db: D1Database, tripId: string) {
   const t = await db.prepare('SELECT * FROM trips WHERE id = ?1').bind(tripId).first<any>();
   let b = await db.prepare('SELECT * FROM trip_budget WHERE trip_id = ?1').bind(tripId).first<any>();
   if (!b) {
@@ -269,10 +270,14 @@ async function budgetFor(db: D1Database, tripId: string) {
     b = await db.prepare('SELECT * FROM trip_budget WHERE trip_id = ?1').bind(tripId).first<any>();
   }
   const members = await db.prepare('SELECT COUNT(*) AS n FROM trip_members WHERE trip_id = ?1').bind(tripId).first<{ n: number }>();
-  const route = t.area_id ? await db.prepare('SELECT road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id = ?2').bind(t.origin_id ?? 'tarragona', t.area_id).first<any>() : null;
-  const cand = b.chosen_candidate_id ? await db.prepare('SELECT * FROM trip_candidates WHERE id = ?1 AND trip_id = ?2').bind(b.chosen_candidate_id, tripId).first<any>() : null;
   const shopping = await estimateList(db, tripId);
-  const people = t.participants_planned ?? members?.n ?? null;
+  return { t, b, members: members?.n ?? null, shopping };
+}
+type BudgetCtx = Awaited<ReturnType<typeof budgetContext>>;
+type RouteRow = { road_km: number | null; source: string; validated: number; notes: string | null } | null;
+
+function budgetWith({ t, b, members, shopping }: BudgetCtx, cand: any | null, route: RouteRow) {
+  const people = t.participants_planned ?? members ?? null;
   const tripKids: number[] = JSON.parse(t.children_ages || '[]');
   const groceries = b.groceries_cents ?? (shopping.complete ? shopping.knownCents : null);
   const input: BudgetInput = {
@@ -289,8 +294,42 @@ async function budgetFor(db: D1Database, tripId: string) {
   const result = computeBudget(input);
   if (route && !route.validated) result.warnings.push(`Distancia por carretera sin validar (${route.source})${route.notes ? `: ${route.notes}` : '.'}`);
   if (b.groceries_cents == null && shopping.unpriced) result.warnings.push(`La lista de compra tiene ${shopping.unpriced} artículo(s) sin precio: la compra queda pendiente.`);
-  return { params: b, input, result };
+  return { input, result };
 }
+
+async function budgetFor(db: D1Database, tripId: string) {
+  const ctx = await budgetContext(db, tripId);
+  const { t, b } = ctx;
+  const [route, cand] = await Promise.all([
+    t.area_id ? db.prepare('SELECT road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id = ?2').bind(t.origin_id ?? 'tarragona', t.area_id).first<any>() : null,
+    b.chosen_candidate_id ? db.prepare('SELECT * FROM trip_candidates WHERE id = ?1 AND trip_id = ?2').bind(b.chosen_candidate_id, tripId).first<any>() : null,
+  ]);
+  return { params: b, ...budgetWith(ctx, cand, route) };
+}
+
+/**
+ * Coste completo por persona de cada candidatura (alojamiento o paquete) con el resto de partidas del viaje. Las
+ * completas se ordenan por coste; las incompletas no tienen posición y muestran lo que falta. Consultas fijas.
+ */
+planRoutes.get('/:id/cost-comparison', async (c) => {
+  const tripId = c.req.param('id');
+  const db = c.env.DB;
+  await requireTripMember(db, tripId, c.get('user').id);
+  const ctx = await budgetContext(db, tripId);
+  const { results: cands } = await db.prepare('SELECT * FROM trip_candidates WHERE trip_id = ?1 ORDER BY created_at LIMIT 50').bind(tripId).all<any>();
+  const areas = [...new Set([ctx.t.area_id, ...cands.map((x) => x.area_id)].filter(Boolean))];
+  const { results: routes } = await db.prepare(`SELECT area_id, road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id IN (SELECT value FROM json_each(?2))`)
+    .bind(ctx.t.origin_id ?? 'tarragona', JSON.stringify(areas)).all<any>();
+  const routeBy = new Map(routes.map((r) => [r.area_id, r]));
+  const options = cands.map((cand) => {
+    const route = routeBy.get(cand.area_id ?? ctx.t.area_id) ?? null;
+    return { id: cand.id, title: cand.title, areaId: cand.area_id ?? ctx.t.area_id, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, budget: budgetWith(ctx, cand, route).result };
+  });
+  return c.json({
+    options: rankCosts(options).map((r) => ({ ...r, warnings: options.find((o) => o.id === r.id)!.budget.warnings })),
+    note: 'Coste completo por persona con transporte, forfait, alquiler y compra del viaje. Un presupuesto incompleto no tiene posición: nunca se muestra como el más barato.',
+  });
+});
 
 planRoutes.get('/:id/budget', async (c) => {
   const tripId = c.req.param('id');

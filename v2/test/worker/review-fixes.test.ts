@@ -309,3 +309,43 @@ describe('6 · compra, cesta fija y evolución', () => {
     expect((await api(o.token, 'POST', '/api/prices/import/confirm', { csv })).json).toMatchObject({ created: 0, duplicates: 500 });
   });
 });
+
+describe('8 · Comparar: nieve fiable y coste completo', () => {
+  it('dos fuentes a la misma hora: siempre gana la preferente; un dato antiguo o dudoso se muestra con fecha pero no puntúa', async () => {
+    const t = Date.now() - 3600_000;
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO areas (id, name, kind, country) VALUES ('rv-snowa','Nieve A (test)','resort','ES'), ('rv-snowb','Nieve B (test)','resort','ES'), ('rv-snowc','Nieve C (test)','resort','ES')`),
+      env.DB.prepare(`INSERT OR IGNORE INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, status, adapter, priority) VALUES
+        ('rv-sn-agg','rv-snowa','rv-snowa','snow','esquiades','https://example.invalid/a','playwright','[]','unverified','esquiades-status', 50),
+        ('rv-sn-off','rv-snowa','rv-snowa','snow','oficial','https://example.invalid/o','playwright','[]','unverified','x', 10),
+        ('rv-sn-b','rv-snowb','rv-snowb','snow','esquiades','https://example.invalid/b','playwright','[]','unverified','esquiades-status', 50),
+        ('rv-sn-c','rv-snowc','rv-snowc','snow','esquiades','https://example.invalid/c','playwright','[]','unverified','esquiades-status', 50)`),
+      env.DB.prepare(`INSERT INTO snow_observations (id, area_id, source_id, observed_at, op_status, open_km, total_km, quality, content_hash, extractor) VALUES
+        ('rv-o1','rv-snowa','rv-sn-agg',?1,'open',40,100,'ok','h1','t'), ('rv-o2','rv-snowa','rv-sn-off',?1,'open',45,100,'ok','h2','t'),
+        ('rv-o3','rv-snowb','rv-sn-b',?2,'open',80,100,'ok','h3','t'), ('rv-o4','rv-snowc','rv-sn-c',?1,'open',90,100,'total_mismatch','h4','t')`).bind(t, t - 72 * 3600_000),
+    ]);
+    const cat = await SELF.fetch('http://localhost/api/public/catalog').then((r) => r.json<any>());
+    const a = cat.areas.find((x: any) => x.id === 'rv-snowa'), b = cat.areas.find((x: any) => x.id === 'rv-snowb'), c = cat.areas.find((x: any) => x.id === 'rv-snowc');
+    expect(a.snow).toMatchObject({ sourceId: 'rv-sn-off', openKm: 45, rank: { openKm: 45, excluded: null } });
+    expect(b.snow).toMatchObject({ openKm: 80, freshness: 'stale', rank: { openKm: null, excluded: 'antiguo' } });
+    expect(b.snow.observedAt).toBe(t - 72 * 3600_000);
+    expect(c.snow.rank).toMatchObject({ openKm: null, excluded: 'dudoso' });
+    expect(c.snow.rank.label).toMatch(/dudoso/);
+  });
+
+  it('comparación de coste por persona: completos ordenados, incompletos sin posición y con lo que falta; cotización manual válida', async () => {
+    const o = await signup();
+    const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Coste', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2, cars: 0, areaId: 'rv-cerler' })).json.trip;
+    const cond = { checkIn: '2027-01-15', checkOut: '2027-01-17', adults: 2, childrenAges: [], forfaitIncluded: 'yes', forfaitDays: 2 };
+    await api(o.token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Paquete caro', modality: 'lodging_forfait', areaId: 'rv-cerler', amountCents: 40000, unit: 'per_person', priceKind: 'user_quote', ...cond });
+    await api(o.token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Paquete barato', modality: 'lodging_forfait', areaId: 'rv-cerler', amountCents: 30000, unit: 'per_person', priceKind: 'user_quote', ...cond });
+    await api(o.token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Solo hotel', modality: 'lodging', areaId: 'rv-cerler', amountCents: 5000, unit: 'per_person', priceKind: 'user_quote', ...cond, forfaitIncluded: 'no', forfaitDays: null });
+    const b0 = (await api(o.token, 'GET', `/api/trips/${trip.id}/budget`)).json;
+    await api(o.token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, groceriesCents: 0, renters: 0 });
+    const r = await api(o.token, 'GET', `/api/trips/${trip.id}/cost-comparison`);
+    expect(r.status).toBe(200);
+    expect(r.d1).toBeLessThanOrEqual(15);
+    expect(r.json.options.map((x: any) => [x.title, x.rank, x.perPersonCents])).toEqual([['Paquete barato', 1, 30000], ['Paquete caro', 2, 40000], ['Solo hotel', null, null]]);
+    expect(r.json.options[2].pending.join(' ')).toMatch(/Forfait/i);
+  });
+});

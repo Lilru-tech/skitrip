@@ -5,6 +5,7 @@ import type { AppEnv } from '../env';
 import { notFound, parseQuery } from '../http';
 import { zId } from '../schemas';
 import { CAPABILITIES } from '../../core/capabilities';
+import { pickSnow, SNOW_EXCLUSION_LABEL, snowForRanking } from '../../core/compare';
 
 // Datos no personales: catálogo, rutas, nieve y fuentes. Lectura anónima con caché corta.
 export const catalogRoutes = new Hono<AppEnv>();
@@ -17,6 +18,7 @@ const snowOut = (s: any, nowMs: number) => s && ({
   depthMinCm: s.depth_min_cm, depthMaxCm: s.depth_max_cm, quality: s.quality, qualityNote: s.quality_note, sourceId: s.source_id,
   freshness: freshness(s.observed_at, STALE_HOURS.snow, nowMs),
 });
+const candOf = (s: any) => ({ ...s, sourceId: s.source_id, priority: s.priority ?? 100, observedAt: s.observed_at, opStatus: s.op_status, openKm: s.open_km, quality: s.quality });
 
 catalogRoutes.get('/catalog', async (c) => {
   const { origin } = parseQuery(c, z.object({ origin: zId.default('tarragona') }));
@@ -27,9 +29,9 @@ catalogRoutes.get('/catalog', async (c) => {
     db.prepare('SELECT parent_id, child_id, relation FROM area_links'),
     db.prepare('SELECT area_id, access_name, road_km, duration_min, toll_cents, source, checked_on, validated, notes FROM routes WHERE origin_id = ?1').bind(origin),
     db.prepare('SELECT id, name, lat, lon FROM origins ORDER BY name'),
-    // Última observación nueva por área (índice area_id, observed_at).
-    db.prepare(`SELECT s.* FROM snow_observations s
-                JOIN (SELECT area_id, MAX(observed_at) AS m FROM snow_observations GROUP BY area_id) x ON x.area_id = s.area_id AND x.m = s.observed_at`),
+    // Última observación de cada fuente en cada área, con su prioridad; la elección por área es determinista (pickSnow).
+    db.prepare(`SELECT * FROM (SELECT s.*, src.priority, ROW_NUMBER() OVER (PARTITION BY s.area_id, s.source_id ORDER BY s.observed_at DESC, s.id) AS rn
+                FROM snow_observations s JOIN sources src ON src.id = s.source_id) WHERE rn = 1`),
     // Última observación legacy por ámbito, marcada como legacy.
     db.prepare(`SELECT l.scope_area_id AS area_id, l.obs_date, l.open_km, l.total_km, l.anomalies FROM legacy_snow_observations l
                 JOIN (SELECT scope_area_id, MAX(obs_date) AS m FROM legacy_snow_observations WHERE scope_area_id IS NOT NULL GROUP BY scope_area_id) x
@@ -37,7 +39,9 @@ catalogRoutes.get('/catalog', async (c) => {
                 GROUP BY l.scope_area_id`),
   ]);
   const routeBy = new Map((routes.results as any[]).map((r) => [r.area_id, r]));
-  const snowBy = new Map((snow.results as any[]).map((s) => [s.area_id, s]));
+  const candBy = new Map<string, any[]>();
+  for (const s of snow.results as any[]) (candBy.get(s.area_id) ?? candBy.set(s.area_id, []).get(s.area_id)!).push(candOf(s));
+  const snowBy = new Map([...candBy].map(([area, cs]) => [area, pickSnow(cs, nowMs)]));
   const legacyBy = new Map((legacy.results as any[]).map((s) => [s.area_id, s]));
   c.header('Cache-Control', 'public, max-age=300');
   return c.json({
@@ -51,7 +55,13 @@ catalogRoutes.get('/catalog', async (c) => {
         id: a.id, name: a.name, kind: a.kind, country: a.country, region: a.region, lat: a.lat, lon: a.lon,
         officialTotalKm: a.official_total_km, totalKmSource: a.total_km_source, vibe: a.vibe_score, apres: a.apres_score, notes: a.notes, officialUrl: a.official_url,
         route: r ? { accessName: r.access_name, roadKm: r.road_km, durationMin: r.duration_min, tollCents: r.toll_cents, source: r.source, checkedOn: r.checked_on, validated: !!r.validated, notes: r.notes } : null,
-        snow: snowOut(snowBy.get(a.id), nowMs) ?? null,
+        snow: (() => {
+          const pick = snowBy.get(a.id);
+          if (!pick) return null;
+          const rank = snowForRanking(pick, nowMs);
+          // «rank»: lo que puede puntuar en «Nieve abierta ahora». Un dato excluido se sigue mostrando con su fecha.
+          return { ...snowOut(pick, nowMs), rank: { ...rank, label: rank.excluded ? SNOW_EXCLUSION_LABEL[rank.excluded] : null }, sources: candBy.get(a.id)!.length };
+        })(),
         legacySnow: l ? { date: l.obs_date, openKm: l.open_km, totalKm: l.total_km, anomalies: l.anomalies ? JSON.parse(l.anomalies) : [], note: 'Serie legacy: no verificada; un 0 puede ser un «-» convertido.' } : null,
       };
     }),
