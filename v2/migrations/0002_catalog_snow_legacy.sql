@@ -135,6 +135,14 @@ CREATE TABLE legacy_import_files (
   report_json  TEXT
 );
 
+-- Copia íntegra del fichero original, troceada (límite de tamaño de sentencia de D1).
+CREATE TABLE legacy_raw_chunks (
+  file_id TEXT NOT NULL REFERENCES legacy_import_files(id),
+  idx     INTEGER NOT NULL,
+  data    TEXT NOT NULL,
+  PRIMARY KEY (file_id, idx)
+);
+
 CREATE TABLE legacy_id_map (
   legacy_kind TEXT NOT NULL,
   legacy_id   TEXT NOT NULL,
@@ -160,6 +168,7 @@ CREATE TABLE legacy_hotel_observations (
   sample_count         INTEGER NOT NULL,
   samples_json         TEXT NOT NULL,
   anomalies            TEXT,                  -- JSON de avisos detectados en la importación
+  scope_area_id        TEXT REFERENCES areas(id), -- ámbito real deducido (p. ej. 'alp-2500' legacy → 'la-molina')
   UNIQUE (legacy_resort_id, provider, ts)
 );
 CREATE INDEX legacy_hotel_resort ON legacy_hotel_observations(legacy_resort_id, obs_date);
@@ -172,6 +181,7 @@ CREATE TABLE legacy_snow_observations (
   open_km          REAL,                      -- tal cual; un 0 legacy puede ser un «-» convertido
   total_km         REAL,
   anomalies        TEXT,
+  scope_area_id    TEXT REFERENCES areas(id),
   UNIQUE (legacy_resort_id, obs_date)
 );
 

@@ -1,0 +1,1357 @@
+{
+ "generated": "2026-09-30",
+ "note": "Catálogo curado para SkiTrip v2. Valores legacy marcados como sin verificar; coordenadas nuevas aproximadas.",
+ "areas": [
+  {
+   "id": "grandvalira",
+   "name": "Grandvalira",
+   "kind": "resort",
+   "country": "AD",
+   "region": "Andorra",
+   "lat": 42.576571,
+   "lon": 1.668275,
+   "official_total_km": 215,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 9,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "grandvalira"
+  },
+  {
+   "id": "pal-arinsal",
+   "name": "Pal Arinsal",
+   "kind": "resort",
+   "country": "AD",
+   "region": "Andorra",
+   "lat": 42.571443,
+   "lon": 1.488769,
+   "official_total_km": 63,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "pal-arinsal"
+  },
+  {
+   "id": "ordino-arcalis",
+   "name": "Ordino Arcalís",
+   "kind": "resort",
+   "country": "AD",
+   "region": "Andorra",
+   "lat": 42.63,
+   "lon": 1.5,
+   "official_total_km": 30,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "ordino-arcalis"
+  },
+  {
+   "id": "baqueira-beret",
+   "name": "Baqueira Beret",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña (Val d'Aran)",
+   "lat": 42.699167,
+   "lon": 0.946667,
+   "official_total_km": 166,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8.5,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "baqueira-beret"
+  },
+  {
+   "id": "port-aine",
+   "name": "Port Ainé",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.42833,
+   "lon": 1.21194,
+   "official_total_km": 32,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 4,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "port-aine"
+  },
+  {
+   "id": "espot-esqui",
+   "name": "Espot Esquí",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.57861,
+   "lon": 1.08862,
+   "official_total_km": 25,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 3,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "espot-esqui"
+  },
+  {
+   "id": "boi-taull",
+   "name": "Boí Taüll",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.47834,
+   "lon": 0.868545,
+   "official_total_km": 45,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 0,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "boi-taull"
+  },
+  {
+   "id": "port-del-comte",
+   "name": "Port del Comte",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.169442,
+   "lon": 1.56963,
+   "official_total_km": 50,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 6.5,
+   "apres_score": 0,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "port-del-comte"
+  },
+  {
+   "id": "vall-de-nuria",
+   "name": "Vall de Núria",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.396465,
+   "lon": 2.153968,
+   "official_total_km": 8,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 1,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "vall-de-nuria"
+  },
+  {
+   "id": "cerler",
+   "name": "Cerler",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.5893,
+   "lon": 0.5363,
+   "official_total_km": 81,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8,
+   "apres_score": 8,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "cerler"
+  },
+  {
+   "id": "valdelinares",
+   "name": "Valdelinares",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Teruel",
+   "lat": 40.385007,
+   "lon": -0.632772,
+   "official_total_km": 17,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 4,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "valdelinares"
+  },
+  {
+   "id": "javalambre",
+   "name": "Javalambre",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Teruel",
+   "lat": 40.111178,
+   "lon": -1.023617,
+   "official_total_km": 15,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 6.5,
+   "apres_score": 3,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "javalambre"
+  },
+  {
+   "id": "font-romeu-pyrenees-2000",
+   "name": "Font-Romeu Pyrénées 2000",
+   "kind": "resort",
+   "country": "FR",
+   "region": "Pyrénées-Orientales",
+   "lat": 42.520876,
+   "lon": 2.034989,
+   "official_total_km": 43,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "font-romeu-pyrenees-2000"
+  },
+  {
+   "id": "les-angles",
+   "name": "Les Angles",
+   "kind": "resort",
+   "country": "FR",
+   "region": "Pyrénées-Orientales",
+   "lat": 42.577282,
+   "lon": 2.073585,
+   "official_total_km": 55,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "les-angles"
+  },
+  {
+   "id": "ax-3-domaines",
+   "name": "Ax 3 Domaines",
+   "kind": "resort",
+   "country": "FR",
+   "region": "Ariège",
+   "lat": 42.70083,
+   "lon": 1.81389,
+   "official_total_km": 80,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "ax-3-domaines"
+  },
+  {
+   "id": "alp-2500",
+   "name": "Alp 2500 (La Molina + Masella)",
+   "kind": "domain",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.343917,
+   "lon": 1.921592,
+   "official_total_km": 145,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": "Dominio conjunto. El histórico legacy «alp-2500» con total 71 km corresponde en realidad a La Molina.",
+   "legacy_id": "alp-2500"
+  },
+  {
+   "id": "la-molina",
+   "name": "La Molina",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.336,
+   "lon": 1.941,
+   "official_total_km": 71,
+   "total_km_source": "Esquiades estado-pistas (serie legacy, sin verificar en fuente oficial)",
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Coordenadas aproximadas, pendientes de comprobar.",
+   "legacy_id": null
+  },
+  {
+   "id": "masella",
+   "name": "Masella",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.354,
+   "lon": 1.906,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Total de km pendiente de fuente oficial. Coordenadas aproximadas.",
+   "legacy_id": null
+  },
+  {
+   "id": "formigal-panticosa",
+   "name": "Formigal-Panticosa",
+   "kind": "domain",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.744164,
+   "lon": 0.055364,
+   "official_total_km": 143,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": "Dominio conjunto (forfait común). Las cifras legacy son del conjunto.",
+   "legacy_id": "formigal-panticosa"
+  },
+  {
+   "id": "formigal",
+   "name": "Formigal",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.775,
+   "lon": -0.362,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Total pendiente de fuente oficial. Coordenadas aproximadas.",
+   "legacy_id": null
+  },
+  {
+   "id": "panticosa",
+   "name": "Panticosa",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.721,
+   "lon": -0.284,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Total pendiente de fuente oficial. Coordenadas aproximadas.",
+   "legacy_id": null
+  },
+  {
+   "id": "astun-candanchu",
+   "name": "Astún + Candanchú",
+   "kind": "domain",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.79324,
+   "lon": -0.521045,
+   "official_total_km": 101,
+   "total_km_source": "Esquiades estado-pistas (serie legacy conjunta, sin verificar)",
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Serie conjunta de 101 km. No se replica en los miembros.",
+   "legacy_id": null
+  },
+  {
+   "id": "astun",
+   "name": "Astún",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.80583,
+   "lon": -0.50366,
+   "official_total_km": 50,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": "El histórico legacy «astun» (101 km) es la serie conjunta. Longitud legacy corregida de 0.50366 a -0.50366 (error de signo: situaba Astún a 85 km de Candanchú).",
+   "legacy_id": "astun"
+  },
+  {
+   "id": "candanchu",
+   "name": "Candanchú",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.78065,
+   "lon": -0.53843,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": 7,
+   "apres_score": 5,
+   "official_url": null,
+   "notes": "El catálogo legacy le asignaba 101 km, que es el total conjunto con Astún.",
+   "legacy_id": "candanchu"
+  }
+ ],
+ "links": [
+  {
+   "parent": "alp-2500",
+   "child": "la-molina",
+   "relation": "member"
+  },
+  {
+   "parent": "alp-2500",
+   "child": "masella",
+   "relation": "member"
+  },
+  {
+   "parent": "formigal-panticosa",
+   "child": "formigal",
+   "relation": "member"
+  },
+  {
+   "parent": "formigal-panticosa",
+   "child": "panticosa",
+   "relation": "member"
+  },
+  {
+   "parent": "astun-candanchu",
+   "child": "astun",
+   "relation": "member"
+  },
+  {
+   "parent": "astun-candanchu",
+   "child": "candanchu",
+   "relation": "member"
+  }
+ ],
+ "origins": [
+  {
+   "id": "tarragona",
+   "name": "Tarragona",
+   "lat": 41.1189,
+   "lon": 1.2445
+  },
+  {
+   "id": "sabadell",
+   "name": "Sabadell",
+   "lat": 41.5486,
+   "lon": 2.1076
+  }
+ ],
+ "routes": [
+  {
+   "origin": "tarragona",
+   "area": "grandvalira",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 260,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "pal-arinsal",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 250,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "ordino-arcalis",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 255,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "alp-2500",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 195,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "baqueira-beret",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 270,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "port-aine",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 225,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "espot-esqui",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 250,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "boi-taull",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 255,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "port-del-comte",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 145,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "vall-de-nuria",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 215,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "cerler",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 295,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "formigal-panticosa",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 350,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "astun",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 315,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "candanchu",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 405,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "valdelinares",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 270,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "javalambre",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 330,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "font-romeu-pyrenees-2000",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 265,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "les-angles",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 270,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "tarragona",
+   "area": "ax-3-domaines",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 310,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "grandvalira",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 160,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "pal-arinsal",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 165,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "ordino-arcalis",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 175,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "alp-2500",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 120,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "baqueira-beret",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 210,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "port-aine",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 165,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "espot-esqui",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 190,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "boi-taull",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 190,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "port-del-comte",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 115,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "vall-de-nuria",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 130,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "cerler",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 225,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "formigal-panticosa",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 280,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "astun",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 250,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "candanchu",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 330,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "valdelinares",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 340,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "javalambre",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 395,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "font-romeu-pyrenees-2000",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 145,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "les-angles",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 155,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  },
+  {
+   "origin": "sabadell",
+   "area": "ax-3-domaines",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 175,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null
+  }
+ ],
+ "sources": [
+  {
+   "id": "esquiades-status",
+   "area": "*",
+   "scope": "*",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador. Ámbito por fila: en dominios conjuntos puede publicar solo el conjunto o solo un miembro. Adaptador reescrito, no ejecutado online desde este entorno.",
+   "adapter": "esquiades-status"
+  },
+  {
+   "id": "grandvalira-official",
+   "area": "grandvalira",
+   "scope": "grandvalira",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.grandvalira.com/es/estacion/estado-pistas",
+   "method": "html",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Página comprobada manualmente el 30/09/2026: muestra «0 / 215km», pistas por color, remontes 4/73, espesores y «Última actualización». Falta adaptador probado.",
+   "adapter": null
+  },
+  {
+   "id": "ordino-arcalis-official",
+   "area": "ordino-arcalis",
+   "scope": "ordino-arcalis",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.ordinoarcalis.com/es/estacion/estado-pistas",
+   "method": "html",
+   "fields": [
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Comprobada el 30/09/2026: publica pistas por color, remontes y espesores, pero NO kilómetros. No se infieren km por proporción.",
+   "adapter": null
+  },
+  {
+   "id": "fgc-pirineu365",
+   "area": "la-molina",
+   "scope": "la-molina",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Comprobada el 30/09/2026: lista La Molina, Vall de Núria, Vallter, Espot, Port Ainé y Boí Taüll; los valores se cargan dinámicamente (hace falta navegador). Sirve también para vall-de-nuria, espot-esqui, port-aine y boi-taull.",
+   "adapter": null
+  },
+  {
+   "id": "altiservice-font-romeu",
+   "area": "font-romeu-pyrenees-2000",
+   "scope": "font-romeu-pyrenees-2000",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.altiservice.com/font-romeu-pyrenees-2000/meteo-et-enneigement",
+   "method": "html",
+   "fields": [
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Comprobada el 30/09/2026 fuera de temporada: solo pistas de verano y remontes (0/7, 0/5). Sin km. Revalidar en invierno.",
+   "adapter": null
+  },
+  {
+   "id": "ax-official",
+   "area": "ax-3-domaines",
+   "scope": "ax-3-domaines",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.ax.ski/en/ouverture-pistes",
+   "method": "playwright",
+   "fields": [
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Comprobada el 30/09/2026: periodo de apertura 05/12/2026–29/03/2027 y mapa interactivo; no publica km ni recuentos en texto. No se infieren km.",
+   "adapter": null
+  },
+  {
+   "id": "fgc-pirineu365-vall-de-nuria",
+   "area": "vall-de-nuria",
+   "scope": "vall-de-nuria",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Misma página FGC que La Molina; valores dinámicos.",
+   "adapter": null
+  },
+  {
+   "id": "fgc-pirineu365-espot-esqui",
+   "area": "espot-esqui",
+   "scope": "espot-esqui",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Misma página FGC que La Molina; valores dinámicos.",
+   "adapter": null
+  },
+  {
+   "id": "fgc-pirineu365-port-aine",
+   "area": "port-aine",
+   "scope": "port-aine",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Misma página FGC que La Molina; valores dinámicos.",
+   "adapter": null
+  },
+  {
+   "id": "fgc-pirineu365-boi-taull",
+   "area": "boi-taull",
+   "scope": "boi-taull",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Misma página FGC que La Molina; valores dinámicos.",
+   "adapter": null
+  },
+  {
+   "id": "offers-grandvalira",
+   "area": "grandvalira",
+   "scope": "grandvalira",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-grandvalira-130041",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-pal-arinsal",
+   "area": "pal-arinsal",
+   "scope": "pal-arinsal",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/pal-arinsal-1451",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-ordino-arcalis",
+   "area": "ordino-arcalis",
+   "scope": "ordino-arcalis",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/arcalis-1453",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-alp-2500",
+   "area": "la-molina",
+   "scope": "la-molina",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-la-molina",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-baqueira-beret",
+   "area": "baqueira-beret",
+   "scope": "baqueira-beret",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-baqueira-beret",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-port-aine",
+   "area": "port-aine",
+   "scope": "port-aine",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-port-aine",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-espot-esqui",
+   "area": "espot-esqui",
+   "scope": "espot-esqui",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-espot",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-boi-taull",
+   "area": "boi-taull",
+   "scope": "boi-taull",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-boi-taull-1300410",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-port-del-comte",
+   "area": "port-del-comte",
+   "scope": "port-del-comte",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-port-del-comte",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-vall-de-nuria",
+   "area": "vall-de-nuria",
+   "scope": "vall-de-nuria",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-vall-de-nuria-1300462",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-cerler",
+   "area": "cerler",
+   "scope": "cerler",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/cerler-1418",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-formigal-panticosa",
+   "area": "formigal-panticosa",
+   "scope": "formigal-panticosa",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-formigal-panticosa",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-astun",
+   "area": "astun",
+   "scope": "astun",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/astun-1435",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "esquiades-cards"
+  },
+  {
+   "id": "offers-candanchu",
+   "area": "astun-candanchu",
+   "scope": "astun-candanchu",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-astun-candanchu",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-valdelinares",
+   "area": "valdelinares",
+   "scope": "valdelinares",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-valdelinares",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-javalambre",
+   "area": "javalambre",
+   "scope": "javalambre",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-javalambre",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-font-romeu-pyrenees-2000",
+   "area": "font-romeu-pyrenees-2000",
+   "scope": "font-romeu-pyrenees-2000",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-font-romeu",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-les-angles",
+   "area": "les-angles",
+   "scope": "les-angles",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-les-angles",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  },
+  {
+   "id": "offers-ax-3-domaines",
+   "area": "ax-3-domaines",
+   "scope": "ax-3-domaines",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-ax-3-domaines",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "URL heredada del catálogo legacy. Paquete de alojamiento + forfait con fechas propias del proveedor, no de tu viaje.",
+   "adapter": "estiber-cards"
+  }
+ ],
+ "legacy_scope_rules": {
+  "snow": {
+   "alp-2500": {
+    "71": "la-molina",
+    "145": "alp-2500"
+   },
+   "astun": {
+    "101": "astun-candanchu"
+   },
+   "candanchu": {
+    "101": "astun-candanchu"
+   }
+  },
+  "hotel": {
+   "alp-2500": "la-molina",
+   "candanchu": "astun-candanchu"
+  }
+ },
+ "legacy_rental_estimates": {
+  "grandvalira": 38,
+  "pal-arinsal": 35,
+  "ordino-arcalis": 35,
+  "alp-2500": 32,
+  "baqueira-beret": 42,
+  "port-aine": 30,
+  "espot-esqui": 30,
+  "boi-taull": 30,
+  "port-del-comte": 28,
+  "vall-de-nuria": 25,
+  "cerler": 35,
+  "formigal-panticosa": 36,
+  "astun": 34,
+  "candanchu": 33,
+  "valdelinares": 28,
+  "javalambre": 27,
+  "font-romeu-pyrenees-2000": 32,
+  "les-angles": 32,
+  "ax-3-domaines": 32
+ }
+}
