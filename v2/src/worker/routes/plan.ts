@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { offerPanel, searchDistribution, type PricePoint } from '../../core/analytics';
 import { computeBudget, type BudgetInput } from '../../core/budget';
+import { dateSearchAvailable } from '../../core/capabilities';
 import { daysBetween, todayMadrid } from '../../core/dates';
 import type { AppEnv } from '../env';
 import { requireTripEditor, requireTripMember } from '../access';
@@ -62,7 +63,9 @@ planRoutes.post('/:id/scenarios', async (c) => {
     await c.env.DB.prepare('UPDATE search_scenarios SET active = 1 WHERE id = ?1').bind(sc.id).run();
   }
   await c.env.DB.prepare('INSERT OR IGNORE INTO trip_scenarios (trip_id, scenario_id) VALUES (?1, ?2)').bind(tripId, sc.id).run();
-  return c.json({ scenarioId: sc.id, reused }, 201);
+  // Se informa de la capacidad real: sin adaptador, la búsqueda queda registrada pero no se ejecutará sola.
+  return c.json({ scenarioId: sc.id, reused, dateSearch: dateSearchAvailable(b.providerId, b.modality) ? 'automatic' : 'not_implemented',
+    note: dateSearchAvailable(b.providerId, b.modality) ? null : 'La búsqueda automática por fechas no está implementada para este proveedor: consulta con el enlace y guarda la cotización a mano.' }, 201);
 });
 
 planRoutes.delete('/:id/scenarios/:sid', async (c) => {

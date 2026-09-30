@@ -218,3 +218,19 @@ describe('3 · atomicidad de gastos y tickets', () => {
     expect((await api(a.token, 'GET', `/api/trips/${trip.id}/expenses`)).json.expenses).toHaveLength(1);
   });
 });
+
+describe('7 · capacidades de búsqueda publicadas antes de crear', () => {
+  it('la API publica por proveedor y modalidad qué existe; crear un escenario sin adaptador lo dice sin culpar al proveedor', async () => {
+    const caps = await SELF.fetch('http://localhost/api/public/capabilities').then((r) => r.json<any>());
+    const esq = caps.capabilities.find((c: any) => c.provider === 'esquiades' && c.modality === 'lodging');
+    expect(esq).toMatchObject({ dateSearch: 'not_implemented', manualQuote: 'available' });
+    expect(caps.capabilities.every((c: any) => c.dateSearch !== 'implemented_verified')).toBe(true);
+    const o = await signup();
+    const trip = (await api(o.token, 'POST', '/api/trips', { name: 'Caps', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2, areaId: 'rv-cerler' })).json.trip;
+    const sc = await api(o.token, 'POST', `/api/trips/${trip.id}/scenarios`, { providerId: 'estiber', areaId: 'rv-cerler', modality: 'lodging', checkIn: '2027-01-15', checkOut: '2027-01-17', adults: 2 });
+    expect(sc.status).toBe(201);
+    expect(sc.json.dateSearch).toBe('not_implemented');
+    expect(sc.json.note).toMatch(/no está implementada/);
+    expect(sc.json.note).not.toMatch(/proveedor no/i);
+  });
+});

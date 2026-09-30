@@ -4,6 +4,7 @@ import { freshness, STALE_HOURS } from '../../core/analytics';
 import type { AppEnv } from '../env';
 import { notFound, parseQuery } from '../http';
 import { zId } from '../schemas';
+import { CAPABILITIES } from '../../core/capabilities';
 
 // Datos no personales: catálogo, rutas, nieve y fuentes. Lectura anónima con caché corta.
 export const catalogRoutes = new Hono<AppEnv>();
@@ -108,4 +109,10 @@ catalogRoutes.get('/sources', async (c) => {
   ).all<any>();
   c.header('Cache-Control', 'public, max-age=300');
   return c.json({ sources: results.map((s) => ({ ...s, fields: JSON.parse(s.fields) })) });
+});
+
+/** Qué puede hacer hoy cada proveedor (catálogo, búsqueda por fechas, cotización manual). */
+catalogRoutes.get('/capabilities', (c) => {
+  c.header('Cache-Control', 'public, max-age=300');
+  return c.json({ capabilities: CAPABILITIES });
 });
