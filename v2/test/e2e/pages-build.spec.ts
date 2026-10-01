@@ -127,3 +127,50 @@ test('build de Pages: el enlace de invitación es de /skitrip/#/unirse y quien l
   expect(p2.url()).not.toContain('t=');
   await ctx.close();
 });
+
+test('build de Pages: ticket en PDF leído en el navegador (sin subirlo) y PDF sin texto con alternativa', async ({ page, request }, info) => {
+  const w = await watch(page);
+  const uploads: string[] = [];
+  page.on('request', (r) => { const b = r.postDataBuffer(); if (b && b.includes('%PDF')) uploads.push(r.url()); });
+  const u = makeUser('pgp');
+  const token = await createUserViaApi(request, u);
+  const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Ticket en PDF' });
+  await login(page, u);
+  await page.goto(`${PAGES_URL}#/compra?viaje=${trip.id}`);
+  await page.getByRole('button', { name: 'Pegar un ticket…' }).click();
+  const imp = page.getByRole('dialog', { name: 'Importar ticket' });
+
+  // PDF con texto (columnas como fragmentos separados): pdf.js se carga bajo demanda desde /skitrip/assets.
+  const chunk = page.waitForResponse((r) => /\/skitrip\/assets\/pdf\.worker[^/]*\.mjs$/.test(r.url()));
+  await imp.getByLabel('Ticket en PDF (opcional)').setInputFiles('test/fixtures/receipts/ticket-texto.pdf');
+  expect((await chunk).status()).toBe(200);
+  await expect(imp.getByRole('status')).toHaveText('Texto leído del PDF (1 página). Revísalo antes de previsualizar.');
+  const text = await imp.getByLabel('Texto del ticket').inputValue();
+  expect(text).toContain('30/09/2026 18:42 OP: 1');
+  expect(text).toContain('2 AGUA MINERAL 5L 1,20 2,40');
+  expect(text).toContain('TOTAL (€) 5,79');
+  await imp.getByRole('button', { name: 'Previsualizar' }).click();
+  await expect(imp.getByText('Total: 5,79 €')).toBeVisible();
+  await expect(imp.getByText('las líneas suman el total')).toBeVisible();
+  await expect(imp.getByText(/× (LECHE ENTERA|AGUA MINERAL 5L|PAN DE MOLDE|YOGUR NATURAL) ·/)).toHaveCount(4);
+  await imp.getByRole('checkbox', { name: /Añadir el total como gasto/ }).uncheck();
+  await imp.getByRole('button', { name: 'Confirmar ticket' }).click();
+  await expect(page.getByText('Ticket guardado: 4 líneas', { exact: false })).toBeVisible();
+
+  // PDF sin capa de texto (escaneo o foto): no inventa nada y explica la alternativa.
+  await page.getByRole('button', { name: 'Pegar un ticket…' }).click();
+  await imp.getByLabel('Ticket en PDF (opcional)').setInputFiles('test/fixtures/receipts/ticket-imagen.pdf');
+  await expect(imp.getByRole('status')).toContainText('no tiene texto seleccionable');
+  await expect(imp.getByLabel('Texto del ticket')).toHaveValue('');
+  await expect(imp.getByRole('button', { name: 'Previsualizar' })).toBeDisabled();
+
+  // Un archivo que no es PDF se rechaza antes de cargar pdf.js.
+  await imp.getByLabel('Ticket en PDF (opcional)').setInputFiles({ name: 'ticket.pdf', mimeType: 'application/pdf', buffer: Buffer.from('no soy un pdf') });
+  await expect(imp.getByRole('status')).toContainText('El archivo no es un PDF.');
+
+  await expectNoHorizontalOverflow(page, `ticket PDF (${info.project.name})`);
+  expect(uploads).toEqual([]);
+  expect(await w.violations()).toEqual([]);
+  expect(w.sameOriginApi).toEqual([]);
+  expect(w.failed).toEqual([]);
+});

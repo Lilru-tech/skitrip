@@ -471,6 +471,38 @@ interface ReceiptPreview {
   duplicate: { id: string; expense_id: string | null; expense_trip_id: string | null } | null; suggestions: { lineNo: number; candidates: { id: string; name: string; format: string | null }[] }[]; note: string;
 }
 
+// Lee un ticket en PDF en el propio navegador (el archivo no se sube) y deja su texto en el cuadro para revisarlo.
+function PdfTicketInput({ disabled, onText }: { disabled: boolean; onText: (text: string) => void }) {
+  const [state, setState] = useState<{ kind: 'idle' | 'reading' } | { kind: 'ok' | 'warn' | 'error'; msg: string }>({ kind: 'idle' });
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    setState({ kind: 'reading' });
+    try {
+      const { extractPdfText } = await import('../pdf-text');
+      const r = await extractPdfText(file);
+      if (r.kind === 'no-text') {
+        setState({ kind: 'warn', msg: 'Este PDF no tiene texto seleccionable (parece una imagen o un escaneo), así que no se puede leer aquí. Abre el ticket, copia su texto y pégalo abajo, o escribe las líneas a mano.' });
+        return;
+      }
+      onText(r.text);
+      setState({ kind: 'ok', msg: `Texto leído del PDF (${r.pages === 1 ? '1 página' : `${r.pages} páginas`}). Revísalo antes de previsualizar.` });
+    } catch (e) {
+      setState({ kind: 'error', msg: `No se ha podido leer el PDF: ${e instanceof Error ? e.message : String(e)} Puedes copiar el texto del ticket y pegarlo abajo.` });
+    }
+  };
+  return (
+    <div className="field">
+      <label htmlFor="rc-pdf">Ticket en PDF (opcional)</label>
+      <input id="rc-pdf" type="file" accept="application/pdf,.pdf" disabled={disabled || state.kind === 'reading'}
+        onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
+      <p className="small muted" id="rc-pdf-hint">Se lee en tu navegador; el archivo no se sube. Solo funciona con PDF que tengan texto (como los tickets digitales), no con fotos.</p>
+      <p role="status" className={state.kind === 'warn' || state.kind === 'error' ? 'notice notice-warn small' : 'small'}>
+        {state.kind === 'reading' ? 'Leyendo el PDF…' : 'msg' in state ? state.msg : ''}
+      </p>
+    </div>
+  );
+}
+
 function ReceiptImport({ tripId, members, onDone }: { tripId: string; members: { id: string; alias: string }[]; onDone: () => void }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -527,6 +559,7 @@ function ReceiptImport({ tripId, members, onDone }: { tripId: string; members: {
         </>}>
         {!prev ? (
           <div className="stack">
+            <PdfTicketInput disabled={busy} onText={(text) => setMeta((m) => ({ ...m, text }))} />
             <div className="field"><label htmlFor="rc-text">Texto del ticket</label><textarea id="rc-text" className="textarea mono" rows={8} value={meta.text} onChange={(e) => setMeta({ ...meta, text: e.target.value })} /></div>
             <div className="form-grid">
               <Field label="Tienda" value={meta.storeLabel} onChange={(e) => setMeta({ ...meta, storeLabel: e.target.value })} />
