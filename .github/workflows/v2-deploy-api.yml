@@ -27,7 +27,7 @@ jobs:
       SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
       FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
     steps:
-      - name: Comprobar configuración (falla si falta: un despliegue omitido no cuenta como probado)
+      - name: 'Comprobar configuración (falla si falta: un despliegue omitido no cuenta como probado)'
         working-directory: .
         run: |
           missing=""
