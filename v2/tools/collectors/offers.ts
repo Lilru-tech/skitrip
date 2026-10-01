@@ -8,8 +8,8 @@
  * Dos tipos de captura:
  *  - Páginas de catálogo (fuentes kind=offers): precios «desde» con las fechas y ocupación que elige el proveedor.
  *    Se guardan como orientativos, sin escenario.
- *  - Escenarios de viaje (fechas + ocupación concretas): hasta verificar el formato de URL de búsqueda de cada
- *    proveedor se informan como «unsupported». Nunca se reinterpreta un precio de catálogo como precio de un escenario.
+ *  - Escenarios de viaje (fechas + ocupación concretas): se informan como «unsupported» porque el buscador de cada
+ *    proveedor está prohibido en su robots.txt. Nunca se reinterpreta un precio de catálogo como precio de un escenario.
  */
 import { readFileSync } from 'node:fs';
 import { dedupeCards, parseOfferCardsHtml, type OfferCard, type Provider } from '../../src/core/parsers/offers.ts';
@@ -32,8 +32,10 @@ const ADAPTERS: Record<string, { provider: Provider; version: string }> = {
 };
 const MAX_OFFERS_PER_SOURCE = 60;
 
-/** Solo búsquedas cuyo formato de URL por fechas/ocupación se ha verificado a mano. Vacío a propósito. */
+/** Búsquedas por fechas/ocupación automatizables. Vacío a propósito: el buscador de Esquiades (/book/) y el de Estiber
+ *  (/csp/online/) están prohibidos en su robots.txt (comprobado el 01/10/2026, docs/SOURCES.md). No se eluden. */
 const SCENARIO_SEARCH: Partial<Record<string, (s: Scenario) => string>> = {};
+const SEARCH_DISALLOWED: Record<string, string> = { esquiades: '/book/', estiber: '/csp/online/' };
 
 if (!requireConfig()) process.exit(0);
 const started = Date.now();
@@ -79,7 +81,7 @@ try {
 const results = scenarios.map((sc) => {
   const build = SCENARIO_SEARCH[sc.provider_id];
   unsupported++;
-  return { scenarioId: sc.id, outcome: 'unsupported' as const, error: build ? 'búsqueda pendiente de implementar' : `sin formato de búsqueda verificado para ${sc.provider_id}`, offers: [] };
+  return { scenarioId: sc.id, outcome: 'unsupported' as const, error: build ? 'búsqueda pendiente de implementar' : SEARCH_DISALLOWED[sc.provider_id] ? `robots.txt de ${sc.provider_id} prohíbe su buscador (${SEARCH_DISALLOWED[sc.provider_id]}); cotización manual` : `sin búsqueda automatizable para ${sc.provider_id}`, offers: [] };
 });
 
 // Partes de ≤ 200 ofertas (límite de la ingesta, que mantiene cada POST por debajo de 50 consultas D1).

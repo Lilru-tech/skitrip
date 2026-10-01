@@ -1,6 +1,6 @@
 // Búsquedas por fechas (escenarios) y su panel de ofertas. «No observada» no es «agotada».
 // Antes de crear una búsqueda se muestra la capacidad REAL del proveedor y la modalidad (src/core/capabilities.ts):
-// hoy no hay búsqueda automática por fechas en ningún proveedor, y se ofrece consultar a mano y guardar la cotización.
+// no hay búsqueda automática por fechas (el robots.txt de ambos proveedores prohíbe su buscador): se consulta a mano y se guarda la cotización.
 import { useState } from 'react';
 import { del, errorMessage, get, post } from '../api';
 import { ConfirmDialog, Dialog } from '../components/Dialog';
@@ -168,7 +168,7 @@ function Searches({ tripId, detail }: { tripId: string; detail: TripDetail }) {
           </div>
           <p className="small">{PROVIDER_LABEL[s.providerId] ?? s.providerId} · {MODALITY_LABEL[s.modality]} · {s.nights} noches · {s.adults} adultos{s.childrenAges.length > 0 && ` · menores de ${agesText(s.childrenAges)}`}{s.rooms != null && ` · ${s.rooms} hab.`}{s.forfaitDays != null && ` · ${s.forfaitDays} días de forfait`}</p>
           <p className="small">{s.lastRun ? <>Última búsqueda {instant(s.lastRun.observed_at)}: <strong className={s.lastRun.outcome === 'results' ? '' : 'text-bad'}>{OUTCOME[s.lastRun.outcome] ?? s.lastRun.outcome}</strong>{s.lastRun.error && ` (${s.lastRun.error})`}</>
-            : capFor(s.providerId, s.modality) && !isOn(capFor(s.providerId, s.modality)!.dateSearch) ? 'Sin ejecuciones: la búsqueda automática por fechas no está implementada para este proveedor.' : 'Sin ejecuciones todavía.'}</p>
+            : capFor(s.providerId, s.modality) && !isOn(capFor(s.providerId, s.modality)!.dateSearch) ? 'Sin ejecuciones: este proveedor no permite automatizar la búsqueda por fechas (lo prohíbe su robots.txt). Guarda la cotización a mano.' : 'Sin ejecuciones todavía.'}</p>
           <Distribution d={s.distribution} />
           {s.offers.length > 0 && (
             <ul className="list">

@@ -185,7 +185,7 @@ test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto
   await dialog.getByRole('button', { name: 'Guardar búsqueda sin ejecución' }).click();
   await waitToast(page, 'Búsqueda guardada, sin ejecución automática.');
   await expect(page.getByTestId('created-note')).toContainText('no se ejecutará automáticamente');
-  await expect(page.locator('main')).toContainText('Sin ejecuciones: la búsqueda automática por fechas no está implementada');
+  await expect(page.locator('main')).toContainText('Sin ejecuciones: este proveedor no permite automatizar la búsqueda por fechas');
 
   // Cotización manual desde la capacidad, marcada como estimación deliberada.
   await open.click();

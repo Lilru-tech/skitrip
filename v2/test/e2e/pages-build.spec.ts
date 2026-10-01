@@ -131,7 +131,7 @@ test('build de Pages: el enlace de invitación es de /skitrip/#/unirse y quien l
 test('build de Pages: ticket en PDF leído en el navegador (sin subirlo) y PDF sin texto con alternativa', async ({ page, request }, info) => {
   const w = await watch(page);
   const uploads: string[] = [];
-  page.on('request', (r) => { const b = r.postDataBuffer(); if (b && b.includes('%PDF')) uploads.push(r.url()); });
+  page.on('request', (r) => { const b = r.postDataBuffer(); if (b && Buffer.from(b).toString('latin1').includes('%PDF')) uploads.push(r.url()); });
   const u = makeUser('pgp');
   const token = await createUserViaApi(request, u);
   const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Ticket en PDF' });
