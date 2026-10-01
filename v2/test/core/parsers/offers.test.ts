@@ -8,6 +8,7 @@ import {
 } from '../../../src/core/parsers/offers';
 import esqHtml from '../../fixtures/parsers/esquiades-offers.html?raw';
 import estHtml from '../../fixtures/parsers/estiber-offers.html?raw';
+import estMolina from '../../fixtures/parsers/estiber-la-molina.reconstruido.html?raw';
 
 const card = (over: Partial<OfferCard>): OfferCard => ({
   provider: 'esquiades', providerOfferId: null, hotelName: 'Hotel X', board: 'half_board', nights: 2, forfaitDays: 1,
@@ -201,5 +202,43 @@ describe('publicación · precio rebajado sin marca de tachado (texto real de Es
     expect(c.amount?.cents).toBe(68400);
     expect(c.strikethroughIgnored).toBe(false);
     expect(c).toMatchObject({ nights: 4, forfaitDays: 3, checkIn: '2026-12-04', checkOut: '2026-12-08', unit: 'per_person' });
+  });
+});
+
+describe('Estiber · estructura «carousel-cell cl-offer-box cl-offer-box-type-hotel» (fixture reconstruido, ver su cabecera)', () => {
+  it('reconoce las dos tarjetas de hotel y no el resto del carrusel', () => {
+    const cards = parseOfferCardsHtml(estMolina, 'estiber');
+    expect(cards).toHaveLength(2);
+    expect(cards.map((c) => [c.hotelName, c.nights, c.checkIn, c.checkOut, c.forfaitDays, c.forfaitIncluded, c.amount?.cents, c.unit, c.priceKind])).toEqual([
+      ['Basecamps Cerdanya', 4, '2026-12-04', '2026-12-08', 3, 'yes', 68400, 'per_person', 'advertised_from'],
+      ['Puigcerdà Park Hotel & Spa', 4, '2026-12-04', '2026-12-08', 3, 'yes', 42100, 'per_person', 'advertised_from'],
+    ]);
+    // La valoración «8.5 (21)» no se lee como precio ni como parte del nombre; cada tarjeta solo usa su texto.
+    expect(cards.every((c) => !c.ambiguousPrice && !c.strikethroughIgnored)).toBe(true);
+  });
+
+  it('textos pegados tal como se leyeron («2026Forfait», «díasPor») dentro de un solo nodo', () => {
+    const glued = '<div class="carousel-cell cl-offer-box cl-offer-box-type-hotel"><a href="/x">Basecamps Cerdanya 4 noches del 04/12/2026 al 08/12/2026Forfait 3 díasPor 684€ por persona</a></div>';
+    const [c] = parseOfferCardsHtml(glued, 'estiber');
+    expect(c).toMatchObject({ hotelName: 'Basecamps Cerdanya', nights: 4, checkIn: '2026-12-04', checkOut: '2026-12-08', forfaitDays: 3, unit: 'per_person' });
+    expect(c.amount?.cents).toBe(68400);
+  });
+
+  it('precio rebajado dentro de la misma estructura: se toma el actual si el descuento cuadra; tarjetas vecinas no se mezclan', () => {
+    const cell = (t: string) => `<div class="carousel-cell cl-offer-box cl-offer-box-type-hotel"><a href="/x">${t}</a></div>`;
+    const cards = parseOfferCardsHtml(cell('-10% 8.6 (37) Hotel Sarao 2 noches del 19/02/2027 al 21/02/2027Forfait 2 díasPor 222€ 199€ por persona') + cell('Hotel Vecino 2 noches Forfait 2 días Por 150€ por persona'), 'estiber');
+    expect(cards.map((c) => [c.hotelName, c.amount?.cents, c.strikethroughIgnored])).toEqual([['Hotel Sarao', 19900, true], ['Hotel Vecino', 15000, false]]);
+  });
+
+  it('`carousel-cell` sola no es una tarjeta', () => {
+    expect(parseOfferCardsHtml('<div class="carousel-cell"><a href="/f">Forfaits 3 días 120€</a></div><article>x</article>', 'estiber')).toHaveLength(1);
+  });
+
+  it('el fixture saneado de una página con estas tarjetas conserva las clases y quita el enlace con parámetros', async () => {
+    const { offerCardsFixture } = await import('../../../src/core/parsers/fixture');
+    const out = offerCardsFixture(estMolina.replace(/Booking\.CSP/g, 'Booking.CSP?defapt=1575&adu1=2&habs=1'), 'estiber', { sourceId: 'estiber-la-molina', url: 'https://www.estiber.com/es_ES/ofertas-esqui-la-molina', capturedAt: '2026-10-01T12:00:00Z', sha256: '0'.repeat(64) })!;
+    expect(out).toContain('class="carousel-cell cl-offer-box cl-offer-box-type-hotel"');
+    expect(out).not.toMatch(/defapt|adu1|recaptcha|cl-banner/);
+    expect(parseOfferCardsHtml(out, 'estiber').map((c) => c.amount?.cents)).toEqual([68400, 42100]);
   });
 });

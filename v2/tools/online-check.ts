@@ -6,13 +6,17 @@
  *
  *   npx tsx tools/online-check.ts                 # todas las fuentes con adaptador de data/catalog.json
  *   npx tsx tools/online-check.ts grandvalira     # solo las fuentes cuyo id contiene el texto
- *   … --save-html exports/online-check            # guarda el HTML para crear fixtures reales (revisar y sanear antes de subir)
+ *   … --save-html exports/online-check            # guarda el HTML completo (solo en local; no se sube a ningún sitio)
+ *   … --fixtures diag/fixtures                    # guarda fixtures reducidos y saneados (src/core/parsers/fixture.ts)
+ *                                                 # para copiarlos a test/fixtures/real tras revisarlos
  *
  * El registro (URL, fecha, campos obtenidos, resultado y limitaciones) es lo que hace falta antes de marcar una
  * fuente como «verificada» en data/catalog.json. Este entorno de desarrollo no tiene salida a esas webs: se ejecuta en
  * GitHub Actions (workflow manual) o en un equipo con acceso.
  */
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { offerCardsFixture, pageFixture } from '../src/core/parsers/fixture.ts';
 import { parseOfferCardsHtml } from '../src/core/parsers/offers.ts';
 import { OFFICIAL_ADAPTERS } from '../src/core/parsers/official-snow.ts';
 import { esquiadesAdapter } from '../src/core/parsers/snow.ts';
@@ -20,8 +24,10 @@ import { allowedByRobots, BlockedError, withBrowser } from './collectors/lib.ts'
 
 type Src = { id: string; kind: string; url: string; adapter: string | null; status: string };
 const args = process.argv.slice(2);
-const saveDir = args.includes('--save-html') ? args[args.indexOf('--save-html') + 1] : null;
-const filter = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--save-html') ?? '';
+const opt = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const saveDir = opt('--save-html');
+const fixturesDir = opt('--fixtures');
+const filter = args.find((a, i) => !a.startsWith('--') && !['--save-html', '--fixtures'].includes(args[i - 1])) ?? '';
 const catalog = JSON.parse(readFileSync(new URL('../data/catalog.json', import.meta.url), 'utf8')) as { sources: Src[] };
 const sources = catalog.sources.filter((s) => s.adapter && s.id.includes(filter));
 
@@ -43,6 +49,14 @@ function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample
 
 const log: unknown[] = [];
 if (saveDir) mkdirSync(saveDir, { recursive: true });
+if (fixturesDir) mkdirSync(fixturesDir, { recursive: true });
+function writeFixture(s: Src, html: string, at: string) {
+  const meta = { sourceId: s.id, url: s.url, capturedAt: at, sha256: createHash('sha256').update(html).digest('hex') };
+  const cards = s.adapter?.endsWith('-cards');
+  const out = cards ? offerCardsFixture(html, s.adapter!.startsWith('esquiades') ? 'esquiades' : 'estiber', meta) : pageFixture(html, meta);
+  // Sin tarjetas reconocidas se guarda el cuerpo saneado: es justo lo que hace falta para adaptar el analizador.
+  writeFileSync(`${fixturesDir}/${s.id}.${at.slice(0, 10)}.html`, out ?? pageFixture(html, { ...meta, note: 'El analizador no reconoció ninguna tarjeta.' }));
+}
 await withBrowser(async (load) => {
   for (const s of sources) {
     const at = new Date().toISOString();
@@ -50,6 +64,7 @@ await withBrowser(async (load) => {
       if (!(await allowedByRobots(s.url))) { log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'robots' }); continue; }
       const html = await load(s.url);
       if (saveDir) writeFileSync(`${saveDir}/${s.id}.html`, html);
+      if (fixturesDir) writeFixture(s, html, at);
       log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'ok', ...analyse(s, html) });
     } catch (e) {
       log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: e instanceof BlockedError ? 'blocked' : 'error', error: String((e as Error).message).slice(0, 300) });

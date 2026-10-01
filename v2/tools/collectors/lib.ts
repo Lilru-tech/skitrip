@@ -1,5 +1,6 @@
 // Utilidades comunes de los recolectores (se ejecutan en GitHub Actions, nunca en el Worker).
 import { setTimeout as sleep } from 'node:timers/promises';
+import { detectBlock } from '../../src/core/blocked.ts';
 import { parseRobots, robotsAllows, type RobotsRule } from '../../src/core/robots.ts';
 
 export const API = (process.env.SKITRIP_API_URL ?? '').replace(/\/$/, '');
@@ -52,10 +53,8 @@ export async function allowedByRobots(url: string): Promise<boolean> {
 
 export class BlockedError extends Error {}
 
-/** Señales de bloqueo: se para en lugar de insistir o evadir. */
-export function looksBlocked(status: number, html: string): boolean {
-  return status === 403 || status === 429 || /captcha|are you a robot|access denied|cf-challenge|verifica que eres humano/i.test(html.slice(0, 20_000));
-}
+/** Señales de bloqueo (src/core/blocked.ts): se para en lugar de insistir o evadir. */
+export { detectBlock, looksBlocked } from '../../src/core/blocked.ts';
 
 /** Reintentos acotados con espera progresiva. Un bloqueo no se reintenta. */
 export async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseMs = 3000): Promise<T> {
@@ -92,7 +91,8 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
       refused = [];
       const res = await page.goto(url, { waitUntil: 'networkidle', timeout: 45_000 });
       const html = await page.content();
-      if (looksBlocked(res?.status() ?? 0, html)) throw new BlockedError(`bloqueado o CAPTCHA en ${new URL(url).host}`);
+      const block = detectBlock(res?.status() ?? 0, html);
+      if (block.blocked) throw new BlockedError(`bloqueado o CAPTCHA en ${new URL(url).host}: ${block.reason}`);
       if (refused.length) console.log(`${url}: ${refused.length} peticiones no cargadas por robots.txt (${[...new Set(refused)].slice(0, 3).join(', ')})`);
       return html;
     };

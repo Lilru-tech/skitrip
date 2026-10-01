@@ -46,7 +46,9 @@ export interface OfferCard {
 
 const CARD_CLASSES: Record<Provider, RegExp> = {
   esquiades: /^(hotel-card|offer-card|product-card|card-hotel|card-offer|result-item|hotel-item)$/i,
-  estiber: /^(oferta|oferta-card|card-oferta|oferta-item|offer-card|offer)$/i,
+  // Estiber (estructura señalada por la revisión del 01/10/2026): «carousel-cell cl-offer-box cl-offer-box-type-hotel».
+  // `carousel-cell` sola no basta: el carrusel puede contener otras cosas.
+  estiber: /^(cl-offer-box|oferta|oferta-card|card-oferta|oferta-item|offer-card|offer)$/i,
 };
 
 function isCard(provider: Provider) {
@@ -146,7 +148,12 @@ function hotelNameOf(card: El): string | null {
     if (t) return t;
   }
   const h = findAll(card, (e) => /^h[1-4]$/.test(e.tag), isStrikethrough)[0];
-  return h ? textContent(h, isStrikethrough) || null : null;
+  if (h) return textContent(h, isStrikethrough) || null;
+  // Sin elemento de nombre (tarjeta de Estiber leída como texto): lo que precede a «N noches», sin el descuento «-10%»
+  // ni la valoración «8.5 (21)». Si no hay ese patrón, no se adivina.
+  const m = /^(.*?)\s*\d{1,2}\s*noches?\b/i.exec(textContent(card, isStrikethrough));
+  const name = m?.[1].replace(/^-\s?\d{1,2}\s?%\s*/, '').replace(/^\d{1,2}(?:[.,]\d)?\s*\(\d+\)\s*/, '').trim();
+  return name && name.length >= 3 && name.length <= 120 && !/€|\d+[.,]\d{2}/.test(name) ? name : null;
 }
 
 function offerIdOf(card: El): string | null {
@@ -280,10 +287,13 @@ function isAncestor(anc: El, el: El): boolean {
 
 /** Cada tarjeta se analiza SOLO dentro de su propio elemento. */
 export function parseOfferCardsHtml(html: string, provider: Provider): OfferCard[] {
-  const doc = parseHtml(html);
-  let cards = findOutermost(doc, isCard(provider));
-  if (!cards.length) cards = findOutermost(doc, (e) => e.tag === 'article');
-  return cards.map((c) => parseCard(c, provider));
+  return findOfferCards(parseHtml(html), provider).map((c) => parseCard(c, provider));
+}
+
+/** Elementos de tarjeta (los más externos que cumplen la detección); si no hay, los <article>. */
+export function findOfferCards(doc: El, provider: Provider): El[] {
+  const cards = findOutermost(doc, isCard(provider));
+  return cards.length ? cards : findOutermost(doc, (e) => e.tag === 'article');
 }
 
 // ---------- deduplicado y resumen ----------

@@ -1,6 +1,8 @@
 # SkiTrip v2 · comprobación online de fuentes (solo lectura). Manual. No usa secretos, no escribe en la API ni en D1.
 # El registro JSON (solo URLs y resultados de fuentes públicas, sin datos de usuarios) queda como artefacto de la
-# ejecución durante 7 días. En un repositorio público los artefactos son descargables: el HTML NO se guarda aquí.
+# ejecución durante 7 días. En un repositorio público los artefactos son descargables: el HTML completo NO se guarda.
+# Con «fixtures» se guardan además fragmentos reducidos y saneados de esas páginas públicas (sin scripts ni parámetros
+# de URL) para convertirlos en fixtures reales de los tests.
 name: v2 · comprobar fuentes online
 on:
   workflow_dispatch:
@@ -9,6 +11,11 @@ on:
         description: 'Texto contenido en el id de la fuente (vacío = todas)'
         required: false
         default: ''
+      fixtures:
+        description: 'Guardar fixtures reducidos y saneados de cada página'
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
 jobs:
@@ -28,10 +35,13 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - env:
-          FILTER: ${{ github.event.inputs.filter }}
+          FILTER: ${{ inputs.filter }}
+          FIXTURES: ${{ inputs.fixtures }}
         run: |
           mkdir -p diag
-          npx tsx tools/online-check.ts "$FILTER" > diag/online-check.json
+          extra=()
+          if [ "$FIXTURES" = "true" ]; then extra=(--fixtures diag/fixtures); fi
+          npx tsx tools/online-check.ts "$FILTER" "${extra[@]}" > diag/online-check.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
