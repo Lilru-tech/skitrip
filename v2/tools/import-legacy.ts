@@ -51,7 +51,7 @@ type Catalog = {
   areas: { id: string; name: string; kind: string; country: string; region: string; lat: number; lon: number; official_total_km: number | null; total_km_source: string | null; vibe_score: number | null; apres_score: number | null; official_url: string | null; notes: string | null; legacy_id: string | null }[];
   links: { parent: string; child: string; relation: string }[];
   origins: { id: string; name: string; lat: number; lon: number }[];
-  routes: { origin: string; area: string; access_name: string; road_km: number | null; duration_min: number | null; source: string; checked_on: string | null }[];
+  routes: { origin: string; area: string; access_name: string; road_km: number | null; duration_min: number | null; source: string; checked_on: string | null; notes?: string | null }[];
   sources: { id: string; area: string; scope: string; kind: string; provider: string; url: string; method: string; fields: string[]; priority: number; status: string; checked_on: string | null; limitations: string; adapter: string | null; aliases: string[] | null }[];
   legacy_scope_rules: { snow: Record<string, Record<string, string>>; hotel: Record<string, string> };
 };
@@ -79,10 +79,11 @@ const routeIssues = validateRoutes(catalog.routes.map((r) => ({ originId: r.orig
 report.routes = { total: catalog.routes.length, issues: routeIssues };
 for (const r of catalog.routes) {
   const issues = routeIssues.filter((i) => i.originId === r.origin && i.areaId === r.area).map((i) => i.issue);
-  const notes = [r.source === 'legacy_hardcode' ? 'Distancia heredada del código legacy sin fuente ni fecha.' : null, ...issues].filter(Boolean).join(' ');
+  const notes = [r.source === 'legacy_hardcode' ? 'Distancia heredada del código legacy sin fuente ni fecha.' : null, r.notes ?? null, ...issues].filter(Boolean).join(' ');
   sql.push(`INSERT INTO routes (origin_id, area_id, access_name, road_km, duration_min, source, checked_on, validated, notes)
 VALUES (${[r.origin, r.area, r.access_name, r.road_km, r.duration_min, r.source, r.checked_on, 0, notes || null].map(q).join(', ')})
-ON CONFLICT (origin_id, area_id) DO UPDATE SET notes = excluded.notes WHERE routes.source = 'legacy_hardcode';`);
+ON CONFLICT (origin_id, area_id) DO UPDATE SET access_name = excluded.access_name, road_km = excluded.road_km, duration_min = excluded.duration_min, source = excluded.source, checked_on = excluded.checked_on, notes = excluded.notes
+  WHERE routes.validated = 0;`);
 }
 
 const providers = [

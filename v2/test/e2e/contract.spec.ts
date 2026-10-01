@@ -161,7 +161,7 @@ test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto
   await expect(cap).toContainText('Búsqueda automática por fechas');
   await expect(cap).toContainText('No implementada');
   await expect(cap).toContainText('orientativos');
-  await expect(cap).toContainText('no está implementada');
+  await expect(cap).toContainText('el robots.txt de Esquiades prohíbe a los programas su buscador (/book/)');
   await expect(cap.getByRole('link', { name: /Consultar en Esquiades/ })).toHaveAttribute('href', /esquiades/);
   await expect(cap.getByRole('button', { name: 'Guardar cotización manual' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Crear búsqueda' })).toHaveCount(0);

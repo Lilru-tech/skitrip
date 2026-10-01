@@ -437,47 +437,47 @@
   {
    "origin": "tarragona",
    "area": "grandvalira",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 260,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 211,
+   "duration_min": 203,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "pal-arinsal",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 250,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 202,
+   "duration_min": 193,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "ordino-arcalis",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 255,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 215,
+   "duration_min": 211,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "alp-2500",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 195,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 207,
+   "duration_min": 159,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "baqueira-beret",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 270,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 283,
+   "duration_min": 252,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
@@ -486,34 +486,35 @@
    "road_km": 225,
    "duration_min": null,
    "source": "legacy_hardcode",
-   "checked_on": null
+   "checked_on": null,
+   "notes": "Distancia heredada sin verificar: la consulta a OSRM del 01/10/2026 no se pudo completar (límite de peticiones)."
   },
   {
    "origin": "tarragona",
    "area": "espot-esqui",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 250,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 226,
+   "duration_min": 210,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "boi-taull",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 255,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 252,
+   "duration_min": 226,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "port-del-comte",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 145,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 153,
+   "duration_min": 137,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
@@ -522,169 +523,171 @@
    "road_km": 215,
    "duration_min": null,
    "source": "legacy_hardcode",
-   "checked_on": null
+   "checked_on": null,
+   "notes": "Núria no tiene acceso por carretera (cremallera desde Ribes de Freser o Queralbs). Distancia heredada sin verificar; OSRM (01/10/2026) solo llega a una pista a 3 km y no sirve."
   },
   {
    "origin": "tarragona",
    "area": "cerler",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 295,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 260,
+   "duration_min": 279,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "formigal-panticosa",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 350,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 370,
+   "duration_min": 334,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01",
+   "notes": "El punto del dominio queda entre Formigal y Panticosa; OSRM lo ajustó a una carretera a 2,9 km, del lado de Formigal."
   },
   {
    "origin": "tarragona",
    "area": "astun",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 315,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 304,
+   "duration_min": 223,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "candanchu",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 405,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 298,
+   "duration_min": 215,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "valdelinares",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 270,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 247,
+   "duration_min": 230,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "javalambre",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 330,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 328,
+   "duration_min": 234,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "font-romeu-pyrenees-2000",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 265,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 231,
+   "duration_min": 185,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "les-angles",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 270,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 244,
+   "duration_min": 196,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "tarragona",
    "area": "ax-3-domaines",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 310,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 262,
+   "duration_min": 220,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "grandvalira",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 160,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 177,
+   "duration_min": 151,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "pal-arinsal",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 165,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 187,
+   "duration_min": 160,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "ordino-arcalis",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 175,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 199,
+   "duration_min": 178,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "alp-2500",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 120,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 131,
+   "duration_min": 104,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "baqueira-beret",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 210,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 277,
+   "duration_min": 247,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "port-aine",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 165,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 233,
+   "duration_min": 212,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "espot-esqui",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 190,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 242,
+   "duration_min": 202,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "boi-taull",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 190,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 293,
+   "duration_min": 249,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "port-del-comte",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 115,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 119,
+   "duration_min": 103,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
@@ -693,88 +696,90 @@
    "road_km": 130,
    "duration_min": null,
    "source": "legacy_hardcode",
-   "checked_on": null
+   "checked_on": null,
+   "notes": "Núria no tiene acceso por carretera (cremallera desde Ribes de Freser o Queralbs). Distancia heredada sin verificar; OSRM (01/10/2026) solo llega a una pista a 3 km y no sirve."
   },
   {
    "origin": "sabadell",
    "area": "cerler",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 225,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 294,
+   "duration_min": 304,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "formigal-panticosa",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 280,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 416,
+   "duration_min": 361,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01",
+   "notes": "El punto del dominio queda entre Formigal y Panticosa; OSRM lo ajustó a una carretera a 2,9 km, del lado de Formigal."
   },
   {
    "origin": "sabadell",
    "area": "astun",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 250,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 350,
+   "duration_min": 251,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "candanchu",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 330,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 344,
+   "duration_min": 242,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "valdelinares",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 340,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 352,
+   "duration_min": 295,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "javalambre",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 395,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 432,
+   "duration_min": 300,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "font-romeu-pyrenees-2000",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 145,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 156,
+   "duration_min": 130,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "les-angles",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 155,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 168,
+   "duration_min": 141,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   },
   {
    "origin": "sabadell",
    "area": "ax-3-domaines",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 175,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 187,
+   "duration_min": 164,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
   }
  ],
  "sources": [
