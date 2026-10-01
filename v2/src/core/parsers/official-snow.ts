@@ -11,19 +11,30 @@ export interface OfficialSnow {
 }
 
 const toText = (input: string) => (/<[a-z][\s\S]*>/i.test(input) ? textContent(parseHtml(input)) : input).replace(/\s+/g, ' ');
-const pair = (t: string, label: RegExp): [number, number] | null => {
-  const m = new RegExp(`${label.source}\\s*(\\d{1,4})\\s*/\\s*(\\d{1,4})`, 'i').exec(t);
+// Límites de plausibilidad: la mayor estación del catálogo (Grandvalira) publica 215 km, 142 pistas y 73 remontes.
+// Un total por encima de estos límites o un abierto mayor que el total es una lectura errónea, no un dato.
+const LIMITS = { km: 400, runs: 300, lifts: 150 } as const;
+type PairKind = keyof typeof LIMITS;
+const INT = '(\\d{1,4})(?!\\d|[.,]\\d)';
+const DEC = '(\\d{1,4}(?:[.,]\\d{1,2})?)(?!\\d|[.,]\\d)';
+/**
+ * «<etiqueta> abiertos / total». La etiqueta se agrupa entera, así que puede llevar alternativas («pistas abiertas|pistas»).
+ * Solo los km admiten decimales, con coma o punto («12,5 / 215»); pistas y remontes son enteros.
+ */
+const pair = (t: string, label: RegExp, kind: PairKind): [number, number] | null => {
+  const num = kind === 'km' ? DEC : INT;
+  const m = new RegExp(`(?:${label.source})\\s*:?\\s*${num}\\s*(?:km)?\\s*/\\s*${num}`, 'i').exec(t);
   if (!m) return null;
-  const a = Number(m[1]), b = Number(m[2]);
-  return b > 0 && a <= b ? [a, b] : null;
+  const a = Number(m[1].replace(',', '.')), b = Number(m[2].replace(',', '.'));
+  return Number.isFinite(a) && Number.isFinite(b) && b > 0 && b <= LIMITS[kind] && a >= 0 && a <= b ? [a, b] : null;
 };
 
 export function parseGrandvalira(input: string): OfficialSnow | null {
   const t = toText(input);
-  const km = pair(t, /km esquiables/) ?? pair(t, /kil[oó]metros esquiables/);
+  const km = pair(t, /km esquiables|kil[oó]metros esquiables/, 'km');
   if (!km) return null;
-  const runs = pair(t, /pistas(?!\s+(?:verde|azul|roja|negra))/);
-  const lifts = pair(t, /instalaciones/);
+  const runs = pair(t, /pistas(?!\s+(?:verde|azul|roja|negra))/, 'runs');
+  const lifts = pair(t, /instalaciones/, 'lifts');
   const depth = /espesores de nieve \(cm\)\s*(\d{1,4})\s*-\s*(\d{1,4})/i.exec(t);
   const d = /[úu]ltima actualizaci[oó]n:?\s*(?:[a-záéíóú]{2,4}\.?,?\s*)?(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(t);
   const [openKm, totalKm] = km;
@@ -57,8 +68,8 @@ export function parseAndorraSectors(input: string, names: readonly string[]): Se
   }).sort((a, b) => a.at - b.at);
   return found.map((f, i) => {
     const block = t.slice(f.at, found[i + 1]?.at ?? t.length);
-    const lifts = pair(block, /instalaciones/);
-    const runs = pair(block, /pistas/);
+    const lifts = pair(block, /instalaciones/, 'lifts');
+    const runs = pair(block, /pistas/, 'runs');
     return { name: f.name, state: f.state, openLifts: lifts?.[0] ?? null, totalLifts: lifts?.[1] ?? null, openRuns: runs?.[0] ?? null, totalRuns: runs?.[1] ?? null };
   });
 }
@@ -66,9 +77,9 @@ export function parseAndorraSectors(input: string, names: readonly string[]): Se
 /** Dominio completo: km si se publican (Arcalís y Pal no los publican), pistas, instalaciones, espesores y fecha. */
 export function parseAndorra(input: string, sectorNames: readonly string[]): OfficialSnow | null {
   const t = toText(input);
-  const km = pair(t, /km esquiables/) ?? pair(t, /kil[oó]metros esquiables/);
-  const runs = pair(t, /pistas(?!\s+(?:verde|azul|roja|negra))/);
-  const lifts = pair(t, /instalaciones/);
+  const km = pair(t, /km esquiables|kil[oó]metros esquiables/, 'km');
+  const runs = pair(t, /pistas(?!\s+(?:verde|azul|roja|negra))/, 'runs');
+  const lifts = pair(t, /instalaciones/, 'lifts');
   if (!km && !runs) return null;
   const depth = /espesores de nieve \(cm\)\s*(\d{1,4})\s*-\s*(\d{1,4})/i.exec(t);
   const d = /[úu]ltima actualizaci[oó]n:?\s*(?:[a-záéíóú]{2,4}\.?,?\s*)?(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(t);
@@ -121,9 +132,9 @@ export function parseAramon(input: string): OfficialSnow | null {
   const sourceDate = dmy(d[1], String(ES_MONTHS.indexOf(d[2].toLowerCase()) + 1), d[3]);
   const seasonOver = /temporada[^.]{0,40}(finalizad|ha finalizado|terminad)/i.test(t);
   const closed = /estaci[oó]n cerrada/i.test(t);
-  const km = pair(t, /km esquiables|kil[oó]metros esquiables|km abiertos/);
-  const runs = pair(t, /pistas abiertas|pistas/);
-  const lifts = pair(t, /remontes abiertos|remontes|instalaciones/);
+  const km = pair(t, /km esquiables|kil[oó]metros esquiables|km abiertos/, 'km');
+  const runs = pair(t, /pistas abiertas|pistas/, 'runs');
+  const lifts = pair(t, /remontes abiertos|remontes|instalaciones/, 'lifts');
   return {
     opStatus: seasonOver ? 'out_of_season' : closed ? 'closed_confirmed' : (km ? ratio(km[0], km[1]) : ratio(runs?.[0] ?? null, runs?.[1] ?? null)) ?? 'unknown',
     openKm: km?.[0] ?? null, totalKm: km?.[1] ?? null, openRuns: runs?.[0] ?? null, totalRuns: runs?.[1] ?? null,
@@ -133,9 +144,9 @@ export function parseAramon(input: string): OfficialSnow | null {
 
 /** Adaptadores oficiales por id de la columna `adapter` de sources. */
 export const OFFICIAL_ADAPTERS: Record<string, { version: string; parse: (input: string) => OfficialSnow | null }> = {
-  'grandvalira-official': { version: '1.1.0', parse: (i) => parseAndorra(i, GRANDVALIRA_SECTORS) },
-  'ordino-arcalis-official': { version: '1.0.0', parse: (i) => parseAndorra(i, ARCALIS_SECTORS) },
-  'pal-arinsal-official': { version: '1.0.0', parse: (i) => parseAndorra(i, PAL_ARINSAL_SECTORS) },
+  'grandvalira-official': { version: '1.2.0', parse: (i) => parseAndorra(i, GRANDVALIRA_SECTORS) },
+  'ordino-arcalis-official': { version: '1.1.0', parse: (i) => parseAndorra(i, ARCALIS_SECTORS) },
+  'pal-arinsal-official': { version: '1.1.0', parse: (i) => parseAndorra(i, PAL_ARINSAL_SECTORS) },
   'port-del-comte-official': { version: '1.0.0', parse: parsePortDelComte },
-  'aramon-official': { version: '1.0.0', parse: parseAramon },
+  'aramon-official': { version: '1.1.0', parse: parseAramon },
 };

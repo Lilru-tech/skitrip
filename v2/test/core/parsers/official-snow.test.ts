@@ -27,6 +27,7 @@ import pdc from '../../fixtures/real/port-del-comte-pistes.2026-10-01.txt?raw';
 import cerler from '../../fixtures/real/cerler-parte-nieve.2026-10-01.txt?raw';
 import formigal from '../../fixtures/real/formigal-panticosa-parte-nieve.2026-10-01.txt?raw';
 import { ARCALIS_SECTORS, GRANDVALIRA_SECTORS, OFFICIAL_ADAPTERS, PAL_ARINSAL_SECTORS, parseAndorra, parseAndorraSectors, parseAramon, parsePortDelComte } from '../../../src/core/parsers/official-snow';
+import { snowForRanking } from '../../../src/core/compare';
 
 describe('Andorra (plantilla común) con textos reales del 01/10/2026', () => {
   it('Grandvalira: dominio con km y los 7 sectores con su estado, sin km por sector', () => {
@@ -87,5 +88,53 @@ describe('registro de adaptadores oficiales', () => {
     expect(OFFICIAL_ADAPTERS['pal-arinsal-official'].parse(pal)?.totalRuns).toBe(47);
     expect(OFFICIAL_ADAPTERS['port-del-comte-official'].parse(pdc)?.totalLifts).toBe(13);
     expect(OFFICIAL_ADAPTERS['aramon-official'].parse(cerler)?.opStatus).toBe('out_of_season');
+  });
+});
+
+// Estados de invierno con textos SINTÉTICOS (no son capturas de temporada): siguen la redacción de las plantillas reales
+// de fuera de temporada. Los partes reales de invierno se añadirán desde la comprobación online en temporada.
+describe('estados de invierno (textos sintéticos con las plantillas reales)', () => {
+  const ARAMON = 'Parte de nieve diario Emitido a las 09:00 h del 15 de enero de 2027';
+  const now = Date.parse('2027-01-15T10:00:00+01:00');
+  const cand = (r: ReturnType<typeof parseAramon>, observedAt = now) => ({ sourceId: 'aramon', priority: 10, observedAt, opStatus: r!.opStatus, openKm: r!.openKm, quality: 'ok', sourceDate: r!.sourceDate });
+
+  it('regresión de la revisión: Aramón con etiquetas alternativas lee km, pistas y remontes', () => {
+    expect(parseAramon(`${ARAMON} Km esquiables 50 / 100 Pistas abiertas 20 / 40 Remontes abiertos 10 / 20`)).toMatchObject({
+      opStatus: 'partial', openKm: 50, totalKm: 100, openRuns: 20, totalRuns: 40, openLifts: 10, totalLifts: 20, sourceDate: '2027-01-15',
+    });
+  });
+  it('parcial, completo, cerrado explícito y sin datos', () => {
+    expect(parseAramon(`${ARAMON} Km esquiables 100 / 100 Pistas abiertas 40 / 40 Remontes abiertos 20 / 20`)?.opStatus).toBe('open');
+    expect(parseAramon(`${ARAMON} Estación cerrada por fuerte viento Km esquiables 0 / 100 Pistas abiertas 0 / 40`)).toMatchObject({ opStatus: 'closed_confirmed', openKm: 0, totalKm: 100 });
+    expect(parseAramon(`${ARAMON} Observaciones Consulte la web`)).toMatchObject({ opStatus: 'unknown', openKm: null, openRuns: null, openLifts: null });
+    // 0 abiertos sin la palabra «cerrada»: no se presume cierre.
+    expect(parseAramon(`${ARAMON} Km esquiables 0 / 100`)?.opStatus).toBe('unknown');
+  });
+  it('parte antiguo: se lee con su fecha y no puntúa como nieve de hoy', () => {
+    const r = parseAramon('Emitido a las 08:30 h del 2 de enero de 2027 Km esquiables 80 / 100');
+    expect(r).toMatchObject({ sourceDate: '2027-01-02', openKm: 80 });
+    expect(snowForRanking(cand(r), now)).toEqual({ openKm: null, excluded: 'parte_antiguo' });
+    expect(snowForRanking(cand(parseAramon(`${ARAMON} Km esquiables 80 / 100`)), now)).toEqual({ openKm: 80, excluded: null });
+  });
+  it('km con decimales, con coma o con punto (solo los km)', () => {
+    for (const km of ['12,5', '12.5']) {
+      expect(parseAndorra(`Km esquiables ${km} / 215 Pistas 5 / 140 Instalaciones 4 / 73`, GRANDVALIRA_SECTORS)).toMatchObject({
+        openKm: 12.5, totalKm: 215, openRuns: 5, totalRuns: 140, openLifts: 4, totalLifts: 73, opStatus: 'partial',
+      });
+    }
+    expect(parseAramon(`${ARAMON} Km esquiables 33,75 / 100,5`)).toMatchObject({ openKm: 33.75, totalKm: 100.5 });
+  });
+  it('sin pistas ni remontes fraccionarios ni valores imposibles', () => {
+    const r = (s: string) => parseAramon(`${ARAMON} ${s}`)!;
+    expect(r('Pistas abiertas 5,5 / 40 Remontes abiertos 2.5 / 20')).toMatchObject({ openRuns: null, openLifts: null });
+    expect(r('Km esquiables 120 / 100')).toMatchObject({ openKm: null, totalKm: null }); // abierto > total
+    expect(r('Km esquiables 50 / 0')).toMatchObject({ openKm: null }); // total 0
+    expect(r('Km esquiables 50 / 4000 Pistas abiertas 20 / 900 Remontes abiertos 10 / 500')).toMatchObject({ openKm: null, openRuns: null, openLifts: null });
+    expect(r('Km esquiables 12,555 / 100')).toMatchObject({ openKm: null }); // más de dos decimales: no es una cifra de km
+    expect(r('Pistas abiertas 40 / 140,5')).toMatchObject({ openRuns: null }); // un total fraccionario no se trunca a 140
+  });
+  it('Grandvalira real sigue igual: cerrado 0/215 con la fecha publicada aparte de la de descarga', () => {
+    expect(parseAndorra(gvSect, GRANDVALIRA_SECTORS)).toMatchObject({ opStatus: 'closed_confirmed', openKm: 0, totalKm: 215 });
+    expect(parseGrandvalira(real)).toMatchObject({ openKm: 0, totalKm: 215, sourceDate: '2026-09-23' });
   });
 });
