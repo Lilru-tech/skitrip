@@ -1,94 +1,133 @@
-# Despliegue (coste 0 €)
+# Publicación (coste 0 €)
 
-Nada de esto se ha ejecutado todavía: requiere las cuentas de David y su visto bueno. Los pasos están pensados para que **no haya ningún método de pago registrado**: sin tarjeta, un servicio gratuito se bloquea al llegar a su límite y no puede facturar.
+**Arquitectura publicada**
+
+- **Interfaz:** GitHub Pages en `https://lilru-tech.github.io/skitrip/`, la misma URL de la web antigua, sin redirección. Rutas con fragmento (`/skitrip/#/viajes`).
+- **API:** Cloudflare Worker en `https://skitrip.<subdominio>.workers.dev`. CORS solo para el origen exacto `https://lilru-tech.github.io`.
+- **Datos:** D1 (Cloudflare).
+- **Autenticación:** Firebase Authentication, plan Spark.
+- **Recolectores y despliegues:** GitHub Actions.
+
+Estado a 01/10/2026: **nada de esto se ha ejecutado todavía en las cuentas reales.** Faltan los accesos descritos en `ACCESOS.md`, entregado en la carpeta del proyecto. Un workflow omitido por falta de secretos no cuenta como probado.
 
 ## Qué se usa y qué cuesta
 
-| Servicio | Plan | Límite relevante | Qué pasa al superarlo |
+| Servicio | Plan | Límite relevante | Al superarlo |
 |---|---|---|---|
-| Cloudflare Workers | Free | 100.000 peticiones/día, 10 ms de CPU por petición, 5 cron por cuenta | Error 1027 hasta el día siguiente. No factura. |
-| Cloudflare D1 | Free | 500 MB por base, 5 M filas leídas y 100.000 escritas al día; 50 consultas por invocación del Worker y 100 parámetros por sentencia | Errores de consulta hasta el día siguiente. No factura. El Worker se corta a 40 consultas por petición (ver `QUOTAS.md`). |
-| Firebase Authentication | Spark | 50.000 usuarios activos al mes (email + contraseña) | No se pueden crear sesiones nuevas. Spark no admite facturación. |
+| GitHub Pages | Repositorio público | 1 GB de sitio, 100 GB/mes de tráfico (límite blando) | GitHub avisa. No factura. |
 | GitHub Actions | Repositorio público | Runners estándar gratuitos | — |
-| Dominio | `*.workers.dev` | Subdominio gratuito | — |
+| Cloudflare Workers | Free | 100.000 peticiones/día, 10 ms de CPU por petición | Error 1027 hasta el día siguiente. No factura. |
+| Cloudflare D1 | Free | 5 GB en total, 5 M filas leídas y 100.000 escritas al día, 50 consultas por invocación | Errores de consulta hasta el día siguiente. No factura. El Worker se corta a 40 consultas (ver `QUOTAS.md`). |
+| D1 Time Travel | Incluido en Free | Restauración a cualquier minuto de los últimos 7 días | — |
+| Firebase Authentication | Spark | 50.000 usuarios activos/mes con correo y contraseña | Spark no admite facturación. |
 
-Uso estimado para 10–20 personas: unos cientos de peticiones al día, dos capturas de nieve y una de ofertas diarias (unas 60 escrituras por captura), D1 muy por debajo de 50 MB en años. Las cifras de límites son las publicadas por cada servicio el 30/09/2026.
+Límites publicados por cada servicio, consultados el 30/09/2026.
 
-**No hacer nunca:** pasar Firebase a Blaze ni activar Identity Platform, suscribirse a Workers Paid, añadir tarjeta «por si acaso», usar un dominio propio de pago, activar Workers Logs de pago o R2/KV fuera de sus cuotas gratuitas.
+**No hacer nunca:**
 
-## 1. Firebase (autenticación)
+- pasar Firebase a Blaze ni activar Identity Platform;
+- contratar Workers Paid;
+- añadir una tarjeta «por si acaso»;
+- usar un dominio de pago.
 
-1. En https://console.firebase.google.com crea un proyecto (plan Spark, el predeterminado). Desactiva Google Analytics: no hace falta.
-2. Authentication › Sign-in method: habilita **Correo electrónico/contraseña**. No actives «vínculo por correo».
-3. Authentication › Settings › Authorized domains: añade `skitrip.<tu-subdominio>.workers.dev`.
-4. Authentication › Templates: plantilla de restablecimiento de contraseña en español (el envío lo hace Firebase, gratis).
-5. Configuración del proyecto › Tus apps › Web: registra una app y copia `apiKey`, `authDomain` y `projectId` a `v2/.env.production.local` (plantilla en `.env.example`). No son secretos.
+Sin método de pago, un servicio gratuito se bloquea al llegar al límite; no puede cobrar.
 
-No hace falta cuenta de servicio ni Admin SDK: el Worker verifica los tokens con las claves públicas de Google.
+**Comprobar que sigue gratis:**
 
-## 2. Cloudflare (Worker + D1)
+- Cloudflare → Manage account → Billing: solo «Workers Free» y ningún método de pago.
+- Firebase: la consola dice «Spark» abajo a la izquierda y no hay cuenta de facturación.
+- GitHub → Settings → Billing: 0 $.
 
-```bash
-cd v2
-npx wrangler login                                  # abre el navegador; cuenta Free sin tarjeta
-npx wrangler d1 create skitrip                      # copia el database_id a wrangler.jsonc
-npx wrangler d1 migrations apply skitrip --remote   # crea las tablas (migraciones 0001–0008; la 0007 y la 0008 son de la revisión del 30/09/2026)
-npx tsx tools/import-legacy.ts --dry-run            # revisa el informe (exports/legacy-import-report.json)
-npx tsx tools/import-legacy.ts --apply remote       # catálogo + históricos legacy
-```
+## Configuración (una vez; lo hace David)
 
-En `wrangler.jsonc` ajusta `vars`:
+Los pasos con enlaces están en `ACCESOS.md`. Resumen de qué va dónde:
 
-- `FIREBASE_PROJECT_ID`: el ID del paso 1.
-- `ALLOWED_ORIGINS`: `https://skitrip.<tu-subdominio>.workers.dev`.
-- `MAX_PROFILES`: tope de perfiles (50 por defecto).
-- `AUTH_MODE` debe ser `firebase`. El modo `emulator` solo funciona en localhost y se rechaza fuera.
-
-Secreto de ingesta (lo usan los recolectores; no va al repositorio ni al cliente):
-
-```bash
-openssl rand -base64 32 | tee /dev/stderr | npx wrangler secret put INGEST_TOKEN
-```
-
-Construir y desplegar:
-
-```bash
-npm ci && npm test && npm run build
-npx wrangler deploy
-curl https://skitrip.<tu-subdominio>.workers.dev/api/health   # {"ok":true}
-```
-
-Administración: regístrate en la app con tu alias y date el rol a mano (no hay forma de hacerse admin desde la web):
-
-```bash
-npx wrangler d1 execute skitrip --remote --command "UPDATE users SET role = 'admin' WHERE alias_norm = 'tu-alias'"
-```
-
-El despliegue se hace desde el ordenador de David: así no hace falta guardar un token de Cloudflare en GitHub. Si más adelante se quiere desplegar desde Actions, crea un token con permiso solo de «Workers Scripts: Edit» y «D1: Edit» sobre esta cuenta y guárdalo como secreto del repositorio.
-
-## 3. GitHub Actions (recolectores)
-
-En el repositorio › Settings › Secrets and variables › Actions:
-
-- `SKITRIP_API_URL` = `https://skitrip.<tu-subdominio>.workers.dev`
-- `SKITRIP_INGEST_TOKEN` = el mismo valor de `INGEST_TOKEN`
-
-Workflows (en la raíz del repositorio, `.github/workflows/`):
-
-| Workflow | Frecuencia | Qué hace |
+| Nombre | Tipo en GitHub (Settings → Secrets and variables → Actions) | Contenido |
 |---|---|---|
-| `v2-snow.yml` | 2 al día de diciembre a abril, semanal el resto | Lee el estado de pistas y lo envía a `/api/ingest/snow`. |
-| `v2-offers.yml` | Diario de octubre a abril, semanal el resto | Precios orientativos «desde» de las páginas de catálogo. Las búsquedas por fechas de un viaje quedan «no soportadas» hasta verificar el formato de URL de cada proveedor. |
-| `v2-ci.yml` | En cada push/PR que toque `v2/` | Typecheck, tests, build y e2e contra emuladores. No usa secretos. |
+| `CLOUDFLARE_API_TOKEN` | **Secret** | Token con la plantilla «Edit Cloudflare Workers» más D1 Edit, solo de esta cuenta |
+| `CLOUDFLARE_ACCOUNT_ID` | **Secret** | ID de la cuenta de Cloudflare |
+| `SKITRIP_INGEST_TOKEN` | **Secret** | Cadena aleatoria larga: credencial de los recolectores |
+| `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID` | Variable | Configuración web de Firebase. Es pública: va en el JavaScript de la web. |
+| `VITE_API_BASE_URL` | Variable | `https://skitrip.<subdominio>.workers.dev`, sin barra final ni ruta |
 
-Sin los secretos, los recolectores terminan en verde con un aviso y no hacen nada. Si una página devuelve CAPTCHA, 403 o 429, el recolector se detiene y lo registra; no reintenta ni evade. Los diagnósticos se guardan 3 días como artefacto.
+Para generar el secreto de ingesta **sin que aparezca en pantalla ni en registros**, cópialo directamente al portapapeles y pégalo en el formulario de GitHub:
 
-El workflow legacy `update-data.yml` sigue funcionando igual hasta el cambio (ver `MIGRATION.md`).
+```bash
+openssl rand -base64 32 | tr -d '\n' | pbcopy        # macOS
+openssl rand -base64 32 | tr -d '\n' | xclip -sel c  # Linux
+```
+
+No hace falta guardarlo en ningún otro sitio. El workflow lo copia al Worker leyendo de stdin (`wrangler secret put`), sin imprimirlo. Para rotarlo, genera uno nuevo, sustitúyelo en GitHub y vuelve a lanzar «v2 · desplegar API».
+
+En Firebase → Authentication → Settings → Dominios autorizados debe estar `lilru-tech.github.io`. Sin él, el alta y el acceso fallan desde Pages.
+
+## Workflows
+
+Todos están en `.github/workflows/` de la raíz del repositorio.
+
+| Workflow | Cuándo | Qué hace |
+|---|---|---|
+| `v2-ci.yml` | Cada push o PR que toque `v2/` | Typecheck, tests, build normal y build de Pages con verificación del artefacto, y e2e contra emuladores. No usa secretos. |
+| `v2-deploy-api.yml` | Manual, y en push a `main` que toque el Worker o las migraciones | Typecheck y tests. Crea o reutiliza la D1 `skitrip`, anota el marcador de Time Travel, aplica las migraciones, importa el catálogo y los históricos antiguos (reejecutable), despliega el Worker y guarda el secreto de ingesta. Termina con una comprobación en vivo: salud, preflight CORS de Pages, rechazo de otros orígenes y 401 sin token. |
+| `v2-pages.yml` | Manual, y en push a `main` que toque la interfaz | Compila con las variables públicas y verifica el artefacto: solo `index.html`, `assets/` y `favicon.svg`; sin mapas, CSV, SQL, `.env` ni restos del emulador. **Solo publica si Pages tiene como fuente «GitHub Actions».** Después comprueba la portada, el meta CSP, un recurso JS y las cabeceras reales. |
+| `v2-admin.yml` | Manual | Da o quita el rol de administración por **UID real de Firebase**. |
+| `v2-snow.yml` | Dos veces al día de diciembre a abril; los lunes el resto del año | Estado de pistas → `/api/ingest/snow`. |
+| `v2-offers.yml` | Diario de octubre a abril; los lunes el resto del año | Precios orientativos de catálogo → `/api/ingest/offers`. Las búsquedas por fechas quedan «no soportadas» porque el robots.txt de Esquiades (`/book/`) y el de Estiber (`/csp/online/`) prohíben su buscador. |
+| `v2-online-check.yml` | Manual | Comprobación de fuentes en solo lectura. Por fuente distingue transporte, extracción, «sin datos» legítimo, estructura incompatible, bloqueo y robots. |
+| `update-data.yml` | El de la web antigua | Sigue igual hasta el paso 7. |
+
+Los recolectores usan `VITE_API_BASE_URL` como dirección de la API. Si les falta configuración, terminan con un aviso y no escriben nada. Ante un CAPTCHA, un 403 o un 429 se detienen y lo registran; no lo evaden. También respetan el robots.txt en cada petición que haga la página al renderizarse.
+
+## Procedimiento de publicación
+
+Cada paso dice cómo se comprueba. No se pasa al siguiente con el anterior en rojo.
+
+1. **Conservar la web antigua.** No se borra ni se mueve nada de la raíz del repositorio. La web antigua sigue en la rama y carpeta que hoy usa Pages, y las hojas, el Apps Script y los históricos no se tocan. Anota la fuente actual de Settings → Pages: es la vuelta atrás.
+2. **Fusionar `rebuild/v2`** en `main` mediante una PR con la CI en verde. Mientras Pages siga publicando desde la rama, `v2-pages.yml` compila y verifica pero no publica: la web antigua sigue visible.
+3. **Desplegar la API:** Actions → «v2 · desplegar API» → Run workflow.
+   - El resumen muestra la URL de workers.dev, el marcador de Time Travel y «Comprobación en vivo correcta».
+   - Pon esa URL en la variable `VITE_API_BASE_URL`.
+4. **Catálogo e históricos de la web antigua.** Los importa el mismo workflow del paso 3 (`tools/import-legacy.ts`): catálogo curado, histórico de km y de precios de hotel, con su copia íntegra y su hash. Es reejecutable y no duplica. El resumen muestra los totales y el commit de origen.
+5. **Publicar la interfaz.** En Settings → Pages → Build and deployment → Source, elige **GitHub Actions**. Lanza «v2 · publicar en Pages».
+   - El job publica y comprueba `https://lilru-tech.github.io/skitrip/`: portada 200, CSP en meta y recursos bajo `/skitrip/assets/`.
+   - Prueba a mano: alta, salida, acceso, restablecer contraseña (llega el correo de Firebase en español), crear un viaje y abrir un enlace de invitación en otra sesión.
+6. **Primer acceso y administración.**
+   - Date de alta en `https://lilru-tech.github.io/skitrip/`.
+   - Copia tu UID de Firebase → Authentication → Users.
+   - Lanza «v2 · administración» con ese UID y el rol `admin`. Al recargar la web aparece «Administración».
+   - Nunca se da el rol por alias: un alias no prueba identidad.
+7. **Importar la hoja antigua.** En Administración → «Importar la hoja antigua (CSV)», sube cada pestaña exportada.
+   - Primero la vista previa con recuentos y errores; después importar. Repetirlo no duplica.
+   - Los comentarios no se publican y la disponibilidad no se asigna: se hace persona a persona, y cada persona incorpora sus días si quiere.
+   - Alternativa por línea de comandos: `tools/import-sheets.ts`. Usa los mismos identificadores, así que las dos vías son idempotentes entre sí.
+8. **Recolectores.**
+   - Lanza «v2 · comprobar fuentes online». Revisa el registro y marca como `verified` en `data/catalog.json` solo las fuentes con extracción correcta.
+   - Lanza a mano `v2-snow` y `v2-offers` y comprueba en Administración que hay capturas.
+   - **Solo después** desactiva el workflow antiguo: Actions → `update-data.yml` → «Disable workflow». No se borra.
+9. **Medir el uso real** con el panel de Cloudflare (peticiones, CPU y filas de D1 de un día normal) y anotarlo en `QUOTAS.md`.
+
+## Vuelta atrás
+
+- **Interfaz:** Settings → Pages → Source → «Deploy from a branch» con la rama y carpeta anotadas en el paso 1. La web antigua vuelve a estar en la misma URL en uno o dos minutos. No borra nada, y la API nueva sigue funcionando aparte.
+- **API:** `npx wrangler rollback` (o Workers → skitrip → Deployments → «Rollback») vuelve a la versión anterior del Worker.
+- **Datos:** D1 Time Travel restaura la base al marcador anotado por el despliegue, o a cualquier minuto de los últimos 7 días:
+  ```bash
+  npx wrangler d1 time-travel restore skitrip --bookmark=<marcador del resumen del workflow>
+  ```
+  Una migración aplicada no se deshace sola: restaurar el marcador anterior a la migración es la forma de deshacerla.
+- **Recolector antiguo:** si se desactivó, Actions → `update-data.yml` → «Enable workflow».
+
+## Cabeceras y CSP en Pages
+
+GitHub Pages no permite cabeceras propias. Lo que se hace y lo que no:
+
+- **CSP en `<meta http-equiv>`** con `default-src 'self'`, `script-src 'self'`, `connect-src` limitado a la API y a Firebase Auth, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` y `frame-src 'none'`. La e2e del build de Pages comprueba que no hay violaciones, incluida la lectura de tickets en PDF con su worker.
+- **Lo que un `<meta>` no puede aplicar:** `frame-ancestors` (no hay protección contra incrustación en iframes), `report-uri`/`report-to` y `sandbox`. Tampoco se pueden fijar `X-Content-Type-Options`, `Referrer-Policy` ni `Permissions-Policy`. GitHub Pages envía de serie HTTPS y HSTS; el workflow guarda en el resumen las cabeceras reales que devuelve, para no suponerlas.
+- **La API** (Worker) sí envía sus cabeceras: CORS exacto sin credenciales de navegador, `X-Content-Type-Options` y demás, según `src/worker/index.ts`.
 
 ## Mantenimiento
 
-- **Workflows programados:** GitHub desactiva los programados tras 60 días sin actividad en un repositorio público. Si pasa, Actions › el workflow › «Enable workflow».
-- **Estado de fuentes:** la pantalla de administración y `GET /api/public/sources` muestran el último intento, el último éxito y el error de cada fuente.
-- **Copias:** `npx tsx tools/backup.ts export --remote` (solo lectura) antes de cada migración, y `restore-test` para comprobarla. Las copias contienen datos privados: guárdalas fuera del repositorio.
-- **Rotar el secreto de ingesta:** `wrangler secret put INGEST_TOKEN` con un valor nuevo y actualiza el secreto de GitHub.
-- **Bloquear a alguien:** `POST /api/admin/users/<id>/block` (y `/unblock`) con una sesión de administrador. El bloqueo es inmediato: el Worker comprueba el estado en cada petición.
+- **Workflows programados:** GitHub desactiva los programados tras 60 días sin actividad en un repositorio público. Si pasa: Actions → el workflow → «Enable workflow».
+- **Estado de las fuentes:** Administración y `GET /api/public/sources` muestran el último intento, el último éxito y el error.
+- **Copias:** D1 Time Travel cubre 7 días. Para una copia más larga, `npx tsx tools/backup.ts export --remote` en el equipo de David, y `restore-test` para comprobarla. Contiene datos privados: nunca se sube al repositorio ni se guarda como artefacto de Actions, porque en un repositorio público son descargables.
+- **Bloquear a alguien:** Administración → Cuentas. El bloqueo es inmediato.

@@ -6,6 +6,7 @@
  *   npx tsx tools/import-legacy.ts --apply local             # escribe en D1 local (wrangler)
  *   npx tsx tools/import-legacy.ts --apply remote            # D1 remoto (requiere wrangler login; NO lo hace este script por ti)
  *   Opciones: --ref origin/main (commit/rama de origen de los JSON, por defecto origin/main)
+ *             --config wrangler.deploy.jsonc (configuración de wrangler; la usa el workflow de despliegue)
  *             --out exports/legacy-import.sql   --report exports/legacy-import-report.json
  *
  * Propiedades:
@@ -190,5 +191,6 @@ if (DRY) { console.log('Dry-run: no se ha escrito nada en D1.'); process.exit(0)
 writeFileSync(OUT, sql.join('\n') + '\n');
 console.log(`SQL: ${path.relative(V2, OUT)} (${sql.length} sentencias)`);
 if (APPLY === 'local' || APPLY === 'remote') {
-  execFileSync('npx', ['wrangler', 'd1', 'execute', 'skitrip', `--${APPLY}`, '--file', OUT, '--yes'], { cwd: V2, stdio: 'inherit' });
+  const config = opt('config');
+  execFileSync('npx', ['wrangler', 'd1', 'execute', 'skitrip', `--${APPLY}`, '--file', OUT, '--yes', ...(config ? ['-c', config] : [])], { cwd: V2, stdio: 'inherit' });
 }

@@ -62,6 +62,10 @@ jobs:
           npx wrangler d1 time-travel info skitrip -c wrangler.deploy.jsonc | tee -a "$GITHUB_STEP_SUMMARY"
       - name: D1 · migraciones
         run: npx wrangler d1 migrations apply skitrip --remote -c wrangler.deploy.jsonc
+      - name: D1 · catálogo e históricos de la web antigua (reejecutable, sin duplicar)
+        run: |
+          npx tsx tools/import-legacy.ts --ref HEAD --apply remote --config wrangler.deploy.jsonc
+          node -e 'const r=require("./exports/legacy-import-report.json");console.log("Importación legacy: "+JSON.stringify(r.totals)+" · commit "+r.commit)' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Worker · desplegar
         id: deploy
         run: |
