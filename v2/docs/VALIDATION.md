@@ -1,6 +1,6 @@
 # Validación
 
-Fecha: 01/10/2026. Rama `rebuild/v2`. Todo lo que figura aquí se ha ejecutado en el entorno de desarrollo, que no tiene cuentas de Cloudflare ni Firebase ni permiso de push. Sus scripts no salen a las webs de estaciones y proveedores; esas webs se han leído con una herramienta de lectura web, que devuelve texto y no el HTML crudo.
+Fecha: 01/10/2026. Rama `rebuild/v2`, commit c66957a. Todo lo que figura aquí se ha ejecutado en el entorno de desarrollo, que no tiene cuentas de Cloudflare ni Firebase ni permiso de push. Sus scripts no salen a las webs de estaciones y proveedores; esas webs se han leído con una herramienta de lectura web, que devuelve texto y no el HTML crudo.
 
 **SkiTrip v2 no está publicado.** Faltan los accesos de `ACCESOS.md`. Ningún workflow se ha ejecutado en GitHub, y uno omitido no cuenta como probado.
 
@@ -12,17 +12,30 @@ Categorías:
 - **Pendiente de David:** necesita accesos, exportaciones o su decisión.
 - **No soportado por la fuente:** la fuente no lo publica o no lo permite. No se inventa ni se elude.
 
-## Resultados (copia limpia del commit 3f30ce6)
+## Resultados (copia limpia del commit c66957a)
 
 Condiciones: `git clone` de la rama en un directorio nuevo sin `.dev.vars`, `npm ci`, `CI=1` y sin servidores previos.
 
 | Suite | Resultado |
 |---|---|
 | Typecheck (`tsc`) | ✔ |
-| Vitest: lógica; parsers con fixtures reales y sintéticos; Worker + D1 (auth, permisos, CORS de Pages, cuotas de las 109 rutas, importación de la hoja) | ✔ 294/294 (29 ficheros) |
-| Auditoría de cuotas | ✔ 109/109 rutas medidas, máximo 19 sentencias D1 (límite propio 40; Free 50) |
-| Build de Pages con configuración de marcador + `verify-pages-artifact.sh` | ✔ 8 archivos (`index.html`, `assets/`, `favicon.svg`), sin mapas, CSV, SQL ni restos del emulador |
-| Playwright: 31 recorridos × 360, 390 y 1280 px contra el emulador de Auth, el Worker y D1 local. Incluye el **build real de Pages servido estáticamente en `/skitrip/` con la API en otro origen** | ✔ 93/93 |
+| Vitest: lógica; parsers con fixtures reales y sintéticos; detector de bloqueo; Worker + D1 (auth, permisos, CORS de Pages, cuotas de las 109 rutas, importación de la hoja) | ✔ 318/318 (30 ficheros) |
+| Workflows (`npm run test:workflows`): ejecuta los pasos reales con `bash -eo pipefail`, el orden pruebas → API → Pages del mismo SHA y el alcance por archivos | ✔ 7/7 |
+| Build de Pages con configuración de marcador + `verify-pages-artifact.sh` | ✔ 8 archivos |
+| Playwright: 31 recorridos × 360, 390 y 1280 px, más el recolector local de Estiber (una vez) | ✔ 94 superados, 2 omitidos a propósito (el recolector no depende del tamaño de pantalla) |
+
+## Correcciones de la revisión del 01/10/2026 (sobre 24d1dec)
+
+| Fallo | Prueba que fallaba en 24d1dec | Resultado ahora |
+|---|---|---|
+| Estiber: el detector tomaba el script de reCAPTCHA por un bloqueo | `looksBlocked(200, página con contenido + script recaptcha__es.js)` → `true` | `false`. Un desafío real (título «Just a moment», formulario de desafío, CAPTCHA sin contenido, DataDome) y los 403/429 siguen parando. `test/core/blocked.test.ts` |
+| Estiber: 0 tarjetas con `carousel-cell cl-offer-box cl-offer-box-type-hotel` | `parseOfferCardsHtml(fixture, 'estiber')` → 0 | 2 tarjetas: nombre, fechas, 4 noches, forfait 3 días, 684 € y 421 € por persona; textos pegados, valoración «8.5 (21)» fuera del nombre y del precio; precio rebajado sin mezclar tarjetas vecinas. Recolector completo contra un servidor local con robots.txt (`collector-local.spec.ts`) |
+| Nieve: `pair` sin agrupar alternativas | Aramón `Km esquiables 50 / 100 Pistas abiertas 20 / 40 Remontes abiertos 10 / 20` → nulos y `unknown` | 50/100 km, 20/40 pistas y 10/20 remontes, `partial` |
+| Nieve: km con decimales | `parseAndorra('Km esquiables 12,5 / 215 …')` y `12.5` → km nulos | 12,5/215. Pistas y remontes solo enteros; abierto > total, total 0 o fuera de límites → nulo. Casos sintéticos de parcial, completo, cerrado, sin datos y parte antiguo |
+| Workflows sin pipefail | Paso de verificación con artefacto sin CSP bajo `bash -e` → sale 0. Marcador de Time Travel con wrangler fallando → sale 0 | Todos con `shell: bash` (`-eo pipefail`). Sin CSP, con un CSV o con otro origen: falla antes de subir el artefacto; válido: pasa. Sin marcador no se migra. `tools/workflows.test.mjs` |
+| Publicación sin atar a las pruebas | CI, Pages y API se lanzaban por separado | `v2-release.yml`: pruebas del SHA → API (marcador, migraciones, importación, Worker, comprobación en vivo) → Pages. Lo manual pasa por lo mismo y solo desde main. Sin `pull_request_target`. El alcance incluye package.json, lockfile, catálogo, importador, wrangler.jsonc, deploy-config e históricos |
+
+**Limitación de Estiber:** este entorno no llega a estiber.com (el proxy rechaza la conexión). El fixture `estiber-la-molina.reconstruido.html` usa las clases indicadas por la revisión y los textos leídos el 01/10/2026 con una herramienta de lectura web; **no es una captura del HTML**. La captura real saneada se obtiene con «v2 · comprobar fuentes online» y la opción «fixtures»; hasta entonces, la fuente sigue «sin verificar».
 
 Todos los recorridos de navegador y los tests los escribí y ejecuté yo (Claude) en este entorno. No son verificaciones del revisor ni pruebas con lector de pantalla.
 
