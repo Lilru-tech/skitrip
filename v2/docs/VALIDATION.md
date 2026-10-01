@@ -30,12 +30,12 @@ Todos los recorridos de navegador y los tests los escribí y ejecuté yo (Claude
 
 | # | Requisito | Estado | Evidencia |
 |---|---|---|---|
-| 1 | Publicar en `lilru-tech.github.io/skitrip` sin redirección | Preparado, **sin publicar** | `v2-pages.yml` publica solo si la fuente de Pages es «GitHub Actions». Pendiente de David. |
+| 1 | Publicar en `lilru-tech.github.io/skitrip` sin redirección | Preparado, **sin publicar** | `v2-release.yml` publica Pages solo si la fuente es «GitHub Actions», después de las pruebas y la API del mismo commit. Pendiente de David. |
 | 3.1–3.3 | Base `/skitrip/`, rutas con fragmento, `VITE_API_BASE_URL` validado | Probado (local) | `pages-build.spec.ts`: enlace directo, recarga, atrás/adelante, otra pestaña e invitación `#/unirse` |
-| 3.4 | CORS exacto, sin comodines, auth obligatoria | Probado (local) | `pages-cors.test.ts`: preflight, Authorization, JSON, escrituras, errores 401/404/422 y orígenes parecidos rechazados. Además, comprobación en vivo en `v2-deploy-api.yml`. |
+| 3.4 | CORS exacto, sin comodines, auth obligatoria | Probado (local) | `pages-cors.test.ts`: preflight, Authorization, JSON, escrituras, errores 401/404/422 y orígenes parecidos rechazados. Además, comprobación en vivo en la etapa API de `v2-release.yml`. |
 | 3.5 | Firebase real: persistencia, alta, salida, restablecimiento | Probado con el emulador; **con Firebase real, pendiente** | El build rechaza el emulador y los proyectos `demo-`. `resetPassword` vuelve a `/skitrip/#/entrar`. |
 | 3.6 | CSP y cabeceras en Pages | CSP en meta probada, sin violaciones (también con pdf.js) | Lo que un meta no puede aplicar está en `DEPLOY.md`. Las cabeceras reales las anota el workflow tras publicar: **aún sin medir**. |
-| 3.7 | Workflow de Pages con permisos mínimos | Escrito y con YAML validado; **sin ejecutar** | `pages: read` para compilar; `pages: write` e `id-token` solo en el job de publicación |
+| 3.7 | Workflow de Pages con permisos mínimos | Escrito y probado en local (`npm run test:workflows`); **sin ejecutar en GitHub** | `pages: read` para compilar; `pages: write` e `id-token` solo en el job de publicación |
 | 4 | Hoteles por fechas y ocupación | **No soportado por la fuente** | Comprobado el 01/10/2026: el robots.txt de Esquiades prohíbe `/book/` y `/*/hotel/offer/load`, y el de Estiber prohíbe `/csp/online/`. Alternativa aceptada: catálogo orientativo y cotización manual. |
 | 4b | Colector de catálogo mejorado | Probado (local) y contrastado | Precio leído en cada tarjeta. El precio rebajado de Estiber, que no viene tachado, se acepta solo si cuadra con el descuento. robots.txt según RFC 9309, también en las peticiones que hace la página. De las 19 páginas revisadas, 10 de Estiber tienen precios y 6 de Esquiades no tienen ofertas que se puedan cargar (marcadas `unsupported`). |
 | 5 | Fuentes de nieve oficiales | Probado con textos reales | Nuevos: Ordino Arcalís, Pal Arinsal, sectores de Grandvalira (sin km por sector), Port del Comte y Aramón (Cerler, Formigal-Panticosa). Pirineu365 carga por JS: pendiente de temporada. Baqueira responde 403 a los bots: no se elude. |
@@ -51,7 +51,7 @@ Todos los recorridos de navegador y los tests los escribí y ejecuté yo (Claude
 
 ## Errores encontrados en esta ronda
 
-- **YAML de `v2-deploy-api.yml` no válido:** un nombre de paso contenía «: » y GitHub lo habría rechazado. Ahora todos los workflows se validan con un parser YAML.
+- **YAML del workflow de la API no válido:** un nombre de paso contenía «: » y GitHub lo habría rechazado. Ahora `npm run test:workflows` analiza todos los workflows.
 - **El buscador de cuentas de Administración no funcionaba:** a la URL le faltaba «?», devolvía 404 y no se podía asignar ningún nombre de la hoja. Lo detectó la e2e nueva.
 - **El robots.txt se interpretaba mal:** `Disallow: /*/hotel/offer/load` se convertía en «/» y bloqueaba todo Esquiades.
 - **Distancias heredadas erróneas:** ver 5c.
