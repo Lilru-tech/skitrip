@@ -1,15 +1,10 @@
 {
-  // SkiTrip v2: un Worker sirve la SPA (assets) y la API (/api/*).
+  // SkiTrip v2: el Worker es solo la API (/api/*). La interfaz se publica en GitHub Pages
+  // (https://lilru-tech.github.io/skitrip/) y llama a esta API desde ese origen (CORS exacto).
   "name": "skitrip",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
-  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -22,7 +17,7 @@
   "vars": {
     "AUTH_MODE": "firebase",
     "FIREBASE_PROJECT_ID": "skitrip-demo",
-    "ALLOWED_ORIGINS": "",
+    "ALLOWED_ORIGINS": "https://lilru-tech.github.io",
     "MAX_PROFILES": "50"
   },
   // Limpieza diaria de contadores de límite de peticiones (1 de los 5 cron gratuitos por cuenta).

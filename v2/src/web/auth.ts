@@ -13,14 +13,16 @@ import {
   signOut,
   type User,
 } from 'firebase/auth';
+import { absoluteUrl } from './router';
 
-const env = import.meta.env;
-export const usingEmulator = env.VITE_USE_AUTH_EMULATOR ? env.VITE_USE_AUTH_EMULATOR === '1' : env.DEV;
+// Acceso directo a import.meta.env.X (no a través de una variable) para que Vite sustituya cada valor en el build y
+// el código del emulador desaparezca del build publicado.
+export const usingEmulator = import.meta.env.VITE_USE_AUTH_EMULATOR ? import.meta.env.VITE_USE_AUTH_EMULATOR === '1' : import.meta.env.DEV;
 
 const app = initializeApp(
   usingEmulator
     ? { apiKey: 'demo-api-key', authDomain: 'demo-skitrip.firebaseapp.com', projectId: 'demo-skitrip' }
-    : { apiKey: env.VITE_FIREBASE_API_KEY, authDomain: env.VITE_FIREBASE_AUTH_DOMAIN, projectId: env.VITE_FIREBASE_PROJECT_ID },
+    : { apiKey: import.meta.env.VITE_FIREBASE_API_KEY, authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID },
 );
 
 // initializeAuth sin popupRedirectResolver: no carga iframes de Google (CSP estricta, menos peso).
@@ -33,7 +35,9 @@ export const onUserChanged = (cb: (u: User | null) => void) => onIdTokenChanged(
 export const login = (email: string, password: string) => signInWithEmailAndPassword(auth, email.trim(), password);
 export const signup = (email: string, password: string) => createUserWithEmailAndPassword(auth, email.trim(), password);
 export const logout = () => signOut(auth);
-export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email.trim());
+// Enlace de vuelta tras cambiar la contraseña: la pantalla de entrar de la web publicada (dominio autorizado en Firebase).
+export const resetPassword = (email: string) =>
+  sendPasswordResetEmail(auth, email.trim(), usingEmulator ? undefined : { url: absoluteUrl('/entrar') });
 
 export async function idToken(forceRefresh = false): Promise<string | null> {
   const u = auth.currentUser;

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { errorMessage, post } from '../api';
 import { ErrorState, Loading } from '../components/States';
-import { Link, navigate, usePageTitle } from '../router';
+import { currentRoute, Link, navigate, usePageTitle } from '../router';
 
-/** Aceptar una invitación por enlace: /unirse#<token>. El token nunca viaja en la URL al servidor. */
+/** Aceptar una invitación por enlace: #/unirse?t=<token>. Va en el fragmento: nunca viaja en la URL a ningún servidor. */
 export function JoinPage() {
   usePageTitle('Unirse a un viaje');
   const [error, setError] = useState<string | null>(null);
@@ -12,9 +12,9 @@ export function JoinPage() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const token = location.hash.slice(1);
+    const token = new URLSearchParams(currentRoute().split('?')[1] ?? '').get('t') ?? '';
     // Quitar el token de la barra de direcciones y del historial.
-    history.replaceState(null, '', '/unirse');
+    navigate('/unirse', { replace: true });
     if (!token) { setError('El enlace no contiene una invitación. Pide a quien te invitó que te lo vuelva a enviar.'); return; }
     post<{ ok: boolean; tripId: string }>('/api/trips/invitations/accept-link', { token })
       .then((r) => navigate(`/viajes/${r.tripId}`, { replace: true }))

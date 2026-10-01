@@ -12,7 +12,7 @@ async function loggedIn(page: Page, request: import('@playwright/test').APIReque
 test('sin desbordamiento horizontal en las páginas principales', async ({ page, request }, info) => {
   // Páginas públicas.
   for (const path of ['/', '/entrar', '/registro', '/recuperar']) {
-    await page.goto(path);
+    await page.goto(`/#${path}`);
     await expect(page.getByRole('main')).toBeVisible();
     await expectNoHorizontalOverflow(page, `${path} (${info.project.name})`);
   }
@@ -32,13 +32,13 @@ test('sin desbordamiento horizontal en las páginas principales', async ({ page,
     ['/compra', 'Compra'],
   ];
   for (const [path, h1] of pages) {
-    await page.goto(path);
+    await page.goto(`/#${path}`);
     await expect(page.getByRole('heading', { level: 1, name: h1 })).toBeVisible();
     await page.waitForLoadState('networkidle');
     await expectNoHorizontalOverflow(page, `${path} (${info.project.name})`);
   }
   // Con una selección activa aparece la barra de acciones: tampoco debe desbordar.
-  await page.goto('/calendario');
+  await page.goto('/#/calendario');
   const y = seasonStartYear();
   await page.locator(`[data-date="${y}-12-01"]`).click();
   await expect(page.getByRole('region', { name: 'Aplicar estado a la selección' })).toBeVisible();
@@ -47,9 +47,9 @@ test('sin desbordamiento horizontal en las páginas principales', async ({ page,
 
 test('Compra y Comparar no inventan datos', async ({ page, request }) => {
   await loggedIn(page, request);
-  await page.goto('/compra');
+  await page.goto('/#/compra');
   await expect(page.getByText('No hay precios automáticos de Mercadona')).toBeVisible();
-  await page.goto('/comparar');
+  await page.goto('/#/comparar');
   await expect(page.getByRole('heading', { level: 1, name: 'Comparar' })).toBeVisible();
   // Sin datos de nieve se muestra «sin dato», nunca 0 km.
   await expect(page.getByRole('list', { name: 'Estaciones sin distancia por carretera' })).toContainText('sin dato');
@@ -57,7 +57,7 @@ test('Compra y Comparar no inventan datos', async ({ page, request }) => {
 
 test('el calendario se maneja solo con teclado', async ({ page, request }) => {
   await loggedIn(page, request);
-  await page.goto('/calendario');
+  await page.goto('/#/calendario');
   await expect(page.getByRole('grid').first()).toBeVisible();
 
   // Tabulador hasta la rejilla (una sola parada gracias al tabindex itinerante).
@@ -114,7 +114,7 @@ test('el calendario se maneja solo con teclado', async ({ page, request }) => {
 
 test('el foco vuelve al botón que abrió el diálogo', async ({ page, request }) => {
   await loggedIn(page, request);
-  await page.goto('/viajes');
+  await page.goto('/#/viajes');
   const trigger = page.getByRole('button', { name: 'Nuevo viaje' });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo viaje' });
@@ -131,7 +131,7 @@ test('el foco vuelve al botón que abrió el diálogo', async ({ page, request }
   await expect(trigger).toBeFocused();
 
   // Patrón semanal del calendario.
-  await page.goto('/calendario');
+  await page.goto('/#/calendario');
   const pattern = page.getByRole('button', { name: 'Patrón semanal…' });
   await pattern.click();
   const pd = page.getByRole('dialog', { name: 'Patrón semanal' });
@@ -142,7 +142,7 @@ test('el foco vuelve al botón que abrió el diálogo', async ({ page, request }
 
 test('patrón semanal: viernes y sábados libres con excepciones', async ({ page, request }) => {
   await loggedIn(page, request);
-  await page.goto('/calendario');
+  await page.goto('/#/calendario');
   await page.getByRole('button', { name: 'Patrón semanal…' }).click();
   const pd = page.getByRole('dialog', { name: 'Patrón semanal' });
   await expect(pd.getByLabel('viernes')).toBeChecked();

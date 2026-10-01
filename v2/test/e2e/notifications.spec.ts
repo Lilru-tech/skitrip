@@ -33,7 +33,7 @@ test('avisos de cambio de precio: «Marcar todos como leídos» los marca todos 
   await distinctIp(page);
   await loginUI(page, u);
   await expect(page.getByRole('link', { name: 'Avisos: 3 sin leer' })).toBeVisible();
-  await page.goto('/avisos');
+  await page.goto('/#/avisos');
   const list = page.getByRole('list', { name: 'Avisos' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await expect(list.getByText('Sin leer')).toHaveCount(3);

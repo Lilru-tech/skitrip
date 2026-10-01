@@ -8,7 +8,7 @@ import { defineConfig } from '@playwright/test';
 // Configuración explícita y sin secretos (test/e2e/env.ts): no se lee nada de .dev.vars ni de otros archivos ignorados.
 // Con CI=1 no se reutiliza ningún servidor ya arrancado (si un puerto está ocupado, la ejecución falla).
 // Chromium: el que instala `npx playwright install chromium`; PW_CHROMIUM_PATH solo si hay que usar otro binario.
-import { E2E_WORKER_VARS } from './test/e2e/env';
+import { E2E_WORKER_VARS, PAGES_TEST_ENV, PAGES_URL } from './test/e2e/env';
 
 const CHROME = process.env.PW_CHROMIUM_PATH || undefined;
 const STATE = 'test/e2e/.state';
@@ -46,7 +46,7 @@ export default defineConfig({
       stdout: 'ignore',
     },
     {
-      command: `rm -rf ${STATE} && mkdir -p dist && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler d1 execute skitrip --local --persist-to ${STATE} --file test/e2e/seed.sql && npx wrangler dev --local --port 8787 --persist-to ${STATE} ${vars}`,
+      command: `rm -rf ${STATE} && npx wrangler d1 migrations apply skitrip --local --persist-to ${STATE} && npx wrangler d1 execute skitrip --local --persist-to ${STATE} --file test/e2e/seed.sql && npx wrangler dev --local --port 8787 --persist-to ${STATE} ${vars}`,
       url: 'http://localhost:8787/api/health',
       reuseExistingServer: reuse,
       timeout: 180_000,
@@ -58,6 +58,15 @@ export default defineConfig({
       url: 'http://localhost:5173/',
       reuseExistingServer: reuse,
       timeout: 60_000,
+      stdout: 'ignore',
+    },
+    {
+      // Build real de Pages (no el servidor de desarrollo ni su proxy) servido bajo /skitrip/ en otro origen.
+      command: 'npx vite build && npx vite preview --outDir dist-pages-test --port 4173 --strictPort',
+      url: PAGES_URL,
+      reuseExistingServer: reuse,
+      timeout: 120_000,
+      env: PAGES_TEST_ENV,
       stdout: 'ignore',
     },
   ],

@@ -39,12 +39,17 @@ app.use('/api/*', async (c, next) => {
   c.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
 });
 
-// Orígenes explícitos. La SPA es del mismo origen; otros orígenes solo si están en ALLOWED_ORIGINS.
+// CORS con orígenes exactos (ALLOWED_ORIGINS, separados por comas). En producción la interfaz está en GitHub Pages:
+// «https://lilru-tech.github.io» (el origen no lleva la subruta /skitrip/). Solo se aceptan entradas que son un origen
+// exacto: un comodín o una entrada con ruta se ignoran. CORS no sustituye la autenticación: el token y los permisos se
+// comprueban igual en cada ruta.
+const EXACT_ORIGIN = /^https?:\/\/[a-z0-9.-]+(:\d+)?$/i;
+const allowedOrigins = (raw: string) => new Set(raw.split(',').map((s) => s.trim()).filter((s) => EXACT_ORIGIN.test(s)));
 app.use('/api/*', async (c, next) => {
   const origin = c.req.header('Origin');
   if (origin) {
     const self = new URL(c.req.url).origin;
-    const allowed = new Set(c.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean));
+    const allowed = allowedOrigins(c.env.ALLOWED_ORIGINS ?? '');
     if (origin !== self && !allowed.has(origin)) {
       throw new ApiError(403, 'origin_not_allowed', 'Origen no permitido.');
     }

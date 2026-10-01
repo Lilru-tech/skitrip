@@ -31,7 +31,7 @@ test('presupuesto: cotización válida y, al cambiar las fechas, alojamiento pen
   const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
   await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, chosenCandidateId: cid });
 
-  await page.goto(`/viajes/${trip.id}/presupuesto`);
+  await page.goto(`/#/viajes/${trip.id}/presupuesto`);
   const lodging = page.locator('[data-component="lodging"]');
   await expect(lodging).toHaveAttribute('data-status', 'known');
   await expect(lodging).toContainText('Conocido');
@@ -41,7 +41,7 @@ test('presupuesto: cotización válida y, al cambiar las fechas, alojamiento pen
   await expectNoHorizontalOverflow(page, `presupuesto conocido (${info.project.name})`);
 
   // Unas noches que no cuadran con las fechas: el 422 se muestra junto al campo, sin cerrar el diálogo.
-  await page.goto(`/viajes/${trip.id}`);
+  await page.goto(`/#/viajes/${trip.id}`);
   const editBtn = page.getByRole('button', { name: 'Editar', exact: true });
   await editBtn.click();
   const dialog = page.getByRole('dialog', { name: 'Editar viaje' });
@@ -61,7 +61,7 @@ test('presupuesto: cotización válida y, al cambiar las fechas, alojamiento pen
   await waitToast(page, 'Cambios guardados.');
   await expect(editBtn).toBeFocused();
 
-  await page.goto(`/viajes/${trip.id}/presupuesto`);
+  await page.goto(`/#/viajes/${trip.id}/presupuesto`);
   await expect(lodging).toHaveAttribute('data-status', 'pending');
   await expect(lodging).toContainText('Pendiente');
   await expect(lodging).toContainText('Referencia');
@@ -92,7 +92,7 @@ test('ticket sin gasto: se lista, «Crear gasto» lo vincula y repetirlo no dupl
   await page.route('**/api/receipts/*/expense', async (route) => {
     if (!failed) { failed = true; await route.abort('failed'); } else await route.fallback();
   });
-  await page.goto(`/compra?viaje=${trip.id}`);
+  await page.goto(`/#/compra?viaje=${trip.id}`);
   await page.getByRole('button', { name: 'Pegar un ticket…' }).click();
   const imp = page.getByRole('dialog', { name: 'Importar ticket' });
   await imp.getByLabel('Texto del ticket').fill(TICKET);
@@ -134,7 +134,7 @@ test('ticket sin gasto: se lista, «Crear gasto» lo vincula y repetirlo no dupl
   const reimport = await apiAs(request, token, 'POST', '/api/receipts/confirm', { text: TICKET, storeLabel: 'Mercadona', channel: 'store', postalCode: '43007', tripId: trip.id, mapping: [] });
   expect(reimport).toMatchObject({ alreadyImported: true, expenseId: receipts[0].expense_id });
 
-  await page.goto(`/viajes/${trip.id}/gastos`);
+  await page.goto(`/#/viajes/${trip.id}/gastos`);
   const expenses = page.getByRole('list', { name: 'Gastos del viaje' });
   await expect(expenses).toContainText('3,29 €');
   await expect(expenses.getByRole('listitem')).toHaveCount(1);
@@ -146,7 +146,7 @@ test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto
   const start = future(90), end = future(92);
   const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Búsquedas honestas', startDate: start, endDate: end, participantsPlanned: 3, childrenAges: [9], areaId: 'e2e-beta' });
 
-  await page.goto(`/viajes/${trip.id}/busquedas`);
+  await page.goto(`/#/viajes/${trip.id}/busquedas`);
   await expect(page.getByRole('heading', { level: 1, name: 'Búsquedas' })).toBeVisible();
   await expect(page.getByTestId('no-auto-search')).toContainText('Hoy no hay búsqueda automática por fechas en ningún proveedor');
   const main = page.locator('main');
@@ -201,7 +201,7 @@ test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto
   await manual.getByRole('button', { name: 'Añadir' }).click();
   await waitToast(page, 'Estimación manual añadida.');
 
-  await page.goto(`/viajes/${trip.id}/candidaturas`);
+  await page.goto(`/#/viajes/${trip.id}/candidaturas`);
   const card = page.getByRole('list', { name: 'Candidaturas' }).getByRole('listitem').first();
   await expect(card).toContainText('Estimación manual, no es una cotización');
   await expect(card).toContainText('≈ 520,00 €');

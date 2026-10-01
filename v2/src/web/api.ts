@@ -1,7 +1,11 @@
-// Cliente de la API del mismo origen. Añade el ID token en la cabecera (nunca en la URL),
-// convierte errores `{ error: { code, message } }` en ApiError y reintenta una vez un 401
-// forzando la renovación del token.
+// Cliente de la API. Añade el ID token en la cabecera (nunca en la URL), convierte errores
+// `{ error: { code, message } }` en ApiError y reintenta una vez un 401 forzando la renovación del token.
+//
+// Origen de la API: VITE_API_BASE_URL (configuración pública del build). En la web publicada en GitHub Pages es el
+// Worker de workers.dev (otro origen); en desarrollo y en los E2E se deja vacío y /api va al mismo origen (proxy de
+// Vite). El token solo se envía a ese origen fijo y a rutas /api/: nunca a una URL arbitraria.
 import { idToken } from './auth';
+import { apiOrigin } from './config';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -17,12 +21,20 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/** URL completa de una ruta de la API. Solo acepta rutas /api/ relativas; nada de URLs absolutas ni otros hosts. */
+export function apiUrl(path: string): string {
+  if (!path.startsWith('/api/') || path.startsWith('//')) throw new Error(`Ruta de API no válida: ${path}`);
+  return apiOrigin + path;
+}
+
 async function once(method: Method, path: string, body: unknown, force: boolean): Promise<Response> {
+  const url = apiUrl(path);
   const token = await idToken(force);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  return fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin' });
+  // Sin cookies: la autenticación es solo el token Bearer, también con la API en otro origen.
+  return fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'omit' });
 }
 
 export async function api<T = unknown>(method: Method, path: string, body?: unknown): Promise<T> {

@@ -1,14 +1,33 @@
-// Enrutador mínimo con la History API (sin librerías).
+// Enrutador mínimo con rutas en el fragmento (sin librerías): /skitrip/#/viajes?x=1.
+// GitHub Pages solo sirve archivos estáticos: con el fragmento, abrir un enlace directo o recargar cualquier pantalla
+// pide siempre index.html (sin 404) y la ruta de la app nunca viaja al servidor. Las rutas internas siguen siendo
+// «/viajes», «/estaciones/:id»…; solo la URL visible lleva el «#».
 import { useEffect, useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent } from 'react';
 
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
-if (typeof window !== 'undefined') window.addEventListener('popstate', notify);
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', notify);
+  window.addEventListener('hashchange', notify);
+}
+
+/** Ruta actual de la app («/viajes?x=1»), leída del fragmento. Sin fragmento, la portada. */
+export function currentRoute(): string {
+  const h = location.hash.slice(1);
+  return h.startsWith('/') ? h : '/';
+}
+
+/** URL relativa al documento para una ruta de la app: sirve para href, abrir en otra pestaña y compartir. */
+export const hrefFor = (to: string) => `#${to}`;
+
+/** URL absoluta para compartir (enlaces de invitación): origen + subruta publicada + fragmento. */
+export const absoluteUrl = (to: string) => new URL(`${import.meta.env.BASE_URL}${hrefFor(to)}`, location.origin).toString();
 
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
-  if (to === location.pathname + location.search + location.hash) return;
-  if (opts.replace) history.replaceState(null, '', to);
-  else history.pushState(null, '', to);
+  if (to === currentRoute()) return;
+  const url = location.pathname + location.search + hrefFor(to);
+  if (opts.replace) history.replaceState(null, '', url);
+  else history.pushState(null, '', url);
   notify();
 }
 
@@ -16,20 +35,20 @@ const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
-const snapshot = () => location.pathname + location.search;
 
 export function useLocation() {
-  const full = useSyncExternalStore(subscribe, snapshot);
+  const full = useSyncExternalStore(subscribe, currentRoute);
   const [path, search = ''] = full.split('?');
   return { path, query: new URLSearchParams(search) };
 }
 
 export function setQuery(key: string, value: string | null) {
-  const q = new URLSearchParams(location.search);
+  const [path, search = ''] = currentRoute().split('?');
+  const q = new URLSearchParams(search);
   if (value === null) q.delete(key);
   else q.set(key, value);
   const s = q.toString();
-  navigate(location.pathname + (s ? `?${s}` : ''), { replace: true });
+  navigate(path + (s ? `?${s}` : ''), { replace: true });
 }
 
 export function match(pattern: string, path: string): Record<string, string> | null {
@@ -48,7 +67,7 @@ export function Link({ to, onClick, ...rest }: LinkProps) {
     e.preventDefault();
     navigate(to);
   };
-  return <a href={to} onClick={handle} {...rest} />;
+  return <a href={hrefFor(to)} onClick={handle} {...rest} />;
 }
 
 /** Título del documento y foco al encabezado principal al cambiar de página (lectores de pantalla). */

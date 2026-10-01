@@ -1,6 +1,5 @@
 export interface Env {
   DB: D1Database;
-  ASSETS?: Fetcher;
   AUTH_MODE: 'firebase' | 'emulator';
   FIREBASE_PROJECT_ID: string;
   ALLOWED_ORIGINS: string;

@@ -14,13 +14,13 @@ test('dos amigos organizan un viaje y encuentran una ventana candidata', async (
   await signUpUI(pb, bea);
 
   // Amistad: Ana busca a Bea por alias y le envía solicitud; Bea la acepta.
-  await pa.goto('/amigos');
+  await pa.goto('/#/amigos');
   await pa.getByLabel('Alias', { exact: true }).fill(bea.alias);
   const result = pa.getByRole('list', { name: 'Resultados de la búsqueda' }).getByRole('listitem').filter({ hasText: bea.alias });
   await result.getByRole('button', { name: 'Enviar solicitud' }).click();
   await waitToast(pa, `Solicitud enviada a ${bea.alias}.`);
 
-  await pb.goto('/amigos');
+  await pb.goto('/#/amigos');
   await pb.getByRole('button', { name: `Aceptar a ${ana.alias}` }).click();
   await waitToast(pb, `Ahora eres amigo de ${ana.alias}.`);
   await expect(pb.getByRole('region', { name: /Tus amigos/ }).getByText(ana.alias, { exact: true })).toBeVisible();
@@ -29,12 +29,12 @@ test('dos amigos organizan un viaje y encuentran una ventana candidata', async (
   const y = seasonStartYear();
   const days = [`${y}-12-11`, `${y}-12-12`, `${y}-12-13`];
   for (const p of [pa, pb]) {
-    await p.goto('/calendario?vista=compartir');
+    await p.goto('/#/calendario?vista=compartir');
     await p.getByLabel('Todas mis amistades').check();
     await p.getByRole('button', { name: 'Guardar' }).click();
     await waitToast(p, 'Preferencias de compartición guardadas.');
 
-    await p.goto('/calendario');
+    await p.goto('/#/calendario');
     await p.locator(`[data-date="${days[0]}"]`).click();
     await p.locator(`[data-date="${days[2]}"]`).click();
     await expect(p.locator('[role="gridcell"][aria-selected="true"]')).toHaveCount(3);
@@ -45,7 +45,7 @@ test('dos amigos organizan un viaje y encuentran una ventana candidata', async (
 
   // Ana crea el viaje e invita a Bea.
   const tripName = `Puente ${y} ${ana.alias.slice(-4)}`;
-  await pa.goto('/viajes');
+  await pa.goto('/#/viajes');
   await pa.getByRole('button', { name: 'Nuevo viaje' }).click();
   const dialog = pa.getByRole('dialog', { name: 'Nuevo viaje' });
   await dialog.getByLabel('Nombre del viaje').fill(tripName);
@@ -59,7 +59,7 @@ test('dos amigos organizan un viaje y encuentran una ventana candidata', async (
   await waitToast(pa, `Invitación enviada a ${bea.alias}.`);
 
   // Bea acepta la invitación.
-  await pb.goto('/viajes');
+  await pb.goto('/#/viajes');
   await pb.getByRole('button', { name: `Aceptar invitación a ${tripName}` }).click();
   await waitToast(pb, `Te has unido a «${tripName}».`);
   await expect(pb.getByRole('link', { name: new RegExp(tripName) })).toBeVisible();

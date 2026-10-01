@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ToastProvider } from './components/Toast';
 import { Loading, ErrorState } from './components/States';
 import { CalendarIcon, Cart, Compare, Mountain, People, Suitcase, UserIcon } from './components/Icons';
-import { Link, match, navigate, useLocation } from './router';
+import { currentRoute, Link, match, navigate, useLocation } from './router';
 import { SessionProvider, useSession } from './session';
 import { logout } from './auth';
 import { Landing } from './pages/Landing';
@@ -67,7 +67,7 @@ function Root() {
       navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : '/viajes', { replace: true });
     }
     if (state.status === 'anonymous' && !PUBLIC_PATHS.includes(path) && !OPEN_PATHS.includes(path)) {
-      try { sessionStorage.setItem('skitrip.next', path + location.search + location.hash); } catch { /* sin almacenamiento */ }
+      try { sessionStorage.setItem('skitrip.next', currentRoute()); } catch { /* sin almacenamiento */ }
       navigate('/entrar', { replace: true });
     }
   }, [state.status, path]);

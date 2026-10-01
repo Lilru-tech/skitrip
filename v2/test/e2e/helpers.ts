@@ -37,7 +37,7 @@ export const makeUser = (prefix: string): TestUser => {
 
 /** Alta completa desde la interfaz: registro + alias. */
 export async function signUpUI(page: Page, u: TestUser) {
-  await page.goto('/registro');
+  await page.goto('/#/registro');
   await page.getByLabel('Email').fill(u.email);
   await page.getByLabel('Contraseña').fill(u.password);
   await page.getByLabel('Alias público').fill(u.alias);
@@ -46,7 +46,7 @@ export async function signUpUI(page: Page, u: TestUser) {
 }
 
 export async function loginUI(page: Page, u: Pick<TestUser, 'email' | 'password'>) {
-  await page.goto('/entrar');
+  await page.goto('/#/entrar');
   await page.getByLabel('Email').fill(u.email);
   await page.getByLabel('Contraseña').fill(u.password);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();

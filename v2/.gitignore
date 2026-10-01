@@ -10,3 +10,6 @@ exports/
 .env.*.local
 .env.local
 test/e2e/.state/
+dist-pages/
+dist-pages-test/
+wrangler.deploy.jsonc

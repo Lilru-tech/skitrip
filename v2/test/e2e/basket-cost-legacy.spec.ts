@@ -25,7 +25,7 @@ test('cesta: un producto repetido en dos filas da cobertura 100 % y la tabla mue
     await apiAs(request, token, 'POST', '/api/prices', { productId: pid, amountCents, priceType: 'shelf', storeLabel: 'Mercadona online', postalCode: '43007', channel: 'online', observedOn });
   }
 
-  await page.goto(`/compra?viaje=${trip.id}`);
+  await page.goto(`/#/compra?viaje=${trip.id}`);
   await expect(page.getByTestId('list-criterion')).toHaveText('Mercadona online · 43007');
   await expect(page.getByRole('list', { name: 'Artículos' })).toContainText(`estantería · ${dmy(d2)}`);
   // Dos filas del mismo producto cuentan como un producto: 1 de 1 con precio.
@@ -65,7 +65,7 @@ test('comparar coste: la opción completa tiene posición y la incompleta no', a
   const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
   await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, skiers: 0, renters: 0, groceriesCents: 10000 });
 
-  await page.goto(`/viajes/${trip.id}/presupuesto`);
+  await page.goto(`/#/viajes/${trip.id}/presupuesto`);
   const ranked = page.getByRole('list', { name: 'Candidaturas completas por coste' });
   const incomplete = page.getByRole('list', { name: 'Candidaturas con presupuesto incompleto' });
   await expect(ranked.locator(':scope > li')).toHaveCount(1);
@@ -95,7 +95,7 @@ test('comparar coste: cada candidatura en su estación sin cambiar el viaje; for
   const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
   await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0 });
 
-  await page.goto(`/viajes/${trip.id}/presupuesto`);
+  await page.goto(`/#/viajes/${trip.id}/presupuesto`);
   const ranked = page.getByRole('list', { name: 'Candidaturas completas por coste' });
   await expect(ranked.locator(':scope > li')).toHaveCount(2);
   await expect(ranked.locator(':scope > li').nth(0)).toContainText('1. Paquete en Beta');
@@ -121,7 +121,7 @@ test('compra de la hoja antigua: se recupera con producto exacto y repetir no du
   const pname = `Leche hoja ${uniq()}`;
   await apiAs(request, token, 'POST', '/api/products', { name: pname, format: '1 L' });
 
-  await page.goto(`/compra?viaje=${trip.id}`);
+  await page.goto(`/#/compra?viaje=${trip.id}`);
   const open = page.getByRole('button', { name: 'Recuperar de la hoja antigua' });
   await open.focus();
   await page.keyboard.press('Enter');
@@ -159,14 +159,14 @@ test('compra de la hoja antigua: se recupera con producto exacto y repetir no du
 
 test('legacy y nieve: comentario de la hoja con su autoría y nieve antigua que no puntúa', async ({ page, request }, info) => {
   await loggedIn(page, request, 'lgc');
-  await page.goto('/estaciones/e2e-beta');
+  await page.goto('/#/estaciones/e2e-beta');
   const legacy = page.getByRole('list', { name: 'Comentarios de la hoja antigua' });
   await expect(legacy).toContainText('De la hoja antigua · escrito por «Pepe»');
   await expect(legacy).toContainText('Buena nieve polvo');
   await expect(page.locator('main')).toContainText('no identifica una cuenta');
   await expectNoHorizontalOverflow(page, `estación con legacy (${info.project.name})`);
 
-  await page.goto('/comparar');
+  await page.goto('/#/comparar');
   const near = page.getByRole('list', { name: 'Estaciones dentro de la distancia' });
   await expect(near).toContainText('no puntúa: capturado hace más de 30 h');
   // Parte de hace una semana re-descargado hoy: se ven captura y fecha del parte, y no puntúa.

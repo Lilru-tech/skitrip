@@ -25,7 +25,7 @@ test('un gasto de 10 € entre 3 personas deja saldos que suman 0', async ({ pag
     await apiAs(request, other, 'POST', '/api/trips/invitations/accept-link', { token: invitation.token });
   }
 
-  await page.goto(`/viajes/${trip.id}/gastos`);
+  await page.goto(`/#/viajes/${trip.id}/gastos`);
   await expect(page.getByRole('heading', { level: 1, name: 'Gastos' })).toBeVisible();
   await page.getByRole('button', { name: 'Nuevo gasto' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo gasto' });
@@ -48,7 +48,7 @@ test('un gasto de 10 € entre 3 personas deja saldos que suman 0', async ({ pag
 test('editar un artículo de la compra se guarda y persiste', async ({ page, request }, info) => {
   const { token } = await loggedIn(page, request, 'shop');
   const trip = await newTrip(request, token, 'Compra de prueba');
-  await page.goto(`/compra?viaje=${trip.id}`);
+  await page.goto(`/#/compra?viaje=${trip.id}`);
   await expect(page.getByRole('heading', { level: 1, name: 'Compra' })).toBeVisible();
   await expect(page.getByText('No hay precios automáticos de Mercadona')).toBeVisible();
 
@@ -85,7 +85,7 @@ test('se vota una candidatura, un voto por persona y se puede cambiar', async ({
   const trip = await newTrip(request, token, 'Votos de prueba');
   await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Apartamento de prueba', modality: 'lodging' });
 
-  await page.goto(`/viajes/${trip.id}/candidaturas`);
+  await page.goto(`/#/viajes/${trip.id}/candidaturas`);
   await expect(page.getByText('Votar no es reservar.')).toBeVisible();
   const group = page.getByRole('group', { name: 'Tu voto para Apartamento de prueba' });
   const up = group.getByRole('button', { name: 'A favor' });
@@ -104,7 +104,7 @@ test('se vota una candidatura, un voto por persona y se puede cambiar', async ({
 
 test('Comparar: el filtro de kilómetros cambia las estaciones visibles', async ({ page, request }, info) => {
   await loggedIn(page, request, 'cmp');
-  await page.goto('/comparar');
+  await page.goto('/#/comparar');
   const near = page.getByRole('list', { name: 'Estaciones dentro de la distancia' });
   const noRoute = page.getByRole('list', { name: 'Estaciones sin distancia por carretera' });
   await expect(near).toContainText('Beta (sintético)');
@@ -134,7 +134,7 @@ test('Comparar: el filtro de kilómetros cambia las estaciones visibles', async 
 
 test('ficha de estación: ofertas por modalidad con su nota y unidades', async ({ page, request }) => {
   await loggedIn(page, request, 'area');
-  await page.goto('/estaciones/e2e-beta');
+  await page.goto('/#/estaciones/e2e-beta');
   await expect(page.getByRole('heading', { level: 1, name: 'Beta (sintético)' })).toBeVisible();
   await expect(page.locator('main')).toContainText('Hotel Uno');
   await expect(page.locator('main')).toContainText('desde, fechas del proveedor');
@@ -156,7 +156,7 @@ test('ficha de estación: ofertas por modalidad con su nota y unidades', async (
 
 test('sin desbordamiento horizontal en las páginas nuevas', async ({ page, request }, info) => {
   // Fuentes es pública.
-  await page.goto('/fuentes');
+  await page.goto('/#/fuentes');
   await expect(page.getByRole('heading', { level: 1, name: 'Fuentes de datos' })).toBeVisible();
   await page.waitForLoadState('networkidle');
   await expectNoHorizontalOverflow(page, `/fuentes sin sesión (${info.project.name})`);
@@ -184,7 +184,7 @@ test('sin desbordamiento horizontal en las páginas nuevas', async ({ page, requ
     ['/admin', 'Página no disponible'],
   ];
   for (const [path, h1] of pages) {
-    await page.goto(path);
+    await page.goto(`/#${path}`);
     await expect(page.getByRole('heading', { level: 1, name: h1 })).toBeVisible();
     await page.waitForLoadState('networkidle');
     await expectNoHorizontalOverflow(page, `${path} (${info.project.name})`);

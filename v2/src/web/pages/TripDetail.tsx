@@ -8,7 +8,7 @@ import { ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
 import { agesText, dayLong, euros, instant, plural, ROLE_LABEL, TRIP_STATUS_LABEL } from '../format';
 import { useBusy, useResource } from '../hooks';
-import { Link, navigate, usePageTitle } from '../router';
+import { absoluteUrl, Link, navigate, usePageTitle } from '../router';
 import { useProfile } from '../session';
 import type { FriendsResponse, Trip, TripDetail, TripMember } from '../types';
 import { diffForms, formToPayload, TripForm, tripToForm, validateTripForm, type TripFormValues } from './TripForm';
@@ -152,7 +152,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
       }));
       if (!r) return;
       // El token va en el fragmento (#): no llega al servidor ni a registros de acceso.
-      setLink({ url: `${location.origin}/unirse#${r.invitation.token}`, expiresAt: r.invitation.expiresAt });
+      setLink({ url: absoluteUrl(`/unirse?t=${encodeURIComponent(r.invitation.token)}`), expiresAt: r.invitation.expiresAt });
       await detail.reload();
     } catch (e) {
       toast.show(errorMessage(e), 'error');
