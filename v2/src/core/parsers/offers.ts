@@ -212,6 +212,25 @@ function parseCard(card: El, provider: Provider): OfferCard {
   let unit = detectUnit(context);
   if (unit === 'unknown' && context !== lower) unit = detectUnit(lower);
 
+  // Precio rebajado sin marca de tachado (Estiber, 01/10/2026: «-10% … Por 222€ 199€ por persona»): solo se acepta
+  // el segundo importe si hay exactamente dos, el primero es mayor y el descuento declarado los cuadra (±1 €).
+  let discountResolved = false;
+  if (ambiguous && ambiguous.length === 2) {
+    const pct = /(?:^|\s)-\s?(\d{1,2})\s?%/.exec(lower);
+    const hits = findMoney(cardText);
+    if (pct && hits.length >= 2) {
+      const [old, now] = [hits[0].cents, hits[1].cents];
+      const expected = old * (1 - Number(pct[1]) / 100);
+      if (old > now && Math.abs(expected - now) <= 100 && hits.slice(2).every((h) => h.cents === old || h.cents === now)) {
+        amount = { ...parseAmount(hits[1].text)! };
+        priceText = hits[1].text;
+        before = lower.slice(Math.max(0, hits[1].index - 40), hits[1].index + hits[1].text.length + 40);
+        ambiguous = null;
+        discountResolved = true;
+        warnings.push(`Precio rebajado: se toma ${hits[1].text} y se descarta el anterior ${hits[0].text} (descuento del ${pct[1]} % declarado en la tarjeta).`);
+      }
+    }
+  }
   if (ambiguous) {
     const shown = ambiguous.slice(0, 4).map((c) => `${(c / 100).toFixed(2).replace('.', ',')} €`).join(', ');
     warnings.push(`Varios precios distintos en la tarjeta (${shown}); no se elige ninguno.`);
@@ -248,7 +267,7 @@ function parseCard(card: El, provider: Provider): OfferCard {
     priceKind,
     saysFrom,
     ambiguousPrice: ambiguous !== null,
-    strikethroughIgnored: strikeHasMoney(card),
+    strikethroughIgnored: discountResolved || strikeHasMoney(card),
     url: urlOf(card),
     warnings,
   };

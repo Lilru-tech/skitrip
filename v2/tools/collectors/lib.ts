@@ -1,5 +1,6 @@
 // Utilidades comunes de los recolectores (se ejecutan en GitHub Actions, nunca en el Worker).
 import { setTimeout as sleep } from 'node:timers/promises';
+import { parseRobots, robotsAllows, type RobotsRule } from '../../src/core/robots.ts';
 
 export const API = (process.env.SKITRIP_API_URL ?? '').replace(/\/$/, '');
 export const TOKEN = process.env.SKITRIP_INGEST_TOKEN ?? '';
@@ -29,28 +30,24 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-/** robots.txt mínimo: respeta Disallow del grupo `*` (y del nuestro). Ante error de lectura, no bloquea. */
-const robotsCache = new Map<string, string[]>();
+/** robots.txt (RFC 9309, src/core/robots.ts). Sin robots (4xx): todo permitido. Error del servidor o de red: nada permitido. */
+const robotsCache = new Map<string, Promise<RobotsRule[] | 'deny-all'>>();
+function robotsFor(origin: string) {
+  if (!robotsCache.has(origin)) {
+    robotsCache.set(origin, (async () => {
+      try {
+        const r = await fetch(`${origin}/robots.txt`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10_000) });
+        if (r.ok) return parseRobots(await r.text());
+        return r.status >= 400 && r.status < 500 ? [] : 'deny-all';
+      } catch { return 'deny-all'; }
+    })());
+  }
+  return robotsCache.get(origin)!;
+}
 export async function allowedByRobots(url: string): Promise<boolean> {
   const u = new URL(url);
-  if (!robotsCache.has(u.origin)) {
-    const rules: string[] = [];
-    try {
-      const r = await fetch(`${u.origin}/robots.txt`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10_000) });
-      if (r.ok) {
-        let applies = false;
-        for (const raw of (await r.text()).split('\n')) {
-          const line = raw.replace(/#.*/, '').trim();
-          const [k, ...v] = line.split(':');
-          const val = v.join(':').trim();
-          if (/^user-agent$/i.test(k)) applies = val === '*' || /skitrip/i.test(val);
-          else if (applies && /^disallow$/i.test(k) && val) rules.push(val);
-        }
-      }
-    } catch { /* sin robots legible */ }
-    robotsCache.set(u.origin, rules);
-  }
-  return !robotsCache.get(u.origin)!.some((p) => u.pathname.startsWith(p.replace(/\*.*$/, '')));
+  const rules = await robotsFor(u.origin);
+  return rules !== 'deny-all' && robotsAllows(rules, u.pathname + u.search);
 }
 
 export class BlockedError extends Error {}
@@ -80,10 +77,23 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
   try {
     const ctx = await browser.newContext({ locale: 'es-ES', userAgent: UA });
     const page = await ctx.newPage();
+    // Lo que la página pide al renderizarse (XHR, fetch, documentos) también respeta el robots.txt de su host:
+    // p. ej. Esquiades prohíbe /*/hotel/offer/load, así que esas ofertas no se cargan en lugar de leerse igualmente.
+    let refused: string[] = [];
+    await page.route('**/*', async (route) => {
+      const req = route.request();
+      if (['document', 'xhr', 'fetch'].includes(req.resourceType()) && /^https?:/.test(req.url()) && !(await allowedByRobots(req.url()))) {
+        refused.push(new URL(req.url()).pathname);
+        return route.abort('blockedbyclient');
+      }
+      return route.continue();
+    });
     const load = async (url: string) => {
+      refused = [];
       const res = await page.goto(url, { waitUntil: 'networkidle', timeout: 45_000 });
       const html = await page.content();
       if (looksBlocked(res?.status() ?? 0, html)) throw new BlockedError(`bloqueado o CAPTCHA en ${new URL(url).host}`);
+      if (refused.length) console.log(`${url}: ${refused.length} peticiones no cargadas por robots.txt (${[...new Set(refused)].slice(0, 3).join(', ')})`);
       return html;
     };
     return await fn(load);

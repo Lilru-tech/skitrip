@@ -168,3 +168,38 @@ describe('revisión final 1 · el deduplicado conserva las condiciones que disti
     expect(sent.map((o) => [o.checkIn, o.checkOut, o.forfaitIncluded, o.rooms])).toEqual([['2026-12-10', '2026-12-12', 'no', 1], ['2027-02-10', '2027-02-12', 'no', 1]]);
   });
 });
+
+describe('publicación · precio rebajado sin marca de tachado (texto real de Estiber, 01/10/2026)', () => {
+  // Texto de tarjeta observado con una herramienta de lectura web (no es el HTML crudo; el marcado aquí es supuesto).
+  const card = (body: string) => `<div class="oferta"><h3>Hotel Sarao</h3><p>${body}</p></div>`;
+
+  it('toma el precio rebajado cuando el descuento declarado cuadra con los dos importes', () => {
+    const [c] = parseOfferCardsHtml(card('-10% 8.6 (37) Hotel Sarao 2 noches del 19/02/2027 al 21/02/2027 Forfait 2 días Por 222€ 199€ por persona'), 'estiber');
+    expect(c.amount?.cents).toBe(19900);
+    expect(c.unit).toBe('per_person');
+    expect(c.ambiguousPrice).toBe(false);
+    expect(c.strikethroughIgnored).toBe(true);
+    expect(c).toMatchObject({ nights: 2, forfaitDays: 2, checkIn: '2027-02-19', checkOut: '2027-02-21', priceKind: 'advertised_from' });
+    expect(c.warnings.join(' ')).toContain('se descarta el anterior 222€');
+  });
+
+  it('otro ejemplo real: -7 % de 317 € a 294 €', () => {
+    const [c] = parseOfferCardsHtml(card('-7% Hotel 2 noches Forfait 2 días Por 317€ 294€ por persona'), 'estiber');
+    expect(c.amount?.cents).toBe(29400);
+  });
+
+  it('sin descuento declarado, con un descuento que no cuadra o con un tercer importe, no elige ninguno', () => {
+    const none = (t: string) => parseOfferCardsHtml(card(t), 'estiber')[0];
+    expect(none('Hotel 2 noches Por 222€ 199€ por persona').amount).toBeNull();
+    expect(none('-30% Hotel 2 noches Por 222€ 199€ por persona').amount).toBeNull();
+    expect(none('-10% Hotel 2 noches Por 222€ 199€ por persona · suplemento 35€').amount).toBeNull();
+    expect(none('-10% Hotel 2 noches Por 199€ 222€ por persona').amount).toBeNull();
+  });
+
+  it('una tarjeta con un solo precio no cambia', () => {
+    const [c] = parseOfferCardsHtml(card('Basecamps Cerdanya 4 noches del 04/12/2026 al 08/12/2026 Forfait 3 días Por 684€ por persona'), 'estiber');
+    expect(c.amount?.cents).toBe(68400);
+    expect(c.strikethroughIgnored).toBe(false);
+    expect(c).toMatchObject({ nights: 4, forfaitDays: 3, checkIn: '2026-12-04', checkOut: '2026-12-08', unit: 'per_person' });
+  });
+});
