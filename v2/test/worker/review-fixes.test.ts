@@ -618,3 +618,83 @@ describe('revisión final 4 · presupuesto por API: habitaciones y días de forf
     expect(b2.result.components.find((x: any) => x.key === 'lodging').comparison.unknown.join(' ')).toMatch(/días de esquí del viaje \(el paquete incluye 2\)/);
   });
 });
+
+describe('publicación · costes por estación y por candidatura', () => {
+  beforeAll(async () => {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO origins (id, name, lat, lon) VALUES ('tarragona','Tarragona',41.1,1.2)`),
+      env.DB.prepare(`INSERT OR IGNORE INTO routes (origin_id, area_id, access_name, road_km, source, validated) VALUES ('tarragona','rv-cerler','Cerler',300,'manual',1), ('tarragona','rv-formigal','Formigal',350,'manual',1)`),
+    ]);
+  });
+  const cond = { checkIn: '2027-01-15', checkOut: '2027-01-17', adults: 2, childrenAges: [], forfaitIncluded: 'no', forfaitDays: null };
+  const hotel = (title: string, areaId: string, amountCents: number, over: Record<string, unknown> = {}) =>
+    ({ title, modality: 'lodging', areaId, amountCents, unit: 'per_person', priceKind: 'user_quote', ...cond, ...over });
+  const costs = (v: Record<string, unknown>) => ({ kind: 'confirmed', sourceNote: 'web oficial', checkedOn: '2026-10-01', version: 0, ...v });
+
+  it('dos estaciones con rutas y tarifas propias: completar, comparar, elegir y presupuesto con procedencia', async () => {
+    const o = await signup();
+    const t = (await api(o.token, 'POST', '/api/trips', { name: 'Dos estaciones', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2, cars: 1, areaId: 'rv-cerler' })).json.trip;
+    const b0 = (await api(o.token, 'GET', `/api/trips/${t.id}/budget`)).json;
+    await api(o.token, 'PUT', `/api/trips/${t.id}/budget`, { version: b0.params.version, groceriesCents: 0, renters: 2, fuelCentsPerLitre: 160, litresPer100kmX10: 60 });
+    expect((await api(o.token, 'PUT', `/api/trips/${t.id}/destination-costs/rv-cerler`, costs({ forfaitCentsPerDay: 5000, rentalCentsPerDay: 2000, tollsCentsPerCar: 3000, parkingCentsPerCar: 1500 }))).status).toBe(200);
+    const fput = await api(o.token, 'PUT', `/api/trips/${t.id}/destination-costs/rv-formigal`, costs({ forfaitCentsPerDay: 5500, rentalCentsPerDay: 2500, tollsCentsPerCar: 4000, parkingCentsPerCar: 1000 }));
+    expect(fput.json.destinationCosts.map((d: any) => d.areaId).sort()).toEqual(['rv-cerler', 'rv-formigal']);
+    const cid = (await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, hotel('Hotel Cerler', 'rv-cerler', 10000))).json.id;
+    const fid = (await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, hotel('Hotel Formigal', 'rv-formigal', 9000))).json.id;
+
+    let opts = (await api(o.token, 'GET', `/api/trips/${t.id}/cost-comparison`)).json.options;
+    const by = (title: string) => opts.find((x: any) => x.title === title);
+    // Cerler: 20000 + combustible 300 km (5760) + 3000 + 1500 + forfait 20000 + alquiler 8000 = 58260 → 29130/persona.
+    // Formigal: 18000 + combustible 350 km (6720) + 4000 + 1000 + forfait 22000 + alquiler 10000 = 61720 → 30860/persona.
+    expect(by('Hotel Cerler')).toMatchObject({ rank: 1, perPersonCents: 29130, hypothetical: false, pending: [] });
+    expect(by('Hotel Formigal')).toMatchObject({ rank: 2, perPersonCents: 30860, hypothetical: true, pending: [] });
+    expect(by('Hotel Formigal').warnings.join(' ')).toMatch(/Se usan los costes guardados para esta estación/);
+
+    // Diferencia propia de la candidatura (parking incluido): tiene prioridad sobre la estación.
+    const cand = (await api(o.token, 'GET', `/api/trips/${t.id}/candidates`)).json.candidates.find((x: any) => x.id === fid);
+    expect((await api(o.token, 'PATCH', `/api/trips/${t.id}/candidates/${fid}`, { version: cand.version, parkingCentsPerCar: 0, costsNote: 'parking incluido' })).status).toBe(200);
+    opts = (await api(o.token, 'GET', `/api/trips/${t.id}/cost-comparison`)).json.options;
+    expect(by('Hotel Formigal').perPersonCents).toBe(30360);
+    expect((await api(o.token, 'GET', `/api/trips/${t.id}`)).json.trip.areaId).toBe('rv-cerler'); // comparar no toca el viaje
+
+    // Elegir Formigal: se cambia el destino del viaje y el presupuesto usa sus costes, con procedencia.
+    const trip = (await api(o.token, 'GET', `/api/trips/${t.id}`)).json.trip;
+    expect((await api(o.token, 'PATCH', `/api/trips/${t.id}`, { areaId: 'rv-formigal', version: trip.version })).status).toBe(200);
+    let b = (await api(o.token, 'GET', `/api/trips/${t.id}/budget`)).json;
+    b = (await api(o.token, 'PUT', `/api/trips/${t.id}/budget`, { version: b.params.version, chosenCandidateId: fid })).json;
+    expect(b.result).toMatchObject({ complete: true, perPersonCents: 30360 });
+    const comp = (k: string) => b.result.components.find((x: any) => x.key === k);
+    expect(comp('forfait').note).toMatch(/precio de Formigal \(test\): web oficial, 2026-10-01/);
+    expect(comp('parking')).toMatchObject({ status: 'known', totalCents: 0 });
+    expect(comp('parking').note).toMatch(/de la candidatura: parking incluido/);
+    // La candidatura de Cerler ya no vale para el viaje a Formigal (validación estricta de destino).
+    b = (await api(o.token, 'PUT', `/api/trips/${t.id}/budget`, { version: b.params.version, chosenCandidateId: cid })).json;
+    expect(b.result.components.find((x: any) => x.key === 'lodging').comparison.status).toBe('incompatible');
+  });
+
+  it('estimación explícita: no completa el presupuesto; sin costes de la estación vuelve a quedar pendiente; nadie alquila = no aplica', async () => {
+    const o = await signup();
+    const t = (await api(o.token, 'POST', '/api/trips', { name: 'Estimación', startDate: '2027-01-15', endDate: '2027-01-17', participantsPlanned: 2, skiDays: 2, cars: 0, areaId: 'rv-cerler' })).json.trip;
+    const b0 = (await api(o.token, 'GET', `/api/trips/${t.id}/budget`)).json;
+    await api(o.token, 'PUT', `/api/trips/${t.id}/budget`, { version: b0.params.version, groceriesCents: 0, renters: 0, forfaitCentsPerDay: 5000 });
+    await api(o.token, 'POST', `/api/trips/${t.id}/candidates`, hotel('Hotel Formigal', 'rv-formigal', 9000));
+    const get = async () => (await api(o.token, 'GET', `/api/trips/${t.id}/cost-comparison`)).json.options[0];
+    expect((await get()).pending).toEqual(['Forfait']); // el forfait común es de Cerler: no vale para Formigal
+    await api(o.token, 'PUT', `/api/trips/${t.id}/destination-costs/rv-formigal`, costs({ forfaitCentsPerDay: 5200, rentalCentsPerDay: null, tollsCentsPerCar: null, parkingCentsPerCar: null, kind: 'estimate', sourceNote: 'año pasado' }));
+    let x = await get();
+    expect(x).toMatchObject({ rank: null, complete: false, pending: [] }); // estimado: aparte, sin posición
+    await api(o.token, 'DELETE', `/api/trips/${t.id}/destination-costs/rv-formigal`);
+    x = await get();
+    expect(x.pending).toEqual(['Forfait']);
+  });
+
+  it('solo editores guardan costes de estación; un ajeno no los ve ni los cambia', async () => {
+    const o = await signup(), z = await signup();
+    const t = (await api(o.token, 'POST', '/api/trips', { name: 'Permisos costes' })).json.trip;
+    expect((await api(z.token, 'PUT', `/api/trips/${t.id}/destination-costs/rv-cerler`, costs({ forfaitCentsPerDay: 1, rentalCentsPerDay: null, tollsCentsPerCar: null, parkingCentsPerCar: null }))).status).toBeGreaterThanOrEqual(403);
+    expect((await api(o.token, 'PUT', `/api/trips/${t.id}/destination-costs/no-existe`, costs({ forfaitCentsPerDay: 1, rentalCentsPerDay: null, tollsCentsPerCar: null, parkingCentsPerCar: null }))).status).toBe(404);
+    // Versión: crear dos veces con version 0 → conflicto.
+    expect((await api(o.token, 'PUT', `/api/trips/${t.id}/destination-costs/rv-cerler`, costs({ forfaitCentsPerDay: 1, rentalCentsPerDay: null, tollsCentsPerCar: null, parkingCentsPerCar: null }))).status).toBe(200);
+    expect((await api(o.token, 'PUT', `/api/trips/${t.id}/destination-costs/rv-cerler`, costs({ forfaitCentsPerDay: 2, rentalCentsPerDay: null, tollsCentsPerCar: null, parkingCentsPerCar: null }))).status).toBe(409);
+  });
+});

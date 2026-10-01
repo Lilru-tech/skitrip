@@ -115,6 +115,59 @@ test('comparar coste: cada candidatura en su estación sin cambiar el viaje; for
   await expectNoHorizontalOverflow(page, `comparar coste en varias estaciones (${info.project.name})`);
 });
 
+test('costes por estación: añadir el forfait de otra estación completa su comparación con procedencia', async ({ page, request }, info) => {
+  const { token } = await loggedIn(page, request, 'dcs');
+  const start = future(60), end = future(62);
+  const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Costes por estación', startDate: start, endDate: end, participantsPlanned: 2, skiDays: 2, rooms: 1, areaId: 'e2e-dominio', cars: 0 });
+  const cond = { modality: 'lodging', unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1, forfaitIncluded: 'no' };
+  await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Hotel en Alfa', amountCents: 40000, areaId: 'e2e-dominio', ...cond });
+  await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Hotel en Beta', amountCents: 30000, areaId: 'e2e-beta', ...cond });
+  const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
+  await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0 });
+
+  await page.goto(`/#/viajes/${trip.id}/presupuesto`);
+  const inc = page.getByRole('list', { name: 'Candidaturas con presupuesto incompleto' }).locator(':scope > li');
+  await expect(inc).toContainText('Hotel en Beta');
+  await expect(inc).toContainText('Incompleto: falta Forfait');
+
+  const costs = page.getByRole('list', { name: 'Costes por estación' });
+  await expect(costs.locator(':scope > li')).toHaveCount(2);
+  await costs.getByRole('button', { name: 'Añadir costes de Beta (sintético)' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Costes de Beta (sintético)' });
+  await dlg.getByLabel('Forfait por día y persona (€)').fill('45');
+  await dlg.getByLabel('Fecha de consulta').fill('2026-10-01');
+  await dlg.getByLabel('Fuente').fill('web oficial (sintético)');
+  await expectNoHorizontalOverflow(page, `diálogo costes por estación (${info.project.name})`);
+  await dlg.getByRole('button', { name: 'Guardar' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(costs.locator('[data-area="e2e-beta"]')).toContainText('Forfait 45,00 € por día y persona');
+  await expect(costs.locator('[data-area="e2e-beta"]')).toContainText('web oficial (sintético) · 01/10/2026');
+
+  const ranked = page.getByRole('list', { name: 'Candidaturas completas por coste' }).locator(':scope > li');
+  await expect(ranked).toHaveCount(2);
+  await expect(ranked.nth(0)).toContainText('1. Hotel en Beta');
+  await expect(ranked.nth(0)).toContainText('240,00 €/persona');
+  await expect(ranked.nth(0)).toContainText('Se usan los costes guardados para esta estación');
+  await expect(ranked.nth(1)).toContainText('2. Hotel en Alfa');
+  await expect(ranked.nth(1)).toContainText('280,00 €/persona');
+  await expectNoHorizontalOverflow(page, `costes por estación (${info.project.name})`);
+});
+
+test('candidatura con costes propios: el formulario cabe en móvil y el parking incluido se guarda', async ({ page, request }, info) => {
+  const { token } = await loggedIn(page, request, 'cco');
+  const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Costes propios', areaId: 'e2e-beta' });
+  await page.goto(`/#/viajes/${trip.id}/candidaturas`);
+  await page.getByRole('button', { name: 'Nueva candidatura' }).click();
+  await page.getByLabel('Título').fill('Apartamento con parking');
+  await page.getByLabel('Parking por coche, estancia (€)').fill('0');
+  await page.getByLabel('Nota de los costes').fill('parking incluido');
+  await expectNoHorizontalOverflow(page, `formulario de candidatura (${info.project.name})`);
+  await page.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Apartamento con parking' })).toBeVisible();
+  const { candidates } = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/candidates`);
+  expect(candidates[0]).toMatchObject({ parking_cents_per_car: 0, costs_note: 'parking incluido', forfait_cents_per_day: null });
+});
+
 test('compra de la hoja antigua: se recupera con producto exacto y repetir no duplica', async ({ page, request }, info) => {
   const { token } = await loggedIn(page, request, 'lgs');
   const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Recuperar hoja' });

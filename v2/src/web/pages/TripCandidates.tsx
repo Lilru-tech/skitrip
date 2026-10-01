@@ -41,7 +41,8 @@ export function TripCandidatesPage({ tripId }: { tripId: string }) {
 }
 
 const emptyForm = { title: '', modality: 'lodging', url: '', amount: '', unit: 'per_person', priceKind: 'user_quote', areaId: '', checkIn: '', checkOut: '',
-  adults: '', children: '', rooms: '', forfaitIncluded: 'no', forfaitDays: '', conditions: '', pendingNotes: '' };
+  adults: '', children: '', rooms: '', forfaitIncluded: 'no', forfaitDays: '', conditions: '', pendingNotes: '',
+  ownForfait: '', ownRental: '', ownTolls: '', ownParking: '', costsNote: '' };
 type CandForm = typeof emptyForm;
 
 /** Formulario precargado con las condiciones del viaje (se corrigen si la cotización es para otras). */
@@ -167,6 +168,8 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
     if (!kids) { setFormErr('Edades de menores: números de 0 a 17 separados por comas.'); return; }
     if (form.checkIn && form.checkOut && form.checkOut <= form.checkIn) { setFormErr('La salida debe ser posterior a la entrada.'); return; }
     if (form.priceKind === 'manual_estimate' && amount == null) { setFormErr('Una estimación manual necesita un importe.'); return; }
+    const own = { forfait: parseEuros(form.ownForfait), rental: parseEuros(form.ownRental), tolls: parseEuros(form.ownTolls), parking: parseEuros(form.ownParking) };
+    if (Object.values(own).some((v) => Number.isNaN(v))) { setFormErr('Costes propios: importe no válido.'); return; }
     setBusy('create'); setFormErr(null);
     try {
       const n = (s: string) => (s.trim() ? Number(s) : null);
@@ -175,6 +178,7 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
         priceKind: amount != null ? form.priceKind : null, areaId: form.areaId || null, checkIn: form.checkIn || null, checkOut: form.checkOut || null,
         adults: n(form.adults), childrenAges: kids, rooms: n(form.rooms), forfaitIncluded: form.forfaitIncluded,
         forfaitDays: form.forfaitIncluded === 'yes' ? n(form.forfaitDays) : null, conditions: form.conditions || null, pendingNotes: form.pendingNotes || null,
+        forfaitCentsPerDay: own.forfait, rentalCentsPerDay: own.rental, tollsCentsPerCar: own.tolls, parkingCentsPerCar: own.parking, costsNote: form.costsNote.trim() || null,
       });
       toast.show(form.priceKind === 'manual_estimate' && amount != null ? 'Estimación manual añadida.' : 'Candidatura añadida.');
       onSaved();
@@ -223,6 +227,15 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
           {form.forfaitIncluded === 'yes' && <Field label="Días de forfait incluidos" type="number" min={0} value={form.forfaitDays} onChange={(e) => setForm({ ...form, forfaitDays: e.target.value })} />}
           <Field className="span-2" label="Condiciones" value={form.conditions} maxLength={1000} onChange={(e) => setForm({ ...form, conditions: e.target.value })} />
           <Field className="span-2" label="Pendiente de confirmar" value={form.pendingNotes} maxLength={1000} onChange={(e) => setForm({ ...form, pendingNotes: e.target.value })} />
+          <fieldset className="span-2 form-grid">
+            <legend>Costes propios de esta opción (opcional)</legend>
+            <p className="span-2 small muted">Solo si difieren de los de su estación, p. ej. parking incluido (0 €). Vacío = se usan los de la estación.</p>
+            <Field label="Forfait por día y persona (€)" inputMode="decimal" value={form.ownForfait} onChange={(e) => setForm({ ...form, ownForfait: e.target.value })} />
+            <Field label="Alquiler por día y persona (€)" inputMode="decimal" value={form.ownRental} onChange={(e) => setForm({ ...form, ownRental: e.target.value })} />
+            <Field label="Peajes por coche, ida y vuelta (€)" inputMode="decimal" value={form.ownTolls} onChange={(e) => setForm({ ...form, ownTolls: e.target.value })} />
+            <Field label="Parking por coche, estancia (€)" inputMode="decimal" value={form.ownParking} onChange={(e) => setForm({ ...form, ownParking: e.target.value })} />
+            <Field className="span-2" label="Nota de los costes" maxLength={300} value={form.costsNote} onChange={(e) => setForm({ ...form, costsNote: e.target.value })} />
+          </fieldset>
         </form>
       )}
       {formErr && <p className="form-error" role="alert">{formErr}</p>}

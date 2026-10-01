@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { offerPanel, searchDistribution, type PricePoint } from '../../core/analytics';
-import { candidateScenario, computeBudget, type BudgetInput } from '../../core/budget';
+import { candidateScenario, computeBudget, resolveDestinationCosts, type BudgetInput, type DestinationCostRow } from '../../core/budget';
 import { dateSearchAvailable } from '../../core/capabilities';
 import { daysBetween, todayMadrid } from '../../core/dates';
 import type { AppEnv } from '../env';
@@ -147,6 +147,12 @@ const zCandidate = z.object({
   forfaitDays: z.number().int().min(0).max(30).nullable().optional(),
   conditions: z.string().max(1000).nullable().optional(),
   pendingNotes: z.string().max(1000).nullable().optional(),
+  // Costes propios de esta candidatura (tienen prioridad sobre los de su estación). null = sin dato.
+  forfaitCentsPerDay: zCents.nullable().optional(),
+  rentalCentsPerDay: zCents.nullable().optional(),
+  tollsCentsPerCar: zCents.nullable().optional(),
+  parkingCentsPerCar: zCents.nullable().optional(),
+  costsNote: z.string().trim().max(300).nullable().optional(),
 });
 
 planRoutes.get('/:id/candidates', async (c) => {
@@ -191,14 +197,16 @@ planRoutes.post('/:id/candidates', async (c) => {
   const t = now();
   await c.env.DB.prepare(
     `INSERT INTO trip_candidates (id, trip_id, offer_id, title, area_id, modality, url, amount_cents, unit, price_kind, check_in, check_out, people, forfait_days, conditions,
-       pending_notes, proposed_by, created_at, updated_at, adults, children_ages, rooms, forfait_included)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18, ?19, ?20, ?21, ?22)`,
+       pending_notes, proposed_by, created_at, updated_at, adults, children_ages, rooms, forfait_included,
+       forfait_cents_per_day, rental_cents_per_day, tolls_cents_per_car, parking_cents_per_car, costs_note)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)`,
   ).bind(id, tripId, b.offerId ?? null, b.title, b.areaId ?? fromOffer?.area_id ?? null, b.modality, b.url ?? fromOffer?.url ?? null,
     b.amountCents ?? fromOffer?.amount_cents ?? null, b.unit ?? fromOffer?.unit ?? null, b.priceKind ?? fromOffer?.price_kind ?? (b.amountCents != null ? 'user_quote' : null),
     b.checkIn ?? fromOffer?.check_in ?? null, b.checkOut ?? fromOffer?.check_out ?? null,
     b.people ?? (adults != null ? adults + (kids ? JSON.parse(kids).length : 0) : null), b.forfaitDays ?? fromOffer?.forfait_days ?? null,
     b.conditions ?? null, b.pendingNotes ?? null, me, t, adults, kids, b.rooms ?? fromOffer?.rooms ?? null,
-    b.forfaitIncluded ?? fromOffer?.forfait_included ?? (b.modality === 'lodging_forfait' ? 'yes' : 'unknown')).run();
+    b.forfaitIncluded ?? fromOffer?.forfait_included ?? (b.modality === 'lodging_forfait' ? 'yes' : 'unknown'),
+    b.forfaitCentsPerDay ?? null, b.rentalCentsPerDay ?? null, b.tollsCentsPerCar ?? null, b.parkingCentsPerCar ?? null, b.costsNote ?? null).run();
   return c.json({ id }, 201);
 });
 
@@ -213,7 +221,8 @@ planRoutes.patch('/:id/candidates/:cid', async (c) => {
   if ((b.status === 'chosen' || b.status === 'booked') && role === 'member') throw forbidden('Elegir o marcar como reservada corresponde al propietario o a un editor.');
   const map: Record<string, string> = { title: 'title', url: 'url', amountCents: 'amount_cents', unit: 'unit', priceKind: 'price_kind', checkIn: 'check_in', checkOut: 'check_out',
     people: 'people', forfaitDays: 'forfait_days', conditions: 'conditions', pendingNotes: 'pending_notes', status: 'status', modality: 'modality', areaId: 'area_id',
-    adults: 'adults', childrenAges: 'children_ages', rooms: 'rooms', forfaitIncluded: 'forfait_included' };
+    adults: 'adults', childrenAges: 'children_ages', rooms: 'rooms', forfaitIncluded: 'forfait_included',
+    forfaitCentsPerDay: 'forfait_cents_per_day', rentalCentsPerDay: 'rental_cents_per_day', tollsCentsPerCar: 'tolls_cents_per_car', parkingCentsPerCar: 'parking_cents_per_car', costsNote: 'costs_note' };
   const sets: string[] = []; const args: unknown[] = [];
   for (const [k, col] of Object.entries(map)) if ((b as any)[k] !== undefined) {
     sets.push(`${col} = ?`);
@@ -277,13 +286,21 @@ async function budgetContext(db: D1Database, tripId: string) {
   }
   const members = await db.prepare('SELECT COUNT(*) AS n FROM trip_members WHERE trip_id = ?1').bind(tripId).first<{ n: number }>();
   const shopping = await estimateList(db, tripId);
-  return { t, b, members: members?.n ?? null, shopping };
+  const { results: dest } = await db.prepare('SELECT d.*, a.name AS area_name FROM trip_destination_costs d JOIN areas a ON a.id = d.area_id WHERE d.trip_id = ?1').bind(tripId).all<any>();
+  const destBy = new Map(dest.map((d) => [d.area_id as string, { row: destRow(d), name: d.area_name as string }]));
+  return { t, b, members: members?.n ?? null, shopping, destBy, destinationCosts: dest.map(destinationOut) };
 }
 type BudgetCtx = Awaited<ReturnType<typeof budgetContext>>;
+const destRow = (d: any): DestinationCostRow => ({ forfait: d.forfait_cents_per_day, rental: d.rental_cents_per_day, tolls: d.tolls_cents_per_car, parking: d.parking_cents_per_car,
+  kind: d.kind, sourceNote: d.source_note, checkedOn: d.checked_on });
+const destinationOut = (d: any) => ({ areaId: d.area_id, areaName: d.area_name, forfaitCentsPerDay: d.forfait_cents_per_day, rentalCentsPerDay: d.rental_cents_per_day,
+  tollsCentsPerCar: d.tolls_cents_per_car, parkingCentsPerCar: d.parking_cents_per_car, kind: d.kind, sourceNote: d.source_note, checkedOn: d.checked_on,
+  updatedAt: d.updated_at, version: d.version });
+const COST_LABEL = { forfait: 'forfait', rental: 'alquiler', tolls: 'peajes', parking: 'parking' } as const;
 type RouteRow = { road_km: number | null; source: string; validated: number; notes: string | null } | null;
 
 /** scenario: coste de una candidatura en SU destino (hipótesis que no modifica el viaje). Sin él, destino real y validación estricta. */
-function budgetWith({ t, b, members, shopping }: BudgetCtx, cand: any | null, route: RouteRow, scenario?: { areaLabel: (id: string) => string }) {
+function budgetWith({ t, b, members, shopping, destBy }: BudgetCtx, cand: any | null, route: RouteRow, scenario?: { areaLabel: (id: string) => string }) {
   const people = t.participants_planned ?? members ?? null;
   const tripKids: number[] = JSON.parse(t.children_ages || '[]');
   const groceries = b.groceries_cents ?? (shopping.complete ? shopping.knownCents : null);
@@ -298,11 +315,23 @@ function budgetWith({ t, b, members, shopping }: BudgetCtx, cand: any | null, ro
       areaId: cand.area_id, forfaitDays: cand.forfait_days } : null,
     forfaitCentsPerDay: b.forfait_cents_per_day, rentalCentsPerDay: b.rental_cents_per_day, groceriesCents: groceries,
   };
-  const sc = scenario ? candidateScenario(input, cand?.area_id ?? null, scenario.areaLabel) : { input, hypothetical: false };
+  // Costes que dependen de la estación: los de la candidatura, los guardados para esa estación o, solo en el destino
+  // del viaje, los comunes. Presupuesto elegido: destino real del viaje. Comparación: destino de cada candidatura.
+  const areaLabel = scenario?.areaLabel ?? ((id: string) => destBy.get(id)?.name ?? id);
+  const costArea: string | null = scenario ? (cand?.area_id ?? t.area_id) : t.area_id;
+  const candOwn = cand && (cand.area_id == null || cand.area_id === costArea)
+    ? { forfait: cand.forfait_cents_per_day, rental: cand.rental_cents_per_day, tolls: cand.tolls_cents_per_car, parking: cand.parking_cents_per_car } : null;
+  const resolved = costArea
+    ? resolveDestinationCosts(input, { costArea, tripArea: t.area_id, candidate: candOwn, candidateNote: cand?.costs_note, destination: destBy.get(costArea)?.row ?? null, areaLabel })
+    : { input, confirmedForArea: [] };
+  const sc = scenario ? candidateScenario(resolved.input, cand?.area_id ?? null, areaLabel, resolved.confirmedForArea) : { input: resolved.input, hypothetical: false };
   const result = computeBudget(sc.input);
-  if (sc.hypothetical) result.warnings.push(t.area_id
-    ? 'Escenario hipotético en el destino de la candidatura: el viaje tiene otro destino y no se modifica. Forfait, peajes, parking y alquiler de esta estación quedan pendientes hasta confirmarlos.'
-    : 'Escenario hipotético en el destino de la candidatura: el viaje no tiene destino y no se modifica. Forfait, peajes, parking y alquiler quedan pendientes hasta confirmarlos para esta estación.');
+  if (sc.hypothetical) {
+    // Solo las que de verdad faltan: si no aplican (sin coches, nadie alquila, forfait incluido) no se mencionan.
+    const missing = result.components.filter((x) => x.status === 'pending' && x.key in (sc.input.unconfirmed ?? {})).map((x) => COST_LABEL[x.key as keyof typeof COST_LABEL]);
+    result.warnings.push(`Escenario hipotético en el destino de la candidatura: ${t.area_id ? 'el viaje tiene otro destino' : 'el viaje no tiene destino'} y no se modifica.`
+      + (missing.length ? ` Sin precio de esta estación: ${missing.join(', ')} (quedan pendientes hasta añadirlos).` : ' Se usan los costes guardados para esta estación.'));
+  }
   if (route && !route.validated) result.warnings.push(`Distancia por carretera sin validar (${route.source})${route.notes ? `: ${route.notes}` : '.'}`);
   if (b.groceries_cents == null && shopping.unpriced) result.warnings.push(`La lista de compra tiene ${shopping.unpriced} artículo(s) sin precio: la compra queda pendiente.`);
   return { input: sc.input, result, hypothetical: sc.hypothetical };
@@ -315,7 +344,7 @@ async function budgetFor(db: D1Database, tripId: string) {
     t.area_id ? db.prepare('SELECT road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id = ?2').bind(t.origin_id ?? 'tarragona', t.area_id).first<any>() : null,
     b.chosen_candidate_id ? db.prepare('SELECT * FROM trip_candidates WHERE id = ?1 AND trip_id = ?2').bind(b.chosen_candidate_id, tripId).first<any>() : null,
   ]);
-  return { params: b, ...budgetWith(ctx, cand, route) };
+  return { params: b, destinationCosts: ctx.destinationCosts, ...budgetWith(ctx, cand, route) };
 }
 
 /**
@@ -372,4 +401,36 @@ planRoutes.put('/:id/budget', async (c) => {
     if (!r.meta.changes) throw conflict('El presupuesto cambió mientras editabas. Recarga para ver la última versión.', 'version_conflict');
   }
   return c.json(await budgetFor(c.env.DB, tripId));
+});
+
+/**
+ * Costes de una estación para este viaje (forfait, alquiler, peajes, parking), con fuente y fecha. Sirven para el
+ * presupuesto si es el destino del viaje y para comparar candidaturas de esa estación. Una sentencia de escritura.
+ */
+const zDestCosts = z.object({
+  forfaitCentsPerDay: zCents.nullable(), rentalCentsPerDay: zCents.nullable(), tollsCentsPerCar: zCents.nullable(), parkingCentsPerCar: zCents.nullable(),
+  kind: z.enum(['confirmed', 'estimate']), sourceNote: z.string().trim().max(300).nullable(), checkedOn: zDate.nullable(),
+  version: z.number().int().min(0), // 0 = crear
+});
+planRoutes.put('/:id/destination-costs/:areaId', async (c) => {
+  const tripId = c.req.param('id'), areaId = c.req.param('areaId');
+  const me = c.get('user').id;
+  await requireTripEditor(c.env.DB, tripId, me);
+  const b = await parseBody(c, zDestCosts);
+  if (!(await c.env.DB.prepare('SELECT 1 FROM areas WHERE id = ?1').bind(areaId).first())) throw notFound('Estación');
+  const vals = [b.forfaitCentsPerDay, b.rentalCentsPerDay, b.tollsCentsPerCar, b.parkingCentsPerCar, b.kind, b.sourceNote, b.checkedOn, me, now()];
+  const r = b.version === 0
+    ? await c.env.DB.prepare(`INSERT OR IGNORE INTO trip_destination_costs (trip_id, area_id, forfait_cents_per_day, rental_cents_per_day, tolls_cents_per_car, parking_cents_per_car,
+        kind, source_note, checked_on, updated_by, updated_at) VALUES (?10, ?11, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`).bind(...vals, tripId, areaId).run()
+    : await c.env.DB.prepare(`UPDATE trip_destination_costs SET forfait_cents_per_day = ?1, rental_cents_per_day = ?2, tolls_cents_per_car = ?3, parking_cents_per_car = ?4,
+        kind = ?5, source_note = ?6, checked_on = ?7, updated_by = ?8, updated_at = ?9, version = version + 1 WHERE trip_id = ?10 AND area_id = ?11 AND version = ?12`)
+      .bind(...vals, tripId, areaId, b.version).run();
+  if (!r.meta.changes) throw conflict('Los costes de esta estación cambiaron mientras editabas. Recarga para ver la última versión.', 'version_conflict');
+  return c.json(await budgetFor(c.env.DB, tripId));
+});
+planRoutes.delete('/:id/destination-costs/:areaId', async (c) => {
+  const tripId = c.req.param('id');
+  await requireTripEditor(c.env.DB, tripId, c.get('user').id);
+  await c.env.DB.prepare('DELETE FROM trip_destination_costs WHERE trip_id = ?1 AND area_id = ?2').bind(tripId, c.req.param('areaId')).run();
+  return c.json({ ok: true });
 });

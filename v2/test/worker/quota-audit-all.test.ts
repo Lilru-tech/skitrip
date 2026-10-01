@@ -209,6 +209,11 @@ describe('auditoría de consultas: resto de rutas', () => {
     for (const c of cands.slice(0, 5)) for (const u of users) await m('PUT /trips/:id/candidates/:cid/vote', CV, api(u.token, 'PUT', `${T}/candidates/${c.id}/vote`, { value: u === o ? -1 : 1 }));
     await m('PATCH /trips/:id/candidates/:cid', CV, api(o.token, 'PATCH', `${T}/candidates/${cands[0].id}`, { title: 'Opción elegida', status: 'chosen', version: cands[0].version }));
     await m('DELETE /trips/:id/candidates/:cid', CV, api(o.token, 'DELETE', `${T}/candidates/${cands.at(-1).id}`));
+    // Costes por estación (migración 0009): el destino del viaje y otra estación con candidaturas.
+    const OTHER = (catalog as any).areas.find((a: any) => a.kind === 'resort' && a.id !== AREA).id;
+    for (const id of [AREA, OTHER]) await m('PUT /trips/:id/destination-costs/:areaId', `${SH}, ${CANDIDATES} candidaturas`, api(o.token, 'PUT', `${T}/destination-costs/${id}`,
+      { forfaitCentsPerDay: 5000, rentalCentsPerDay: 2000, tollsCentsPerCar: 3000, parkingCentsPerCar: 1000, kind: 'confirmed', sourceNote: 'auditoría', checkedOn: '2026-10-01', version: 0 }));
+    await m('DELETE /trips/:id/destination-costs/:areaId', '—', api(o.token, 'DELETE', `${T}/destination-costs/${OTHER}`));
     const bv = (await api(o.token, 'GET', `${T}/budget`)).json.params.version;
     await m('PUT /trips/:id/budget', `${SH}, ${CANDIDATES} candidaturas`, api(o.token, 'PUT', `${T}/budget`, { version: bv, chosenCandidateId: cands[0].id, fuelCentsPerLitre: 165, litresPer100kmX10: 65, tollsCentsPerCar: 2000, forfaitCentsPerDay: 5500, rentalCentsPerDay: 2500, skiers: 7, renters: 3 }));
 
