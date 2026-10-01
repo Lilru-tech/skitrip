@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
+        shell: bash   # bash --noprofile --norc -eo pipefail: un fallo dentro de una tubería falla el paso
         working-directory: v2
     steps:
       - uses: actions/checkout@v4

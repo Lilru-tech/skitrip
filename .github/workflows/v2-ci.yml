@@ -1,59 +1,20 @@
-# SkiTrip v2 · integración continua. Sin secretos: todo corre contra emuladores locales
-# (Firebase Auth emulator + workerd/D1 local). Nunca escribe en producción.
+# SkiTrip v2 · integración continua en ramas y pull requests. Sin secretos y sin permisos de escritura: el código de
+# una PR (también desde forks) se prueba con `pull_request`, nunca con `pull_request_target`. En main, la misma batería
+# la ejecuta «v2 · publicar» antes de desplegar.
 name: v2 · CI
 on:
   push:
-    branches: [main, 'rebuild/**']
-    paths: ['v2/**', '.github/workflows/v2-*.yml']
+    branches-ignore: [main]
+    paths: ['v2/**', 'data/*.json', '.github/workflows/v2-*.yml']
   pull_request:
-    paths: ['v2/**', '.github/workflows/v2-*.yml']
-  workflow_dispatch: {}
+    paths: ['v2/**', 'data/*.json', '.github/workflows/v2-*.yml']
 permissions:
   contents: read
 concurrency:
   group: v2-ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: v2
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: v2/package-lock.json
-      - uses: actions/setup-java@v4   # requerido por el emulador de Firebase
-        with:
-          distribution: temurin
-          java-version: '21'
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      # Build de Pages con configuración ficticia (no se publica): base /skitrip/, CSP y sin restos del emulador.
-      - name: Build de Pages (verificación)
-        run: npx vite build && tools/verify-pages-artifact.sh dist-pages https://skitrip.ci.invalid
-        env:
-          SKITRIP_TARGET: pages
-          VITE_API_BASE_URL: https://skitrip.ci.invalid
-          VITE_FIREBASE_API_KEY: ci-placeholder
-          VITE_FIREBASE_AUTH_DOMAIN: ci-placeholder.firebaseapp.com
-          VITE_FIREBASE_PROJECT_ID: ci-placeholder
-      - run: npx playwright install --with-deps chromium
-      # Configuración local aislada y sin secretos en v2/test/e2e/env.ts (orígenes locales, emulador, credencial de
-      # ingesta de prueba). No usa .dev.vars. CI=1: servidores nuevos, D1 de pruebas recreada en test/e2e/.state.
-      - name: E2E (360 px, 390 px y escritorio)
-        run: test ! -e .dev.vars && npx playwright test
-        env:
-          CI: '1'
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-results
-          path: v2/test-results/
-          retention-days: 3
+  verify:
+    uses: ./.github/workflows/v2-verify.yml
+    with:
+      sha: ${{ github.sha }}

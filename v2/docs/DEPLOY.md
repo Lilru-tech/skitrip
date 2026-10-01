@@ -57,38 +57,38 @@ openssl rand -base64 32 | tr -d '\n' | pbcopy        # macOS
 openssl rand -base64 32 | tr -d '\n' | xclip -sel c  # Linux
 ```
 
-No hace falta guardarlo en ningún otro sitio. El workflow lo copia al Worker leyendo de stdin (`wrangler secret put`), sin imprimirlo. Para rotarlo, genera uno nuevo, sustitúyelo en GitHub y vuelve a lanzar «v2 · desplegar API».
+No hace falta guardarlo en ningún otro sitio. El workflow lo copia al Worker leyendo de stdin (`wrangler secret put`), sin imprimirlo. Para rotarlo, genera uno nuevo, sustitúyelo en GitHub y vuelve a lanzar «v2 · publicar» (con «API» marcado).
 
 En Firebase → Authentication → Settings → Dominios autorizados debe estar `lilru-tech.github.io`. Sin él, el alta y el acceso fallan desde Pages.
 
 ## Workflows
 
-Todos están en `.github/workflows/` de la raíz del repositorio.
+Todos están en `.github/workflows/` de la raíz del repositorio. Todos ejecutan sus pasos con `shell: bash`, es decir, `bash -eo pipefail`: si falla un comando dentro de una tubería (`… | tee`), falla el paso. `npm run test:workflows` lo comprueba ejecutando los pasos críticos con un artefacto roto y otro válido.
 
 | Workflow | Cuándo | Qué hace |
 |---|---|---|
-| `v2-ci.yml` | Cada push o PR que toque `v2/` | Typecheck, tests, build normal y build de Pages con verificación del artefacto, y e2e contra emuladores. No usa secretos. |
-| `v2-deploy-api.yml` | Manual, y en push a `main` que toque el Worker o las migraciones | Typecheck y tests. Crea o reutiliza la D1 `skitrip`, anota el marcador de Time Travel, aplica las migraciones, importa el catálogo y los históricos antiguos (reejecutable), despliega el Worker y guarda el secreto de ingesta. Termina con una comprobación en vivo: salud, preflight CORS de Pages, rechazo de otros orígenes y 401 sin token. |
-| `v2-pages.yml` | Manual, y en push a `main` que toque la interfaz | Compila con las variables públicas y verifica el artefacto: solo `index.html`, `assets/` y `favicon.svg`; sin mapas, CSV, SQL, `.env` ni restos del emulador. **Solo publica si Pages tiene como fuente «GitHub Actions».** Después comprueba la portada, el meta CSP, un recurso JS y las cabeceras reales. |
+| `v2-verify.yml` | Lo llaman los dos siguientes | Batería completa de UN commit: comprueba que ha sacado ese SHA, typecheck, Vitest, pruebas de los workflows (`npm run test:workflows`), build normal, build de Pages con verificación del artefacto y Playwright contra emuladores. Sin secretos y con permisos de lectura. |
+| `v2-ci.yml` | Push a ramas que no son `main` y PR | Llama a `v2-verify.yml`. Las PR se prueban con `pull_request` (sin secretos ni escritura), nunca con `pull_request_target`. |
+| `v2-release.yml` («v2 · publicar») | Push a `main` que toque `v2/`, `data/*.json` o los workflows, y manual (casillas «API» y «Pages») | Solo desde `main`. En orden y para el mismo SHA: **1)** `v2-verify.yml`; **2)** API, si toca: D1, marcador de Time Travel (sin marcador no migra), migraciones, catálogo e históricos, Worker, secreto de ingesta y comprobación en vivo (salud, CORS de Pages, otros orígenes rechazados, 401 sin token); **3)** Pages, si toca y la API terminó bien o no tocaba: build con las variables públicas, verificación del artefacto (solo `index.html`, `assets/` y `favicon.svg`), publicación **solo si la fuente de Pages es «GitHub Actions»**, y comprobación de la portada, el meta CSP, un recurso JS y las cabeceras reales. Un manual pasa por las mismas pruebas. |
 | `v2-admin.yml` | Manual | Da o quita el rol de administración por **UID real de Firebase**. |
 | `v2-snow.yml` | Dos veces al día de diciembre a abril; los lunes el resto del año | Estado de pistas → `/api/ingest/snow`. |
 | `v2-offers.yml` | Diario de octubre a abril; los lunes el resto del año | Precios orientativos de catálogo → `/api/ingest/offers`. Las búsquedas por fechas quedan «no soportadas» porque el robots.txt de Esquiades (`/book/`) y el de Estiber (`/csp/online/`) prohíben su buscador. |
-| `v2-online-check.yml` | Manual | Comprobación de fuentes en solo lectura. Por fuente distingue transporte, extracción, «sin datos» legítimo, estructura incompatible, bloqueo y robots. |
+| `v2-online-check.yml` | Manual | Comprobación de fuentes en solo lectura. Por fuente distingue transporte, extracción, «sin datos» legítimo, estructura incompatible, bloqueo y robots. Con «fixtures» guarda fragmentos reducidos y saneados de cada página, que pasan a `test/fixtures/real/`. |
 | `update-data.yml` | El de la web antigua | Sigue igual hasta el paso 7. |
 
-Los recolectores usan `VITE_API_BASE_URL` como dirección de la API. Si les falta configuración, terminan con un aviso y no escriben nada. Ante un CAPTCHA, un 403 o un 429 se detienen y lo registran; no lo evaden. También respetan el robots.txt en cada petición que haga la página al renderizarse.
+Los recolectores usan `VITE_API_BASE_URL` como dirección de la API. Si les falta configuración, terminan con un aviso y no escriben nada. Ante un desafío real (CAPTCHA, página de verificación), un 403 o un 429 se detienen y lo registran; no lo evaden. Un script auxiliar de reCAPTCHA en una página con contenido normal no es un bloqueo (`src/core/blocked.ts`). También respetan el robots.txt en cada petición que haga la página al renderizarse.
 
 ## Procedimiento de publicación
 
 Cada paso dice cómo se comprueba. No se pasa al siguiente con el anterior en rojo.
 
 1. **Conservar la web antigua.** No se borra ni se mueve nada de la raíz del repositorio. La web antigua sigue en la rama y carpeta que hoy usa Pages, y las hojas, el Apps Script y los históricos no se tocan. Anota la fuente actual de Settings → Pages: es la vuelta atrás.
-2. **Fusionar `rebuild/v2`** en `main` mediante una PR con la CI en verde. Mientras Pages siga publicando desde la rama, `v2-pages.yml` compila y verifica pero no publica: la web antigua sigue visible.
-3. **Desplegar la API:** Actions → «v2 · desplegar API» → Run workflow.
+2. **Fusionar `rebuild/v2`** en `main` mediante una PR con la CI en verde. La fusión lanza «v2 · publicar»: repite las pruebas sobre ese commit y, sin los secretos de Cloudflare, se para en la etapa de la API («Falta configuración») sin tocar Pages. Mientras Pages siga publicando desde la rama, la etapa de Pages compila y verifica pero no publica: la web antigua sigue visible.
+3. **Desplegar la API:** Actions → «v2 · publicar» → Run workflow (rama `main`, «API» marcada). Primero pasa la batería completa de ese commit.
    - El resumen muestra la URL de workers.dev, el marcador de Time Travel y «Comprobación en vivo correcta».
    - Pon esa URL en la variable `VITE_API_BASE_URL`.
 4. **Catálogo e históricos de la web antigua.** Los importa el mismo workflow del paso 3 (`tools/import-legacy.ts`): catálogo curado, histórico de km y de precios de hotel, con su copia íntegra y su hash. Es reejecutable y no duplica. El resumen muestra los totales y el commit de origen.
-5. **Publicar la interfaz.** En Settings → Pages → Build and deployment → Source, elige **GitHub Actions**. Lanza «v2 · publicar en Pages».
+5. **Publicar la interfaz.** En Settings → Pages → Build and deployment → Source, elige **GitHub Actions**. Lanza «v2 · publicar» con «Pages» marcado (y «API» también si quieres repetirla; el orden es siempre pruebas → API → Pages).
    - El job publica y comprueba `https://lilru-tech.github.io/skitrip/`: portada 200, CSP en meta y recursos bajo `/skitrip/assets/`.
    - Prueba a mano: alta, salida, acceso, restablecer contraseña (llega el correo de Firebase en español), crear un viaje y abrir un enlace de invitación en otra sesión.
 6. **Primer acceso y administración.**

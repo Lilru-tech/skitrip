@@ -10,6 +10,7 @@
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:workflows": "node --test tools/workflows.test.mjs",
     "db:migrate:local": "wrangler d1 migrations apply skitrip --local",
     "demo:e2e": "node scripts/demo-e2e.mjs",
     "collect:snow": "tsx tools/collectors/snow.ts",
@@ -39,6 +40,7 @@
     "typescript": "^5.9.3",
     "vite": "^8.3.1",
     "vitest": "^4.1.11",
-    "wrangler": "^4.144.0"
+    "wrangler": "^4.144.0",
+    "yaml": "^2.9.1"
   }
 }
