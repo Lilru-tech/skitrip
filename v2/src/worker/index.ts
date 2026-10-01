@@ -73,7 +73,7 @@ const smallBody = bodyLimit({ maxSize: 64 * 1024, onError: tooLarge });
 const largeBody = bodyLimit({ maxSize: 512 * 1024, onError: tooLarge });
 app.use('/api/*', (c, next) => {
   const p = new URL(c.req.url).pathname;
-  return /^\/api\/(ingest\/|receipts\/|prices\/import\/)/.test(p) ? largeBody(c, next) : smallBody(c, next);
+  return /^\/api\/(ingest\/|receipts\/|prices\/import\/|admin\/legacy\/sheets\/)/.test(p) ? largeBody(c, next) : smallBody(c, next);
 });
 
 app.get('/api/health', (c) => c.json({ ok: true }));

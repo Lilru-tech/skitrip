@@ -6,6 +6,8 @@ import { audit, requireTripMember } from '../access';
 import { ApiError, forbidden, newId, notFound, now, parseBody, parseQuery } from '../http';
 import { rateLimit } from '../ratelimit';
 import { zId } from '../schemas';
+import { sha256Hex } from '../crypto';
+import { mapAvailability, mapComments, mapShopping } from '../../core/sheets';
 
 // Comentarios (públicos por estación o privados de viaje), avisos internos y administración.
 export const socialRoutes = new Hono<AppEnv>();
@@ -240,6 +242,71 @@ socialRoutes.post('/legacy/availability/mine/incorporate', async (c) => {
     ]);
   }
   return c.json({ incorporated: take.length, skippedExisting: existing.length, skippedUnmapped: unmapped.length, notAssigned: new Set(days).size - results.length });
+});
+
+// Importación de las hojas antiguas (CSV exportado a mano) desde la administración, para no depender de wrangler en
+// un ordenador: misma lógica e identificadores que tools/import-sheets.ts, así que ambas vías son idempotentes entre sí.
+// Vista previa (dryRun) con recuentos y errores; nada se publica ni se asigna a una cuenta al importar.
+const SHEET_RAW_CHUNK = 40_000;   // igual que tools/import-sheets.ts (mismos idx en legacy_raw_chunks)
+const SHEET_ROWS_PER_STMT = 1000; // filas por sentencia (un solo parámetro JSON, sin el límite de 100 parámetros)
+const SHEET_MAX_ROWS = 5000;      // por petición: CPU y consultas D1 acotadas (10–20 personas caben de sobra)
+const zSheetImport = z.object({
+  kind: z.enum(['comments', 'availability', 'shopping']),
+  fileName: z.string().trim().min(1).max(200),
+  csv: z.string().min(1).max(450_000),
+  dryRun: z.boolean().default(true),
+  allowPartial: z.boolean().default(false),
+});
+admin.post('/legacy/sheets/import', async (c) => {
+  const me = c.get('user');
+  const db = c.env.DB;
+  const b = await parseBody(c, zSheetImport);
+  const content = b.csv.replace(/^﻿/, '');
+  const { results: ids } = await db.prepare("SELECT legacy_id FROM legacy_id_map WHERE legacy_kind = 'resort'").all<{ legacy_id: string }>();
+  const mapped = b.kind === 'comments' ? mapComments(content, new Set(ids.map((r) => r.legacy_id)))
+    : b.kind === 'availability' ? mapAvailability(content) : mapShopping(content);
+  const sha = await sha256Hex(content);
+  const fileId = `legacy-sheets_${b.kind}-${sha.slice(0, 16)}`;
+  const table = b.kind === 'comments' ? 'legacy_comments' : b.kind === 'availability' ? 'legacy_availability' : 'legacy_shopping_items';
+  const prior = await db.prepare(`SELECT (SELECT COUNT(*) FROM legacy_import_files WHERE sha256 = ?1) AS files, (SELECT COUNT(*) FROM ${table} WHERE file_id = ?2) AS rows`)
+    .bind(sha, fileId).first<{ files: number; rows: number }>();
+  const report = {
+    kind: b.kind, file: b.fileName, sha256: sha, bytes: new TextEncoder().encode(content).length, headers: mapped.headers,
+    valid: mapped.rows.length, errors: mapped.errors.slice(0, 50), errorCount: mapped.errors.length, warnings: mapped.warnings.slice(0, 50), warningCount: mapped.warnings.length,
+    duplicates: mapped.duplicates, alreadyImported: { file: !!prior?.files, rows: prior?.rows ?? 0 },
+    ...(b.kind === 'availability' ? { byStatus: (mapped.rows as { mapped: string | null }[]).reduce<Record<string, number>>((m, r) => ({ ...m, [r.mapped ?? 'sin_equivalencia']: (m[r.mapped ?? 'sin_equivalencia'] ?? 0) + 1 }), {}) } : {}),
+    sample: mapped.rows.slice(0, 5).map(({ key: _k, ...r }) => r),
+  };
+  if (b.dryRun) return c.json({ dryRun: true, report });
+  if (mapped.errors.length && !b.allowPartial) throw new ApiError(422, 'invalid_rows', `La hoja tiene ${mapped.errors.length} filas con errores: corrígelas o importa omitiendo solo esas filas.`);
+  if (!mapped.rows.length) throw new ApiError(422, 'empty', 'La hoja no tiene filas válidas.');
+  if (mapped.rows.length > SHEET_MAX_ROWS) throw new ApiError(422, 'too_many_rows', `La hoja tiene ${mapped.rows.length} filas; el máximo por importación es ${SHEET_MAX_ROWS}. Divide el CSV en partes (cada parte se importa sin duplicar).`);
+
+  const rows = await Promise.all((mapped.rows as any[]).map(async (r) => ({ ...r, id: crypto.randomUUID(), hash: await sha256Hex(r.key) })));
+  const J = (k: string) => `json_extract(value, '$.${k}')`;
+  const insert = b.kind === 'comments'
+    ? `INSERT OR IGNORE INTO legacy_comments (id, file_id, row_hash, legacy_author_name, legacy_resort_id, body, created_at_text, published)
+       SELECT ${J('id')}, ?1, ${J('hash')}, ${J('author')}, ${J('resortId')}, ${J('body')}, ${J('createdText')}, 0 FROM json_each(?2)`
+    : b.kind === 'availability'
+      ? `INSERT OR IGNORE INTO legacy_availability (id, file_id, row_hash, legacy_person_name, day, legacy_status, mapped_status)
+         SELECT ${J('id')}, ?1, ${J('hash')}, ${J('person')}, ${J('day')}, ${J('legacyStatus')}, ${J('mapped')} FROM json_each(?2)`
+      : `INSERT OR IGNORE INTO legacy_shopping_items (id, file_id, row_hash, name, quantity_text, price_text, legacy_person_name, extra_json)
+         SELECT ${J('id')}, ?1, ${J('hash')}, ${J('name')}, ${J('quantityText')}, ${J('priceText')}, ${J('person')}, ${J('extra')} FROM json_each(?2)`;
+  const payload = (r: any) => b.kind === 'shopping' ? { ...r, extra: Object.keys(r.extra).length ? JSON.stringify(r.extra) : null } : r;
+  const stmts = [
+    db.prepare(`INSERT OR IGNORE INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, source_ref, imported_at, report_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'admin-upload', ?7, ?8)`)
+      .bind(fileId, `sheets_${b.kind}`, b.fileName, sha, report.bytes, mapped.rows.length, Date.now(), JSON.stringify({ ...report, errors: report.errorCount, warnings: report.warningCount, sample: undefined, importedBy: me.id })),
+  ];
+  for (let i = 0, n = 0; i < content.length; i += SHEET_RAW_CHUNK, n++) {
+    stmts.push(db.prepare('INSERT OR IGNORE INTO legacy_raw_chunks (file_id, idx, data) VALUES (?1, ?2, ?3)').bind(fileId, n, content.slice(i, i + SHEET_RAW_CHUNK)));
+  }
+  for (let i = 0; i < rows.length; i += SHEET_ROWS_PER_STMT) {
+    stmts.push(db.prepare(insert).bind(fileId, JSON.stringify(rows.slice(i, i + SHEET_ROWS_PER_STMT).map(payload))));
+  }
+  const res = await db.batch(stmts);
+  const inserted = res.slice(stmts.length - Math.ceil(rows.length / SHEET_ROWS_PER_STMT)).reduce((n, r) => n + (r.meta.changes ?? 0), 0);
+  await audit(db, me.id, 'legacy_sheets.import', 'legacy_import_file', fileId, { kind: b.kind, rows: rows.length, inserted, skippedErrors: mapped.errors.length });
+  return c.json({ dryRun: false, fileId, inserted, alreadyPresent: rows.length - inserted, skippedErrors: mapped.errors.length, report });
 });
 
 socialRoutes.route('/admin', admin);

@@ -68,3 +68,7 @@ INSERT INTO legacy_shopping_items (id, file_id, row_hash, name, quantity_text, p
   ('e2e-ls2', 'e2e-legacy', 'e2e-ls-h2', 'Pan de molde (hoja sintética)', '2', NULL, NULL, NULL);
 INSERT INTO legacy_comments (id, file_id, row_hash, legacy_author_name, legacy_resort_id, body, created_at_text, published) VALUES
   ('e2e-lc1', 'e2e-legacy', 'e2e-lc-h1', 'Pepe', 'e2e-beta', 'Buena nieve polvo por la mañana (sintético).', '2025-02-01', 1);
+-- Cuenta de administración SOLO de pruebas (emulador de Auth): el test crea en el emulador la cuenta con este UID.
+-- En producción el rol se da por UID real con el workflow «v2 · administración» (docs/DEPLOY.md).
+INSERT INTO users (id, firebase_uid, alias, alias_norm, email, role, status, tokens_valid_after, created_at, updated_at) VALUES
+  ('e2e-admin', 'e2eAdminUid0000000000001', 'admin-e2e', 'admin-e2e', 'admin-e2e@example.test', 'admin', 'active', 0, 0, 0);

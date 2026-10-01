@@ -281,6 +281,12 @@ describe('auditoría de consultas: resto de rutas', () => {
     await m('POST /admin/users/:uid/block', '—', A('POST', `/users/${victim.id}/block`));
     await m('POST /admin/users/:uid/unblock', '—', A('POST', `/users/${victim.id}/unblock`));
     await m('POST /admin/comments/:cid/hide', '—', A('POST', `/comments/${comments[1]}/hide`, { hidden: true, reason: 'prueba' }));
+    {
+      const lines = ['date,user,status'];
+      for (let p = 0; p < 20; p++) for (let d = 0; d < 250; d++) lines.push(`${new Date(Date.UTC(2023, 0, 1 + d)).toISOString().slice(0, 10)},Hoja ${p},ocupado`);
+      const csv = lines.join('\n');
+      await m('POST /admin/legacy/sheets/import', '5.000 filas (máximo por importación)', A('POST', '/legacy/sheets/import', { kind: 'availability', fileName: 'audit.csv', csv, dryRun: false }));
+    }
     await m('GET /admin/legacy/comments', '500 comentarios legacy', A('GET', '/legacy/comments'));
     await m('POST /admin/legacy/comments/:lid/reconcile', '—', A('POST', '/legacy/comments/aud-lc-1/reconcile', { userId: m1.id, publish: true }));
     await m('GET /admin/legacy/availability', '8 personas × 150 días', A('GET', '/legacy/availability'));

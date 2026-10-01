@@ -29,6 +29,7 @@ const IDENTITY_WARNING = 'Un nombre parecido no prueba identidad. Asigna solo si
 export function AdminPage() {
   usePageTitle('Administración');
   const me = useProfile();
+  const [rev, setRev] = useState(0);
   if (me.role !== 'admin') {
     return (
       <div className="page">
@@ -44,8 +45,9 @@ export function AdminPage() {
       <p className="lead-s">Estado de las capturas, cuentas y datos heredados de la hoja antigua. Cada acción queda registrada.</p>
       <HealthPanel />
       <UsersPanel />
-      <LegacyCommentsPanel />
-      <LegacyAvailabilityPanel />
+      <SheetImportPanel onImported={() => setRev((n) => n + 1)} />
+      <LegacyCommentsPanel rev={rev} />
+      <LegacyAvailabilityPanel rev={rev} />
     </div>
   );
 }
@@ -123,7 +125,7 @@ function UserPicker({ id, label, onPick }: { id: string; label: string; onPick: 
     if (t.length < 2) { setHits([]); return; }
     let alive = true;
     const h = setTimeout(() => {
-      get<{ users: UserHit[] }>(`/api/friends/search${qs({ q: t })}`).then((r) => { if (alive) { setHits(r.users); setErr(null); } }, (e) => { if (alive) setErr(errorMessage(e)); });
+      get<{ users: UserHit[] }>(`/api/friends/search?${qs({ q: t })}`).then((r) => { if (alive) { setHits(r.users); setErr(null); } }, (e) => { if (alive) setErr(errorMessage(e)); });
     }, 250);
     return () => { alive = false; clearTimeout(h); };
   }, [q]);
@@ -195,9 +197,88 @@ function UsersPanel() {
   );
 }
 
-function LegacyCommentsPanel() {
+type SheetKind = 'availability' | 'comments' | 'shopping';
+const SHEET_LABEL: Record<SheetKind, string> = { availability: 'Disponibilidad', comments: 'Comentarios', shopping: 'Compra' };
+const STATUS_LABEL: Record<string, string> = { busy: 'ocupado', free: 'libre', maybe: 'quizá', sin_equivalencia: 'sin equivalencia' };
+interface SheetReport {
+  kind: SheetKind; file: string; sha256: string; bytes: number; headers: string[]; valid: number; errorCount: number; warningCount: number; duplicates: number;
+  errors: { line: number; message: string }[]; warnings: { line: number; message: string }[]; alreadyImported: { file: boolean; rows: number };
+  byStatus?: Record<string, number>; sample: Record<string, unknown>[];
+}
+const MAX_CSV_BYTES = 450_000;
+
+// Importación de la hoja antigua: el CSV se lee en el navegador y va a la API (nunca al repositorio ni a Pages).
+function SheetImportPanel({ onImported }: { onImported: () => void }) {
   const toast = useToast();
-  const r = useResource(() => get<{ comments: LegacyComment[]; note: string }>('/api/admin/legacy/comments'), []);
+  const [kind, setKind] = useState<SheetKind>('availability');
+  const [file, setFile] = useState<{ name: string; csv: string } | null>(null);
+  const [report, setReport] = useState<SheetReport | null>(null);
+  const [partial, setPartial] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const reset = () => { setReport(null); setPartial(false); setError(null); };
+
+  const pick = async (f: File | undefined) => {
+    reset(); setFile(null);
+    if (!f) return;
+    if (f.size > MAX_CSV_BYTES) { setError('El CSV supera 450 KB: exporta solo la pestaña que toca.'); return; }
+    setFile({ name: f.name, csv: await f.text() });
+  };
+  const send = async (dryRun: boolean) => {
+    if (!file) return;
+    setBusy(true); setError(null);
+    try {
+      const r = await post<{ report: SheetReport; inserted?: number; alreadyPresent?: number; skippedErrors?: number }>('/api/admin/legacy/sheets/import',
+        { kind, fileName: file.name, csv: file.csv, dryRun, allowPartial: partial });
+      setReport(r.report);
+      if (!dryRun) {
+        toast.show(`Hoja importada: ${plural(r.inserted ?? 0, 'fila nueva', 'filas nuevas')}${r.alreadyPresent ? `, ${r.alreadyPresent} ya estaban` : ''}${r.skippedErrors ? `, ${r.skippedErrors} omitidas por errores` : ''}.`);
+        setFile(null); setReport(null);
+        onImported();
+      }
+    } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+  };
+
+  return (
+    <section className="panel stack" aria-labelledby="adm-sheets">
+      <h2 id="adm-sheets">Importar la hoja antigua (CSV)</h2>
+      <p className="small">Exporta cada pestaña con Archivo › Descargar › CSV y súbela aquí. Primero verás una vista previa con recuentos y errores; importar dos veces el mismo archivo no duplica nada. Lo importado no se publica ni se asigna a nadie: eso se hace abajo, persona a persona.</p>
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="sheet-kind">Pestaña</label>
+          <select id="sheet-kind" className="select" value={kind} onChange={(e) => { setKind(e.target.value as SheetKind); reset(); }}>
+            {(Object.keys(SHEET_LABEL) as SheetKind[]).map((k) => <option key={k} value={k}>{SHEET_LABEL[k]}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="sheet-file">Archivo CSV</label>
+          <input id="sheet-file" type="file" accept=".csv,text/csv" onChange={(e) => void pick(e.target.files?.[0])} disabled={busy} />
+        </div>
+      </div>
+      {error && <p className="notice notice-warn" role="alert">{error}</p>}
+      {report && (
+        <div className="stack-s" data-testid="sheet-report" aria-label="Vista previa de la hoja">
+          <p><strong>{SHEET_LABEL[report.kind]} · {report.file}</strong>: {plural(report.valid, 'fila válida', 'filas válidas')} · {plural(report.errorCount, 'error', 'errores')} · {plural(report.warningCount, 'aviso', 'avisos')}{report.duplicates ? ` · ${plural(report.duplicates, 'duplicada', 'duplicadas')}` : ''}</p>
+          {report.byStatus && <p className="small">{Object.entries(report.byStatus).map(([k, n]) => `${STATUS_LABEL[k] ?? k}: ${n}`).join(' · ')}</p>}
+          {report.alreadyImported.file && <p className="notice small" role="status">Este archivo ya se importó ({plural(report.alreadyImported.rows, 'fila', 'filas')}); volver a importarlo no duplica nada.</p>}
+          {report.errors.length > 0 && <ul className="warnings small" aria-label="Errores">{report.errors.map((e) => <li key={`e${e.line}${e.message}`}>Línea {e.line}: {e.message}</li>)}</ul>}
+          {report.warnings.length > 0 && <ul className="small muted" aria-label="Avisos">{report.warnings.map((w) => <li key={`w${w.line}${w.message}`}>Línea {w.line}: {w.message}</li>)}</ul>}
+          {report.sample.length > 0 && <details className="small"><summary>Primeras filas</summary><pre className="mono">{report.sample.map((r) => JSON.stringify(r)).join('\n')}</pre></details>}
+          <p className="small muted">SHA-256 {report.sha256.slice(0, 16)}… · {report.bytes} bytes · columnas: {report.headers.join(', ')}</p>
+          {report.errorCount > 0 && <div className="check"><input id="sheet-partial" type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} /><label htmlFor="sheet-partial">Importar omitiendo solo las filas con errores</label></div>}
+        </div>
+      )}
+      <div className="row-wrap">
+        <button type="button" className="btn btn-secondary" disabled={!file || busy} onClick={() => void send(true)}>Previsualizar</button>
+        <button type="button" className="btn btn-primary" disabled={!file || !report || busy || report.valid === 0 || (report.errorCount > 0 && !partial)} onClick={() => void send(false)}>{busy ? 'Importando…' : 'Importar'}</button>
+      </div>
+    </section>
+  );
+}
+
+function LegacyCommentsPanel({ rev }: { rev: number }) {
+  const toast = useToast();
+  const r = useResource(() => get<{ comments: LegacyComment[]; note: string }>('/api/admin/legacy/comments'), [rev]);
   const [target, setTarget] = useState<{ c: LegacyComment; user: UserHit | null; publish: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -256,9 +337,9 @@ function LegacyCommentsPanel() {
   );
 }
 
-function LegacyAvailabilityPanel() {
+function LegacyAvailabilityPanel({ rev }: { rev: number }) {
   const toast = useToast();
-  const r = useResource(() => get<{ people: LegacyPerson[]; note: string }>('/api/admin/legacy/availability'), []);
+  const r = useResource(() => get<{ people: LegacyPerson[]; note: string }>('/api/admin/legacy/availability'), [rev]);
   const [target, setTarget] = useState<{ p: LegacyPerson; user: UserHit | null } | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
