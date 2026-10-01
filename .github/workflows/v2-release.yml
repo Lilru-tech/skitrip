@@ -157,7 +157,7 @@ jobs:
   pages-build:
     needs: [scope, verify, api]
     # La API va antes: si tocaba desplegarla, tiene que haber terminado bien. Si no tocaba (omitida), se publica igual.
-    if: always() && needs.scope.outputs.pages == 'true' && needs.verify.result == 'success' && (needs.api.result == 'success' || needs.api.result == 'skipped')
+    if: ${{ !cancelled() && needs.scope.outputs.pages == 'true' && needs.verify.result == 'success' && (needs.api.result == 'success' || needs.api.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -208,7 +208,7 @@ jobs:
 
   pages-deploy:
     needs: pages-build
-    if: always() && needs.pages-build.result == 'success' && needs.pages-build.outputs.publish == 'true'
+    if: ${{ !cancelled() && needs.pages-build.result == 'success' && needs.pages-build.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
