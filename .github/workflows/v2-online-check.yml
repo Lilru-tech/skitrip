@@ -1,5 +1,6 @@
 # SkiTrip v2 · comprobación online de fuentes (solo lectura). Manual. No usa secretos, no escribe en la API ni en D1.
-# El registro JSON queda como artefacto privado de la ejecución durante 7 días; el HTML NO se guarda aquí.
+# El registro JSON (solo URLs y resultados de fuentes públicas, sin datos de usuarios) queda como artefacto de la
+# ejecución durante 7 días. En un repositorio público los artefactos son descargables: el HTML NO se guarda aquí.
 name: v2 · comprobar fuentes online
 on:
   workflow_dispatch:
