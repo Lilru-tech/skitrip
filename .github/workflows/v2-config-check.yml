@@ -68,7 +68,7 @@ jobs:
         run: |
           if [ -z "$KEY" ]; then echo "Firebase: falta la clave web" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
           code=$(curl -s -o cfg.json -w '%{http_code}' "https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=$KEY")
-          node - "$code" "$PROJECT" "$DOMAIN" >> "$GITHUB_STEP_SUMMARY" <<'JS'
+          node - "$code" "$PROJECT" "$DOMAIN" <<'JS' | tee -a "$GITHUB_STEP_SUMMARY"
           const [code, project, domain] = process.argv.slice(2);
           const fs = require('fs');
           let r = {}; try { r = JSON.parse(fs.readFileSync('cfg.json', 'utf8')); } catch {}
