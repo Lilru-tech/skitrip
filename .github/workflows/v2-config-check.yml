@@ -68,6 +68,11 @@ jobs:
         run: |
           if [ -z "$KEY" ]; then echo "Firebase: falta la clave web" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
           code=$(curl -s -o cfg.json -w '%{http_code}' "https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=$KEY")
+          # Proveedor correo/contraseña: un acceso con una cuenta que no existe (no crea nada). Si el proveedor está
+          # desactivado, Firebase responde PASSWORD_LOGIN_DISABLED u OPERATION_NOT_ALLOWED; si no, credenciales no válidas.
+          curl -s -o login.json -X POST -H 'Content-Type: application/json' \
+            -d '{"email":"comprobacion-config@example.invalid","password":"no-es-una-cuenta-real","returnSecureToken":false}' \
+            "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$KEY" || true
           node - "$code" "$PROJECT" "$DOMAIN" <<'JS' | tee -a "$GITHUB_STEP_SUMMARY"
           const [code, project, domain] = process.argv.slice(2);
           const fs = require('fs');
@@ -76,15 +81,17 @@ jobs:
           if (code !== '200') out.push(`- La clave web no es válida o el servicio no responde (HTTP ${code}: ${r.error?.message ?? '?'})`);
           else {
             const domains = r.authorizedDomains ?? [];
-            out.push(`- Proyecto de la clave: \`${r.projectId}\` · variable del proyecto: \`${project || '(vacía)'}\` · ${r.projectId === project ? 'coinciden' : '**NO coinciden**'}`);
-            out.push(`- Dominio de acceso configurado: \`${domain || '(vacío)'}\``);
-            out.push(`- Alta con correo y contraseña: ${r.allowPasswordUser ? 'activada' : '**desactivada**'}`);
+            let login = ''; try { login = JSON.parse(fs.readFileSync('login.json', 'utf8')).error?.message ?? ''; } catch {}
+            out.push(`- Clave web válida (número de proyecto ${r.projectId})`);
+            out.push(`- Dominio de acceso = <proyecto>.firebaseapp.com: ${domain === project + '.firebaseapp.com' ? 'sí' : '**no**'}`);
+            out.push(`- Dominio de acceso entre los autorizados: ${domains.includes(domain) ? 'sí' : '**no**'}`);
+            out.push(`- Proveedor correo/contraseña: ${/PASSWORD_LOGIN_DISABLED|OPERATION_NOT_ALLOWED/.test(login) ? '**desactivado**' : /INVALID_LOGIN_CREDENTIALS|EMAIL_NOT_FOUND|INVALID_PASSWORD/.test(login) ? 'activado' : 'respuesta inesperada: ' + login}`);
             out.push(`- lilru-tech.github.io autorizado: ${domains.includes('lilru-tech.github.io') ? 'sí' : '**no**'} (dominios: ${domains.join(', ')})`);
-            out.push(`- Proyecto de demostración o emulador: ${/^demo-/.test(r.projectId) ? '**sí**' : 'no'}`);
+            out.push(`- Proyecto de demostración: ${/^demo-/.test(project) ? '**sí**' : 'no'}`);
           }
           console.log(out.join('\n'));
           JS
-          rm -f cfg.json
+          rm -f cfg.json login.json
       - name: Cloudflare · token, cuenta, D1 y Workers (solo si se pide)
         if: inputs.cloudflare == true || contains(github.event.head_commit.message, '[comprobar-cloudflare]')
         env:
