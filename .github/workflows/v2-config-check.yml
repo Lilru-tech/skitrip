@@ -1,0 +1,103 @@
+# SkiTrip v2 · comprobar la configuración real (solo lectura). No imprime ningún valor secreto: solo dice si existe,
+# si está en el sitio que leen los workflows (Variables o Secrets) y lo que responden los servicios.
+#   · GitHub: variables y secretos presentes, fuente de Pages.
+#   · Firebase (con la clave web pública): proyecto, alta con correo y contraseña, dominios autorizados.
+#   · Cloudflare (solo si se pide expresamente): token activo, cuenta accesible, D1 y Workers. Se pide con la casilla
+#     del lanzamiento manual o con «[comprobar-cloudflare]» en el mensaje del commit. No crea ni cambia nada.
+name: v2 · comprobar configuración
+on:
+  workflow_dispatch:
+    inputs:
+      cloudflare:
+        description: 'Comprobar también el token de Cloudflare (solo después de rotarlo)'
+        type: boolean
+        default: false
+  push:
+    branches: ['rebuild/**']
+    paths: ['.github/workflows/v2-config-check.yml']
+permissions:
+  contents: read
+  pages: read
+defaults:
+  run:
+    shell: bash   # bash --noprofile --norc -eo pipefail
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: GitHub · variables y secretos (solo si existen)
+        env:
+          V_API: ${{ vars.VITE_API_BASE_URL != '' }}
+          V_KEY: ${{ vars.VITE_FIREBASE_API_KEY != '' }}
+          V_DOM: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN != '' }}
+          V_PRJ: ${{ vars.VITE_FIREBASE_PROJECT_ID != '' }}
+          S_KEY: ${{ secrets.VITE_FIREBASE_API_KEY != '' }}
+          S_DOM: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN != '' }}
+          S_PRJ: ${{ secrets.VITE_FIREBASE_PROJECT_ID != '' }}
+          S_API: ${{ secrets.SKITRIP_API_URL != '' }}
+          S_CFT: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          S_CFA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+          S_ING: ${{ secrets.SKITRIP_INGEST_TOKEN != '' }}
+        run: |
+          yn() { [ "$1" = true ] && echo sí || echo no; }
+          {
+            echo '### GitHub'
+            echo '| Nombre | En Variables | En Secrets |'
+            echo '|---|---|---|'
+            echo "| VITE_API_BASE_URL | $(yn "$V_API") | (SKITRIP_API_URL: $(yn "$S_API")) |"
+            echo "| VITE_FIREBASE_API_KEY | $(yn "$V_KEY") | $(yn "$S_KEY") |"
+            echo "| VITE_FIREBASE_AUTH_DOMAIN | $(yn "$V_DOM") | $(yn "$S_DOM") |"
+            echo "| VITE_FIREBASE_PROJECT_ID | $(yn "$V_PRJ") | $(yn "$S_PRJ") |"
+            echo "| CLOUDFLARE_API_TOKEN | — | $(yn "$S_CFT") |"
+            echo "| CLOUDFLARE_ACCOUNT_ID | — | $(yn "$S_CFA") |"
+            echo "| SKITRIP_INGEST_TOKEN | — | $(yn "$S_ING") |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: GitHub · fuente de Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          info=$(gh api "repos/$REPO/pages" --jq '"tipo=\(.build_type) rama=\(.source.branch // "-") carpeta=\(.source.path // "-") url=\(.html_url)"' 2>&1 || true)
+          echo "Pages: $info" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Firebase · configuración pública del proyecto
+        env:
+          KEY: ${{ vars.VITE_FIREBASE_API_KEY || secrets.VITE_FIREBASE_API_KEY }}
+          PROJECT: ${{ vars.VITE_FIREBASE_PROJECT_ID || secrets.VITE_FIREBASE_PROJECT_ID }}
+          DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+        run: |
+          if [ -z "$KEY" ]; then echo "Firebase: falta la clave web" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          code=$(curl -s -o cfg.json -w '%{http_code}' "https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=$KEY")
+          node - "$code" "$PROJECT" "$DOMAIN" >> "$GITHUB_STEP_SUMMARY" <<'JS'
+          const [code, project, domain] = process.argv.slice(2);
+          const fs = require('fs');
+          let r = {}; try { r = JSON.parse(fs.readFileSync('cfg.json', 'utf8')); } catch {}
+          const out = ['### Firebase'];
+          if (code !== '200') out.push(`- La clave web no es válida o el servicio no responde (HTTP ${code}: ${r.error?.message ?? '?'})`);
+          else {
+            const domains = r.authorizedDomains ?? [];
+            out.push(`- Proyecto de la clave: \`${r.projectId}\` · variable del proyecto: \`${project || '(vacía)'}\` · ${r.projectId === project ? 'coinciden' : '**NO coinciden**'}`);
+            out.push(`- Dominio de acceso configurado: \`${domain || '(vacío)'}\``);
+            out.push(`- Alta con correo y contraseña: ${r.allowPasswordUser ? 'activada' : '**desactivada**'}`);
+            out.push(`- lilru-tech.github.io autorizado: ${domains.includes('lilru-tech.github.io') ? 'sí' : '**no**'} (dominios: ${domains.join(', ')})`);
+            out.push(`- Proyecto de demostración o emulador: ${/^demo-/.test(r.projectId) ? '**sí**' : 'no'}`);
+          }
+          console.log(out.join('\n'));
+          JS
+          rm -f cfg.json
+      - name: Cloudflare · token, cuenta, D1 y Workers (solo si se pide)
+        if: inputs.cloudflare == true || contains(github.event.head_commit.message, '[comprobar-cloudflare]')
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          api() { curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4$1"; }
+          {
+            echo '### Cloudflare'
+            api /user/tokens/verify | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`- Token: ${r.success?r.result.status:"no válido ("+(r.errors?.[0]?.message??"?")+")"}${r.result?.expires_on?" · caduca "+r.result.expires_on:""}`)'
+            api "/accounts/$CF_ACCOUNT" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`- Cuenta: ${r.success?"accesible":"no accesible ("+(r.errors?.[0]?.message??"?")+")"}`)'
+            api "/accounts/$CF_ACCOUNT/d1/database" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`- D1: ${r.success?"permiso correcto · bases: "+(r.result.map(d=>d.name).join(", ")||"ninguna"):"sin permiso ("+(r.errors?.[0]?.message??"?")+")"}`)'
+            api "/accounts/$CF_ACCOUNT/workers/scripts" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`- Workers: ${r.success?"permiso correcto · scripts: "+(r.result.map(s=>s.id).join(", ")||"ninguno"):"sin permiso ("+(r.errors?.[0]?.message??"?")+")"}`)'
+            api "/accounts/$CF_ACCOUNT/workers/subdomain" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`- Subdominio workers.dev: ${r.success?r.result.subdomain+".workers.dev":"no disponible ("+(r.errors?.[0]?.message??"?")+")"}`)'
+            api "/accounts/$CF_ACCOUNT/subscriptions" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`- Suscripciones: ${r.success?(r.result.map(s=>s.rate_plan?.public_name??s.rate_plan?.id).join(", ")||"ninguna de pago"):"el token no puede leerlas (normal: compruébalo en el panel)"}`)'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
