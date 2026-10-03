@@ -43,3 +43,14 @@ describe('capturas reales de Estiber sin ofertas (03/10/2026)', () => {
     expect(classifyEmptyOffersPage(baqueira.replace('</body>', '<div class="nueva">Hotel Montarto 2 noches Por 410€ por persona</div></body>'))).toBe('unknown_structure');
   });
 });
+
+describe('mensaje fijo del buscador de Esquiades', () => {
+  // Texto real de la cabecera de esquiades.com (03/10/2026), presente en todas sus páginas, también con ofertas o datos.
+  const widget = '<div class="search-empty">¡Vaya! No hemos encontrado ningún resultado que coincida con tu búsqueda. Prueba a modificar el destino.</div>';
+  it('no cuenta como «no hay ofertas»: sin otro aviso, la página es de formato no reconocido', () => {
+    expect(classifyEmptyOffersPage(`<html><body>${widget}<main><h1>Esquí en Grandvalira</h1></main></body></html>`)).toBe('unknown_structure');
+  });
+  it('un aviso propio de la página sigue contando', () => {
+    expect(classifyEmptyOffersPage(`<html><body>${widget}<main><p>No hay ofertas para estas fechas.</p></main></body></html>`)).toBe('no_offers');
+  });
+});

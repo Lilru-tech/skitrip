@@ -27,12 +27,18 @@ const OFFER_PRICE = /(?:desde\s*)\d[\d.,]*\s?€|\d[\d.,]*\s?€\s*(?:\/\s*pers|
 /** Peticiones de analítica que el robots.txt prohíbe a menudo y que nunca traen ofertas. */
 const ANALYTICS = /collect|stats|events?\b|track|beacon|analytics|pixel|gtm|\/g\/|impression/i;
 
+/** Mensaje fijo del buscador de la cabecera de Esquiades, presente en TODAS sus páginas (03/10/2026): no dice nada de la
+ *  página y no puede contar como «no hay resultados». */
+const SEARCH_WIDGET = /¡?Vaya!?\s*No hemos encontrado ning[uú]n resultado que coincida con tu b[uú]squeda\.?\s*(?:Prueba a modificar el destino\.?)?/gi;
+/** Texto visible sin el mensaje fijo del buscador. */
+export const pageMessageText = (html: string) => visibleText(html).replace(SEARCH_WIDGET, ' ');
+
 export const visibleText = (html: string) =>
   html.replace(/<(script|style|template|noscript|svg)\b[\s\S]*?<\/\1\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Motivo de una página sin tarjetas con precio. `refusedPaths`: peticiones de la página que el robots.txt impidió. */
 export function classifyEmptyOffersPage(html: string, refusedPaths: readonly string[] = []): EmptyReason {
-  const text = visibleText(html);
+  const text = pageMessageText(html);
   const prices = (text.match(OFFER_PRICE) ?? []).length;
   if (refusedPaths.some((p) => !ANALYTICS.test(p))) return 'robots_subrequests';
   if (prices > 0) return 'unknown_structure';
