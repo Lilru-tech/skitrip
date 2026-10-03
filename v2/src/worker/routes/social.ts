@@ -118,7 +118,7 @@ admin.get('/health', async (c) => {
   const nowMs = Date.now();
   const [runs, health, coverage, users, sizes] = await db.batch([
     db.prepare(`SELECT * FROM capture_runs ORDER BY started_at DESC LIMIT 30`),
-    db.prepare(`SELECT s.id, s.area_id, s.kind, s.provider, s.status, h.last_attempt_at, h.last_success_at, h.last_status, h.last_error, h.consecutive_fail
+    db.prepare(`SELECT s.id, s.area_id, s.kind, s.provider, s.status, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.last_error, h.consecutive_fail
                 FROM sources s LEFT JOIN source_health h ON h.source_id = s.id ORDER BY s.kind, s.area_id`),
     db.prepare(`SELECT a.id, (SELECT MAX(observed_at) FROM snow_observations s WHERE s.area_id = a.id) AS last_snow FROM areas a ORDER BY a.id`),
     db.prepare(`SELECT COUNT(*) AS n, SUM(status = 'blocked') AS blocked FROM users`),

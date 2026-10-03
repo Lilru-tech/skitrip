@@ -39,6 +39,8 @@ export interface OfferCard {
   ambiguousPrice: boolean;
   strikethroughIgnored: boolean;
   url: string | null;
+  /** Estación del forfait tal como la nombra la tarjeta («2 días de forfait en Grandvalira»); null si no la nombra. */
+  forfaitArea: string | null;
   warnings: string[];
 }
 
@@ -98,6 +100,22 @@ function detectForfaitDays(t: string): number | null {
   return int(/(\d{1,2})\s*d[ií]as?\s*(?:de\s+)?(?:forfait|skipass|ski pass)|(?:forfait|skipass|ski pass)\s*(?:de\s+)?(\d{1,2})\s*d[ií]as?/, t);
 }
 
+/** «… forfait en Vallnord Pal-Arinsal» → «vallnord pal-arinsal» (texto en minúsculas de la tarjeta). */
+function detectForfaitArea(t: string): string | null {
+  const m = /(?:forfait|skipass|ski pass)\s+(?:en|de|para)\s+([a-zà-ÿ][a-zà-ÿ' .-]{1,50}?)(?=\s*(?:$|[,.;:()|]|\s(?:solo|s[oó]lo|con|sin|desde|por|\d)))/.exec(t);
+  return m ? m[1].trim() : null;
+}
+
+/** Normaliza un nombre de estación para compararlo con un id de área: sin acentos, minúsculas, guiones. */
+export const areaSlug = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/** ¿La estación del forfait de la tarjeta es la del área (o su ámbito)? null si la tarjeta no la nombra. */
+export function forfaitMatchesArea(c: Pick<OfferCard, 'forfaitArea'>, areaIds: readonly string[]): boolean | null {
+  if (!c.forfaitArea) return null;
+  const slug = areaSlug(c.forfaitArea);
+  return areaIds.some((id) => slug === id || slug.includes(id) || (id.includes(slug) && slug.length >= 4));
+}
+
 function detectCancellation(t: string): Cancellation | null {
   if (/no reembolsable|sin (posibilidad de )?cancelaci[oó]n|non.?refundable/.test(t)) return 'non_refundable';
   if (/cancelaci[oó]n (gratuita|gratis|sin coste|sin gastos)|free cancellation/.test(t)) return 'free';
@@ -131,7 +149,10 @@ function detectChildren(t: string): number[] | null {
 
 function detectForfait(t: string, days: number | null): { included: ForfaitIncluded; warning: string | null } {
   const yes = days !== null || /forfait (incluido|incl\.)|con forfait|\+\s*forfait|skipass incluido/.test(t);
-  const no = /sin forfait|forfait no incluido|no incluye (el )?forfait|s[oó]lo alojamiento/.test(t);
+  // «Solo alojamiento» es un régimen (sin comidas) cuando la tarjeta declara los días de forfait (Esquiades, 03/10/2026:
+  // «2 días de forfait en Grandvalira» + insignia «Solo alojamiento», en el mismo hueco que «Con 2 desayunos»).
+  // Sin días declarados sigue contando como «sin forfait» y, junto a otra mención de forfait, como contradicción.
+  const no = /sin forfait|forfait no incluido|no incluye (el )?forfait/.test(t) || (days === null && /s[oó]lo alojamiento/.test(t));
   if (yes && no) return { included: 'unknown', warning: 'La tarjeta menciona forfait y «solo alojamiento/sin forfait» a la vez: forfait desconocido.' };
   return { included: yes ? 'yes' : no ? 'no' : 'unknown', warning: null };
 }
@@ -276,6 +297,7 @@ function parseCard(card: El, provider: Provider): OfferCard {
     ambiguousPrice: ambiguous !== null,
     strikethroughIgnored: discountResolved || strikeHasMoney(card),
     url: urlOf(card),
+    forfaitArea: detectForfaitArea(lower),
     warnings,
   };
 }

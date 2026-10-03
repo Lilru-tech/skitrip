@@ -70,7 +70,7 @@ export async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseMs = 
 }
 
 /** Carga una página con un único navegador compartido (nunca uno por usuario ni por tarjeta). */
-export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>) => Promise<T>): Promise<T> {
+export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>, refused: () => string[]) => Promise<T>): Promise<T> {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined });
   try {
@@ -97,7 +97,8 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
       if (refused.length) console.error(`${url}: ${refused.length} peticiones no cargadas por robots.txt (${[...new Set(refused)].slice(0, 3).join(', ')})`);
       return html;
     };
-    return await fn(load);
+    // Rutas que el robots.txt impidió cargar en la última página (para distinguir «sin ofertas» de «no se pudieron cargar»).
+    return await fn(load, () => [...refused]);
   } finally {
     await browser.close();
   }

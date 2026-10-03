@@ -13,7 +13,7 @@ import estMolina from '../../fixtures/parsers/estiber-la-molina.reconstruido.htm
 const card = (over: Partial<OfferCard>): OfferCard => ({
   provider: 'esquiades', providerOfferId: null, hotelName: 'Hotel X', board: 'half_board', nights: 2, forfaitDays: 1,
   adults: 2, childrenAges: null, rooms: null, checkIn: null, checkOut: null, forfaitIncluded: 'yes', cancellation: null, priceText: '100 €',
-  amount: { cents: 10000, currency: 'EUR' }, unit: 'per_person', priceKind: 'advertised_from', saysFrom: false, ambiguousPrice: false, strikethroughIgnored: false, url: null, warnings: [], ...over,
+  amount: { cents: 10000, currency: 'EUR' }, unit: 'per_person', priceKind: 'advertised_from', saysFrom: false, ambiguousPrice: false, strikethroughIgnored: false, url: null, forfaitArea: null, warnings: [], ...over,
 });
 
 describe('parseOfferCardsHtml (esquiades)', () => {

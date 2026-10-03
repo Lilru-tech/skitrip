@@ -41,6 +41,8 @@ const zRun = z.object({
 const zHealth = z.object({
   sourceId: zId,
   status: z.enum(['ok', 'empty', 'error', 'blocked', 'unsupported']),
+  // Solo con status distinto de 'ok'. 'no_offers' y 'off_season' no cuentan como fallo seguido de la fuente.
+  reason: z.enum(['no_offers', 'off_season', 'robots_subrequests', 'unknown_structure']).nullable().optional(),
   error: z.string().max(500).nullable().optional(),
   attemptedAt: z.number().int().positive(),
 });
@@ -72,16 +74,18 @@ function runStatements(db: D1Database, r: Run, accepted: number, rejected: numbe
            accepted = excluded.accepted, rejected = excluded.rejected, received_at = excluded.received_at`,
       ).bind(r.id, r.part, r.ok, r.failed, r.unsupported, accepted, rejected, t),
       db.prepare(
-        `INSERT INTO source_health (source_id, last_attempt_at, last_success_at, last_status, last_error, consecutive_fail)
+        `INSERT INTO source_health (source_id, last_attempt_at, last_success_at, last_status, reason, last_error, consecutive_fail)
          SELECT json_extract(value, '$.sourceId'), json_extract(value, '$.attemptedAt'),
                 CASE WHEN json_extract(value, '$.status') = 'ok' THEN json_extract(value, '$.attemptedAt') END,
-                json_extract(value, '$.status'), json_extract(value, '$.error'), CASE WHEN json_extract(value, '$.status') = 'ok' THEN 0 ELSE 1 END
+                json_extract(value, '$.status'), CASE WHEN json_extract(value, '$.status') <> 'ok' THEN json_extract(value, '$.reason') END,
+                json_extract(value, '$.error'), CASE WHEN json_extract(value, '$.status') = 'ok' OR json_extract(value, '$.reason') IN ('no_offers','off_season') THEN 0 ELSE 1 END
          FROM json_each(?1) WHERE json_extract(value, '$.sourceId') IN (SELECT id FROM sources)
          ON CONFLICT (source_id) DO UPDATE SET
            last_success_at = CASE WHEN excluded.last_status = 'ok' THEN MAX(excluded.last_attempt_at, COALESCE(source_health.last_success_at, 0)) ELSE source_health.last_success_at END,
            consecutive_fail = CASE WHEN excluded.last_attempt_at <= COALESCE(source_health.last_attempt_at, 0) THEN source_health.consecutive_fail
-                                   WHEN excluded.last_status = 'ok' THEN 0 ELSE source_health.consecutive_fail + 1 END,
+                                   WHEN excluded.last_status = 'ok' OR excluded.reason IN ('no_offers','off_season') THEN 0 ELSE source_health.consecutive_fail + 1 END,
            last_status = CASE WHEN excluded.last_attempt_at >= COALESCE(source_health.last_attempt_at, 0) THEN excluded.last_status ELSE source_health.last_status END,
+           reason = CASE WHEN excluded.last_attempt_at >= COALESCE(source_health.last_attempt_at, 0) THEN excluded.reason ELSE source_health.reason END,
            last_error = CASE WHEN excluded.last_attempt_at >= COALESCE(source_health.last_attempt_at, 0) THEN excluded.last_error ELSE source_health.last_error END,
            last_attempt_at = MAX(excluded.last_attempt_at, COALESCE(source_health.last_attempt_at, 0))`,
       ).bind(JSON.stringify(health)),

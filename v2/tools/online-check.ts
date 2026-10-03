@@ -90,7 +90,7 @@ function writeFixture(s: Src, html: string, at: string) {
   const cards = s.adapter?.endsWith('-cards');
   const out = cards ? offerCardsFixture(html, s.adapter!.startsWith('esquiades') ? 'esquiades' : 'estiber', meta) : pageFixture(html, meta);
   // Sin tarjetas reconocidas se guarda el cuerpo saneado: es justo lo que hace falta para adaptar el analizador.
-  writeFileSync(`${fixturesDir}/${s.id}.${at.slice(0, 10)}.html`, out ?? pageFixture(html, { ...meta, note: 'El analizador no reconoció ninguna tarjeta.' }));
+  writeFileSync(`${fixturesDir}/${s.id}.${at.slice(0, 10)}.html`, out ?? pageFixture(html, { ...meta, note: 'El analizador no reconoció ninguna tarjeta: solo la zona principal de la página.' }, 80_000, true));
 }
 await withBrowser(async (load) => {
   for (const s of sources) {
