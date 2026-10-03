@@ -46,12 +46,16 @@ jobs:
       PROD_API: ${{ vars.VITE_API_BASE_URL }}
       FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
       RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-      CLEANUP_MANIFEST: ${{ runner.temp }}/cleanup-manifest.json
       FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Ficheros temporales fuera del repositorio (el contexto runner no existe en el env del job)
+        run: |
+          {
+            echo "CLEANUP_MANIFEST=$RUNNER_TEMP/cleanup-manifest.json"
+          } >> "$GITHUB_ENV"
       - name: Configuración pública presente (sin ella no se ejecuta nada)
         run: |
           [ -n "$PROD_API" ] || { echo "::error::Falta la Variable VITE_API_BASE_URL"; exit 1; }

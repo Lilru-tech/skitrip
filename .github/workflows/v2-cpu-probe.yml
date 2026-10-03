@@ -39,12 +39,16 @@ jobs:
       SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL }}
       SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
       RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-      CLEANUP_MANIFEST: ${{ runner.temp }}/cleanup-manifest.json
-      TAIL_LOG: ${{ runner.temp }}/tail.jsonl
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Ficheros temporales fuera del repositorio (el contexto runner no existe en el env del job)
+        run: |
+          {
+            echo "CLEANUP_MANIFEST=$RUNNER_TEMP/cleanup-manifest.json"
+            echo "TAIL_LOG=$RUNNER_TEMP/tail.jsonl"
+          } >> "$GITHUB_ENV"
       - name: Configuración presente (sin ella no cuenta como medido)
         run: for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID FIREBASE_PROJECT_ID PROD_API FIREBASE_API_KEY SKITRIP_INGEST_TOKEN; do [ -n "${!v}" ] || { echo "::error::Falta $v"; exit 1; }; done
       - uses: actions/setup-node@v4
