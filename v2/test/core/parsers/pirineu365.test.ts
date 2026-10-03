@@ -3,6 +3,7 @@ import { OFFICIAL_ADAPTERS, parsePirineu365Status } from '../../../src/core/pars
 import molina from '../../fixtures/real/pirineu365-status-15-la-molina.2026-10-03.html?raw';
 import nuria from '../../fixtures/real/pirineu365-status-16-vall-de-nuria.2026-10-03.json?raw';
 import unnamed from '../../fixtures/real/pirineu365-status-19-sin-nombre.2026-10-03.json?raw';
+import espotReport from '../../fixtures/real/pirineu365-report-18-espot.2026-10-03.html?raw';
 
 // Capturas reales de OCTUBRE (parte de verano o estación inactiva): validan el formato, el nombre y el fuera de
 // temporada, NO la lectura de una estación abierta en invierno. El caso de invierno de abajo es sintético.
@@ -15,6 +16,12 @@ describe('Pirineu365 (API de FGC) con capturas reales del 03/10/2026, fuera de t
   });
   it('Vall de Núria: nombre con acento, mismo resultado y fecha publicada', () => {
     expect(OFFICIAL_ADAPTERS['pirineu365-vall-de-nuria'].parse(nuria)).toMatchObject({ opStatus: 'out_of_season', openKm: null, sourceDate: '2026-10-03' });
+  });
+  it('Espot desde /report (el /status devuelve el nombre vacío fuera de temporada): estación inactiva → fuera de temporada', () => {
+    expect(OFFICIAL_ADAPTERS['pirineu365-espot'].parse(espotReport)).toEqual({
+      opStatus: 'out_of_season', openKm: null, totalKm: null, openRuns: null, totalRuns: null, openLifts: null, totalLifts: null,
+      depthMinCm: null, depthMaxCm: null, sourceDate: '2026-10-03',
+    });
   });
   it('un número de estación que devuelve otro nombre (o vacío) es un error, nunca datos de otra estación', () => {
     expect(() => OFFICIAL_ADAPTERS['pirineu365-espot'].parse(unnamed)).toThrow(/se esperaba «Espot»/);
@@ -32,6 +39,10 @@ describe('Pirineu365 en temporada (caso SINTÉTICO con la estructura real; sin v
     expect(parsePirineu365Status(winter({ is_open: 45.5, total: 71 }), 'La Molina')).toEqual({
       opStatus: 'partial', openKm: 45.5, totalKm: 71, openRuns: 40, totalRuns: 61, openLifts: 12, totalLifts: 15, depthMinCm: 30, depthMaxCm: 80, sourceDate: '2027-01-16',
     });
+  });
+  it('forma de /report: kilometers {open, total} y stats de pistas y remontes', () => {
+    const report = JSON.stringify({ success: true, data: { station_name: 'Espot', is_active: true, is_winter: true, open_status: 'open', updated: '16/01/2027 08:05', kilometers: { display: true, open: 20, total: 26 }, skislopes: { stats: { open: 18, total: 23 } }, skilifts: { stats: { open: 5, total: 7 } }, snow: { min: 40, max: 90 } } });
+    expect(parsePirineu365Status(report, 'Espot')).toMatchObject({ opStatus: 'partial', openKm: 20, totalKm: 26, openRuns: 18, totalRuns: 23, openLifts: 5, totalLifts: 7, depthMinCm: 40, depthMaxCm: 90 });
   });
   it('cerrada con texto explícito de la API y valores imposibles descartados', () => {
     expect(parsePirineu365Status(winter({ is_open: 0, total: 71 }, { open_status: 'closed' }), 'La Molina')!.opStatus).toBe('closed_confirmed');

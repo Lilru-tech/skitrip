@@ -98,7 +98,10 @@ const results = scenarios.map((sc) => {
 // Cada fuente va entera a una parte, con su salud; los recuentos ok/failed/unsupported son por parte.
 type Unit = { kind: 'catalog'; c: (typeof catalog)[number] } | { kind: 'scenario'; r: (typeof results)[number] };
 const units: Unit[] = [...catalog.map((c) => ({ kind: 'catalog' as const, c })), ...results.map((r) => ({ kind: 'scenario' as const, r }))];
-const parts = chunkBy(units, (u) => (u.kind === 'catalog' ? u.c.offers.length : u.r.offers.length), 200, 60);
+// Partes de ≤ 80 ofertas (la API admite 200): medido en producción el 03/10/2026, una parte de ~190 ofertas costaba
+// 15–31 ms de CPU en el Worker (límite de Free: 10 ms). Más partes, mismas ofertas; cada página (≤ 60) va entera.
+const OFFERS_PER_PART = 80;
+const parts = chunkBy(units, (u) => (u.kind === 'catalog' ? u.c.offers.length : u.r.offers.length), OFFERS_PER_PART, 60);
 const id = runId('offers');
 const runner = process.env.GITHUB_RUN_ID ? `github-actions#${process.env.GITHUB_RUN_ID}` : 'local';
 const errorSummary = failed ? health.filter((h) => h.status === 'error' || h.status === 'blocked').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null;

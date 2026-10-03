@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { offerCardsFixture, pageFixture } from '../src/core/parsers/fixture.ts';
 import { cardKey, parseOfferCardsHtml, type OfferCard } from '../src/core/parsers/offers.ts';
-import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, type EmptyReason } from '../src/core/page-outcome.ts';
+import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, pageMessageText, type EmptyReason } from '../src/core/page-outcome.ts';
 import { OFFICIAL_ADAPTERS } from '../src/core/parsers/official-snow.ts';
 import { esquiadesAdapter } from '../src/core/parsers/snow.ts';
 import { allowedByRobots, BlockedError, withBrowser } from './collectors/lib.ts';
@@ -68,10 +68,16 @@ function cardProfile(all: OfferCard[]) {
   };
 }
 function analyse(s: Src, html: string, refusedPaths: string[] = []): { verdict: Verdict; rows: number; sample: unknown; profile?: unknown; reason?: EmptyReason; note?: string } {
-  const text = html.replace(/<[^>]+>/g, ' ');
+  // Sin el mensaje fijo del buscador de Esquiades («No hemos encontrado ningún resultado…»), que no habla de la página.
+  const text = pageMessageText(html);
   const verdict = (rows: number): Verdict => (rows > 0 ? 'extracted' : NO_DATA.test(text) ? 'no_data' : 'incompatible');
   if (OFFICIAL_ADAPTERS[s.adapter!]) { const r = OFFICIAL_ADAPTERS[s.adapter!].parse(html); return { verdict: verdict(r ? 1 : 0), rows: r ? 1 : 0, sample: r }; }
-  if (s.adapter === 'esquiades-status') { const r = esquiadesAdapter.parse(html); return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3) }; }
+  if (s.adapter === 'esquiades-status') {
+    const r = esquiadesAdapter.parse(html);
+    // Sin filas: el texto que hace que cuente como «sin datos legítimo», para poder clasificarlo en el recolector.
+    const t = pageMessageText(html), m = r.length ? null : NO_DATA.exec(t);
+    return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3), note: m ? `aviso de la página: «…${t.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200)}…»` : undefined };
+  }
   if (s.adapter === 'esquiades-cards' || s.adapter === 'estiber-cards') {
     const all = parseOfferCardsHtml(html, s.adapter.startsWith('esquiades') ? 'esquiades' : 'estiber');
     const r = all.filter((c) => c.amount);

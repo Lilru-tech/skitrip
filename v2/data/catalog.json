@@ -1421,7 +1421,7 @@
    "scope": "espot-esqui",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://api.pirineu365.cat/api/v1/web/stations/18/status",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/18/report",
    "method": "json",
    "fields": [
     "open_km",
@@ -1438,7 +1438,7 @@
    "priority": 10,
    "status": "unverified",
    "checked_on": "2026-10-03",
-   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 18, que debe devolver el nombre «Espot»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 18 (por /report: /status devuelve el nombre vacío fuera de temporada), que debe devolver el nombre «Espot»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
    "adapter": "pirineu365-espot",
    "aliases": null
   },

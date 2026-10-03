@@ -13,10 +13,18 @@ let createdTrip: string | undefined;
 test.afterAll(async () => { await cleanupAccounts(LETTERS, { d: createdTrip ? [createdTrip] : [] }); });
 
 async function mark(p: Page, from: string, to: string, label: 'Libre' | 'Quizá' | 'Ocupado') {
-  await go(p, '/calendario');                  // selección limpia: un clic empieza un rango y el siguiente lo cierra
-  await p.locator(`[data-date="${from}"]`).first().click();
-  if (to !== from) await p.locator(`[data-date="${to}"]`).first().click();
-  await p.getByRole('region', { name: 'Aplicar estado a la selección' }).getByRole('button', { name: label }).click();
+  const apply = p.getByRole('region', { name: 'Aplicar estado a la selección' }).getByRole('button', { name: label });
+  // Selección limpia: un clic empieza un rango y el siguiente lo cierra. Si el calendario se vuelve a pintar al llegar
+  // los datos, la selección se pierde (pasó en producción el 03/10/2026): se recarga y se repite, nunca se re-clica
+  // sobre una selección a medias.
+  await expect(async () => {
+    await go(p, '/calendario');
+    await p.waitForLoadState('networkidle');
+    await p.locator(`[data-date="${from}"]`).first().click();
+    if (to !== from) await p.locator(`[data-date="${to}"]`).first().click();
+    await expect(apply).toBeEnabled({ timeout: 3000 });
+  }).toPass({ timeout: 45_000 });
+  await apply.click();
   await expect(p.locator('.toasts')).toContainText('Guardado');
 }
 async function share(p: Page, friends: boolean) {
