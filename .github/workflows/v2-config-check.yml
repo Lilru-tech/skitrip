@@ -42,6 +42,7 @@ jobs:
         run: |
           yn() { [ "$1" = true ] && echo sí || echo no; }
           {
+            echo "Comprobado: $(date -u +%FT%TZ) · commit $GITHUB_SHA"
             echo '### GitHub'
             echo '| Nombre | En Variables | En Secrets |'
             echo '|---|---|---|'
