@@ -53,6 +53,8 @@ function requireHeaders(headers: string[], groups: string[][], errors: RowIssue[
 }
 
 // ---------- Comentarios ----------
+/** Ámbito de los comentarios generales en la hoja antigua. */
+export const GENERAL_SCOPE = 'global';
 export interface LegacyComment { legacyId: string | null; resortId: string | null; author: string | null; body: string; createdText: string | null }
 
 export function mapComments(csv: string, knownResortIds: ReadonlySet<string>): Mapped<LegacyComment> {
@@ -66,7 +68,8 @@ export function mapComments(csv: string, knownResortIds: ReadonlySet<string>): M
     if (!body) { errors.push({ line, message: 'comentario vacío' }); return; }
     if (body.length > 4000) { errors.push({ line, message: 'comentario de más de 4000 caracteres' }); return; }
     const resortId = pick(r, 'resort_id', 'resort', 'estacion') || null;
-    if (resortId && !knownResortIds.has(resortId)) warnings.push({ line, message: `estación legacy desconocida «${resortId}»: se guarda sin ámbito verificado` });
+    // La hoja antigua usaba «global» para los comentarios generales (consejos del viaje), no para una estación.
+    if (resortId && resortId !== GENERAL_SCOPE && !knownResortIds.has(resortId)) warnings.push({ line, message: `estación legacy desconocida «${resortId}»: se guarda sin ámbito verificado` });
     const author = pick(r, 'user', 'usuario', 'autor', 'author', 'name') || null;
     const createdText = pick(r, 'created', 'created_at', 'fecha', 'ts', 'timestamp', 'updated') || null;
     const legacyId = pick(r, 'id') || null;

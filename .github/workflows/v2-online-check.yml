@@ -49,7 +49,7 @@ jobs:
           [ -s diag/online-check.json ] || exit 0
           node -e '
             const log = JSON.parse(require("fs").readFileSync("diag/online-check.json", "utf8"));
-            const rows = log.map((l) => `| ${l.id} | ${l.catalogStatus} | ${l.transport} | ${l.verdict ?? ""} | ${l.rows ?? ""} | ${(l.error ?? l.note ?? "").replace(/[|\n]/g, " ").slice(0, 120)} |`);
+            const rows = log.map((l) => `| ${l.id} | ${l.catalogStatus} | ${l.transport} | ${l.verdict ?? ""} | ${l.rows ?? ""} | ${(l.error ?? l.note ?? "").replace(/[|\n]/g, " ").slice(0, 420)} |`);
             console.log(["| Fuente | Catálogo | Transporte | Extracción | Filas | Nota |", "|---|---|---|---|---|---|", ...rows].join("\n"));
           ' | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

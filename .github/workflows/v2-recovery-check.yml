@@ -1,0 +1,62 @@
+# SkiTrip v2 · comprobar recuperación y uso: sin restaurar nada en producción.
+#
+#   1) Time Travel: marcador actual de D1 (al que se podría volver; aquí solo se lee).
+#   2) Uso de D1 (tamaño, consultas y filas de las últimas 24 h) y del Worker (peticiones y CPU de 24 h).
+#   3) Copia de producción en SOLO LECTURA (wrangler d1 export + SELECT) restaurada en una D1 local nueva del runner,
+#      comparando recuentos por tabla y los SHA-256 de los originales legacy.
+#
+# La copia contiene datos privados: vive solo en el disco del runner, se borra al final y NO se sube como artefacto.
+name: v2 · comprobar recuperación
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v2-recovery-check
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash   # bash --noprofile --norc -eo pipefail: un fallo dentro de una tubería falla el paso
+    working-directory: v2
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configuración presente (sin ella no cuenta como comprobado)
+        run: for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do [ -n "${!v}" ] || { echo "::error::Falta $v"; exit 1; }; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - name: Time Travel · marcador actual (solo lectura)
+        run: npx wrangler d1 time-travel info skitrip 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Uso de D1 (24 h)
+        run: |
+          { echo '```'; npx wrangler d1 info skitrip 2>&1; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Uso del Worker (24 h, analítica de Cloudflare)
+        run: |
+          since=$(date -u -d '24 hours ago' +%FT%TZ); until=$(date -u +%FT%TZ)
+          q='query($a:String!,$s:Time!,$u:Time!){viewer{accounts(filter:{accountTag:$a}){workersInvocationsAdaptive(limit:10,filter:{scriptName:"skitrip",datetime_geq:$s,datetime_leq:$u}){sum{requests errors subrequests} quantiles{cpuTimeP50 cpuTimeP99} dimensions{status}}}}}'
+          body=$(jq -n --arg q "$q" --arg a "$CLOUDFLARE_ACCOUNT_ID" --arg s "$since" --arg u "$until" '{query:$q,variables:{a:$a,s:$s,u:$u}}')
+          res=$(curl -sS https://api.cloudflare.com/client/v4/graphql -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data "$body")
+          if jq -e '.errors | length > 0' <<<"$res" >/dev/null; then
+            # Sin el permiso «Account Analytics: Read» no hay datos: se dice y se mira en el panel.
+            echo "Analítica del Worker no disponible con este token: $(jq -r '.errors[0].message' <<<"$res")" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            { echo "Worker skitrip, $since → $until (CPU en µs):"; echo '```'; jq -c '.data.viewer.accounts[0].workersInvocationsAdaptive[]' <<<"$res"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Copia de producción (solo lectura) restaurada en una D1 local y comparada
+        run: |
+          trap 'rm -rf exports' EXIT
+          npx tsx tools/backup.ts export --remote
+          dir=$(ls -d exports/backup-* | head -1)
+          npx tsx tools/backup.ts restore-test "$dir" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
