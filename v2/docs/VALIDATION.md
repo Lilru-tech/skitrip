@@ -11,8 +11,12 @@ SkiTrip v2 está publicado en https://lilru-tech.github.io/skitrip/ (Pages desde
 | Limpieza de restos de pruebas anteriores por UID exacto | v2-prod-cleanup 37136211279 | ✔ perfiles 4 → 1 (solo la cuenta de David) |
 | Recorrido completo (humo + calendario compartido d, e, f) | v2-prod-check 37138923075 | Humo ✔; calendario ✘ (la selección se perdía al repintar). Limpieza 1 → 4 → 1 igualmente |
 | Calendario compartido con la prueba corregida | v2-prod-check 37139560555 (rama ops/cpu-followup) | ✔ amistad, viaje, propuesta, revocación y acceso ajeno; limpieza 1 → 4 → 1, administradores 1 |
+| Publicación de la PR 9 | v2-release 37142709937 | ✔ |
+| Recorrido completo ×2 tras publicar (humo a, b, c + calendario d, e, f) | v2-prod-check 37143243163, 37143448361 | ✔ los 4 trabajos; en cada uno perfiles 1 → 4 → 1, administradores 1, restos 0 |
+| Comprobación online de fuentes | v2-online-check 37143244629 | ✔ ofertas 17 con datos, 2 fuera de temporada; nieve oficial 9 con datos; agregador de nieve de Esquiades 20 «incompatible» |
+| CPU después de optimizar | v2-cpu-probe 37143655755 | 206 peticiones, 0 cortadas; ver `QUOTAS.md` |
 | Copia de seguridad restaurada en una copia de solo lectura | v2-recovery-check 37126210933 | ✔ 57 tablas, 9 hashes heredados |
-| CPU por ruta (ver `QUOTAS.md`) | v2-cpu-probe 37136969820 | p99 de ofertas 31 ms y común 18,5 ms antes de optimizar; 0 exceededCpu en 24 h |
+| CPU por ruta (ver `QUOTAS.md`) | v2-cpu-probe 37136969820 | antes de optimizar: p99 de ofertas 31 ms y común 18,5 ms; 0 exceededCpu en 24 h |
 
 Reglas de las pruebas en producción: solo cuentas dedicadas con alias y correo identificables; la limpieza borra por los UID e IDs exactos que registra la propia ejecución, comprueba que cada fila pertenece a esas cuentas y no toca a David ni a ningún administrador (`tools/prod-cleanup*.ts`). No hay endpoint de limpieza público. La disponibilidad de David no se modifica y no se invita a usuarios reales.
 

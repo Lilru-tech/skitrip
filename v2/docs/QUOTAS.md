@@ -219,7 +219,18 @@ La mayoría de los picos son la primera petición de una ventana, cuando el isol
 - **Fechas comunes** (`findCandidateWindows`, `dailyCounts`): recorrían cada intervalo día a día con aritmética de fechas sobre cadenas. Ahora calculan la lista de días una vez y usan sumas acumuladas por persona, con el mismo resultado (`calendar.test.ts` lo compara con la definición directa en calendarios pseudoaleatorios). En Node 22: 1,4 → 0,7 ms con 1 persona, 3,9 → 0,6 ms con 8 y 12,1 → 1,1 ms con 30.
 - **Ingesta de ofertas**: el coste crece con las ofertas de la parte (dos SHA-256 y validación por oferta). El recolector las envía ahora en partes de 80 en lugar de 200: mismas ofertas, más POST.
 
-Pendiente: repetir «v2 · medir CPU» con estos cambios publicados y anotar aquí el después.
+Después, con los cambios publicados (run 37143655755, commit b0a0a04; 206 peticiones, todas `ok`, ninguna cortada):
+
+| Ruta | Antes p50 / p99 | Después p50 / p99 | Por encima de 10 ms |
+|---|---|---|---|
+| `POST /api/ingest/offers` (partes de 80) | 15 / 31 | 7 / 15 | 2 de 11 (antes 4 de 5) |
+| `GET /api/availability/common` | 12,9 / 18,5 | 9,5 / 16,9 | 1 de 5 (antes 4 de 5) |
+| `GET /api/trips/:id/expenses` | 5,3 / 21,9 | 3,5 / 5,4 | 0 |
+| `GET /api/trips/:id/cost-comparison` | 5,3 / 17,5 | 4,9 / 7,3 | 0 |
+| `POST /api/me` (alta) | 16,7 | 4,1 / 7,9 | 0 |
+| `GET /api/public/catalog` | 5,1 / 13,1 | 8,1 / 19,7 | 1 de 5 (isolate frío) |
+
+Con 2 personas, la búsqueda de intervalos ya solo cuesta ~1 ms; el resto de `common` es leer y convertir las filas de D1, así que sigue rozando los 10 ms y la mejora crece con el número de personas. El catálogo sube en la primera petición de su ventana (arranque del isolate); varía de una medición a otra. Siguen existiendo picos aislados por encima de 10 ms, que Free tolera; la vigilancia diaria avisa si aparece algún `exceededCpu`.
 
 Importación de la hoja (5.000 filas, un SHA-256 por fila): no medida en Cloudflare. Es una operación puntual de administración. Si superara los 10 ms de CPU, Cloudflare la cortaría sin escribir nada a medias (un solo batch); la solución gratuita es dividir el CSV.
 
