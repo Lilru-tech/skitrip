@@ -20,10 +20,12 @@ const GITHUB_BASH = ['--noprofile', '--norc', '-eo', 'pipefail']; // shell: bash
 const DEFAULT_BASH = ['-e']; // sin shell (lo que había antes)
 
 /** El `run:` del paso y la orden de bash que usará GitHub según su shell efectivo (paso, job o workflow). */
+/** Shell efectivo de un paso. Como en GitHub, `defaults.run` del job sustituye entero al del workflow (no se combinan). */
+const effectiveShell = (w, job, s) => s.shell ?? (job.defaults?.run ? job.defaults.run.shell : w.defaults?.run?.shell);
 function step(job, id) {
   const s = release.jobs[job].steps.find((x) => x.id === id);
   assert.ok(s, `paso ${job}.${id}`);
-  const shell = s.shell ?? release.jobs[job].defaults?.run?.shell ?? release.defaults?.run?.shell;
+  const shell = effectiveShell(release, release.jobs[job], s);
   return { run: s.run, flags: shell === 'bash' ? GITHUB_BASH : DEFAULT_BASH };
 }
 /** Ejecuta un `run:` como GitHub: lo escribe en un archivo y lo pasa a bash. */
@@ -51,7 +53,7 @@ test('todos los pasos con run de los workflows v2 usan shell bash (pipefail)', (
     for (const [name, job] of Object.entries(w.jobs)) {
       for (const s of job.steps ?? []) {
         if (!s.run) continue;
-        const shell = s.shell ?? job.defaults?.run?.shell ?? w.defaults?.run?.shell;
+        const shell = effectiveShell(w, job, s);
         if (shell !== 'bash') bad.push(`${f} · ${name} · ${s.name ?? s.run.split('\n')[0]}`);
       }
     }

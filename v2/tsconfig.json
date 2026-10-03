@@ -13,5 +13,5 @@
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types", "node"],
     "resolveJsonModule": true
   },
-  "include": ["src", "test", "tools", "scripts", "vitest.config.ts", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "test", "tools", "scripts", "vitest.config.ts", "vite.config.ts", "playwright.config.ts", "playwright.prod.config.ts"]
 }
