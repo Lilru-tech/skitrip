@@ -1,74 +1,15 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { API, cleanupAccounts, CONFIGURED, go, idToken, IDT, KEY, recordAccounts, RUN, signUpUi as signUp, toast, user } from './accounts';
 
 // Recorrido real en https://lilru-tech.github.io/skitrip/ contra la API y Firebase de producción.
-// Requiere PROD_URL, PROD_API, FIREBASE_API_KEY (pública) y RUN_ID. Las cuentas son de prueba y llevan el id de ejecución.
-const URL = (process.env.PROD_URL ?? '').replace(/\/?$/, '/');
-const API = (process.env.PROD_API ?? '').replace(/\/$/, '');
-const KEY = process.env.FIREBASE_API_KEY ?? '';
-const RUN = process.env.RUN_ID ?? `local${Date.now()}`;
-// Solo para ensayarla en local contra el emulador; en producción es la API real de Firebase.
-const IDT = (process.env.IDENTITY_URL ?? 'https://identitytoolkit.googleapis.com').replace(/\/$/, '');
-test.skip(!URL || !API || !KEY, 'Solo se ejecuta con PROD_URL, PROD_API y FIREBASE_API_KEY (Actions).');
+// Las cuentas son de prueba y llevan el id de ejecución (ver accounts.ts).
+test.skip(!CONFIGURED, 'Solo se ejecuta con PROD_URL, PROD_API y FIREBASE_API_KEY (Actions).');
 
-const user = (k: string) => ({ email: `prod-check-${RUN}-${k}@example.com`, password: `pc-${RUN}-${k}-Segura!`, alias: `pc${RUN.replace(/\D/g, '').slice(-7)}${k}`.slice(0, 24) });
-
-// Manifiesto para la limpieza de D1 (tools/prod-cleanup.ts): se escribe ANTES de crear nada, con los correos exactos de
-// esta ejecución, y se completa con los UID de Firebase al final. Así un fallo a mitad también se limpia.
-const MANIFEST = process.env.CLEANUP_MANIFEST ?? path.resolve('test-results-prod/cleanup-manifest.json');
 const LETTERS = ['a', 'b', 'c'];
-function writeManifest(uids: Record<string, string> = {}) {
-  mkdirSync(path.dirname(MANIFEST), { recursive: true });
-  writeFileSync(MANIFEST, JSON.stringify({ runId: RUN, users: LETTERS.map((k) => ({ email: user(k).email, ...(uids[k] ? { uid: uids[k] } : {}) })) }, null, 2));
-}
-test.beforeAll(() => writeManifest());
-const go = (p: Page, hash: string) => p.goto(`${URL}#${hash}`);
-const toast = (p: Page, t: string | RegExp) => expect(p.locator('.toasts').getByText(t).first()).toBeVisible();
-
-async function signUp(p: Page, u: ReturnType<typeof user>) {
-  await go(p, '/registro');
-  await p.getByLabel('Email').fill(u.email);
-  await p.getByLabel('Contraseña').fill(u.password);
-  await p.getByLabel('Alias público').fill(u.alias);
-  await p.getByRole('button', { name: 'Crear cuenta' }).click();
-  await expect(p.getByRole('heading', { level: 1, name: 'Mis viajes' })).toBeVisible();
-}
-async function idToken(u: ReturnType<typeof user>) {
-  const r = await fetch(`${IDT}/v1/accounts:signInWithPassword?key=${KEY}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: u.email, password: u.password, returnSecureToken: true }),
-  });
-  expect(r.ok, `acceso de ${u.alias} en Firebase`).toBeTruthy();
-  return ((await r.json()) as { idToken: string }).idToken;
-}
-
-// Limpieza al final, pase o falle: se borra el viaje de prueba (con sus datos) y las cuentas de Firebase.
-// El perfil en D1 no tiene borrado por API: lo borra después el workflow con tools/prod-cleanup.ts y el manifiesto.
+test.beforeAll(() => recordAccounts(LETTERS));
+// Limpieza al final, pase o falle: viaje de prueba, cuentas de Firebase y UID al manifiesto (D1 lo limpia el workflow).
 let createdTrip: string | undefined;
-test.afterAll(async () => {
-  const tokens: (string | null)[] = [];
-  const uids: Record<string, string> = {};
-  for (const k of LETTERS) {
-    const u = user(k);
-    const r = await fetch(`${IDT}/v1/accounts:signInWithPassword?key=${KEY}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: u.email, password: u.password, returnSecureToken: true }),
-    });
-    const j = r.ok ? ((await r.json()) as { idToken: string; localId: string }) : null;
-    tokens.push(j?.idToken ?? null);
-    if (j?.localId) uids[k] = j.localId;
-  }
-  // Solo si están todos los UID: si no, la limpieza usa los correos exactos (no se mezcla UID y correo).
-  writeManifest(Object.keys(uids).length === LETTERS.length ? uids : {});
-  if (createdTrip && tokens[0]) {
-    const r = await fetch(`${API}/api/trips/${createdTrip}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens[0]}` } });
-    console.log(`limpieza: viaje de prueba borrado → HTTP ${r.status}`);
-  }
-  for (const t of tokens) {
-    if (!t) continue;
-    const r = await fetch(`${IDT}/v1/accounts:delete?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: t }) });
-    console.log(`limpieza: cuenta de prueba de Firebase borrada → HTTP ${r.status}`);
-  }
-});
+test.afterAll(async () => { await cleanupAccounts(LETTERS, { a: createdTrip ? [createdTrip] : [] }); });
 
 test('producción: registro, acceso, privacidad, amigos, viaje, calendario, compra y gastos', async ({ browser }) => {
   const [a, b, c] = ['a', 'b', 'c'].map(user);

@@ -1,5 +1,9 @@
 # SkiTrip v2 · comprobar producción: recorrido real en https://lilru-tech.github.io/skitrip/ con la API y Firebase de
-# producción (registro, acceso, privacidad, amigos, viaje, calendario, compra y gastos).
+# producción. Dos recorridos, cada uno en su propio trabajo y uno detrás de otro (el alta está limitada a 5 cuentas
+# por IP y hora, y el recuento de perfiles de antes y después no debe mezclarse):
+#   · smoke (cuentas a-c): registro, acceso, privacidad, amigos, viaje, calendario, compra y gastos.
+#   · calendario (cuentas d-f): amistad, disponibilidades distintas, compartir, coincidencias y detalle, propuesta de
+#     fechas y su uso en el viaje, compartir solo con un viaje, revocación y acceso ajeno rechazado.
 #
 # Es manual a propósito: crea cuentas de prueba identificables (prod-check-<ejecución>-<intento>-<letra>@example.com).
 # Al terminar, pase o falle, la prueba borra su viaje y sus cuentas de Firebase, y el paso «Limpieza de D1» borra sus
@@ -10,6 +14,12 @@
 name: v2 · comprobar producción
 on:
   workflow_dispatch:
+    inputs:
+      recorrido:
+        description: 'Qué recorrido ejecutar'
+        type: choice
+        options: [todos, smoke, calendario]
+        default: todos
 permissions:
   contents: read
 concurrency:
@@ -21,9 +31,17 @@ defaults:
     working-directory: v2
 jobs:
   smoke:
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        spec: ${{ fromJSON(inputs.recorrido == 'smoke' && '["smoke"]' || inputs.recorrido == 'calendario' && '["calendar"]' || '["smoke","calendar"]') }}
+    name: ${{ matrix.spec }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      SPEC: ${{ matrix.spec }}
+      LETTERS: ${{ matrix.spec == 'smoke' && 'a,b,c' || 'd,e,f' }}
       PROD_URL: https://lilru-tech.github.io/skitrip/
       PROD_API: ${{ vars.VITE_API_BASE_URL }}
       FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
@@ -63,12 +81,12 @@ jobs:
         id: smoke
         run: |
           status=0
-          npx playwright test -c playwright.prod.config.ts > prod-check.log 2>&1 || status=$?
+          npx playwright test -c playwright.prod.config.ts "test/prod/$SPEC.spec.ts" > prod-check.log 2>&1 || status=$?
           cat prod-check.log
           { echo '```'; grep -E '✓|✘|passed|failed|skipped|limpieza' prod-check.log || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           [ "$status" = 0 ] || exit "$status"
           # Un recorrido omitido no cuenta como comprobado.
-          if grep -qE '[0-9]+ skipped' prod-check.log; then echo "::error::El recorrido se omitió"; exit 1; fi
+          if grep -qE '[0-9]+ skipped' prod-check.log || ! grep -qE '1 passed' prod-check.log; then echo "::error::El recorrido se omitió o no se ejecutó"; exit 1; fi
       - name: Limpieza de D1 (pase o falle el recorrido)
         if: always() && env.PROFILES_BEFORE != ''
         env:
@@ -76,7 +94,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           # Sin manifiesto (fallo antes de la prueba) se limpia por los correos exactos de esta ejecución.
-          if [ -f "$CLEANUP_MANIFEST" ]; then args=(--manifest "$CLEANUP_MANIFEST"); else args=(--run "$RUN_ID" --letters a,b,c,d,e,f); fi
+          if [ -f "$CLEANUP_MANIFEST" ]; then args=(--manifest "$CLEANUP_MANIFEST"); else args=(--run "$RUN_ID" --letters "$LETTERS"); fi
           npx tsx tools/prod-cleanup.ts "${args[@]}" --remote 2>&1 | grep -v 'Proxy environment' | tee -a "$GITHUB_STEP_SUMMARY"
           n=$(npx wrangler d1 execute skitrip --remote --json --command "SELECT COUNT(*) AS n FROM users" | jq '.[0].results[0].n')
           echo "Perfiles en D1 después de limpiar: $n (antes: $PROFILES_BEFORE)" | tee -a "$GITHUB_STEP_SUMMARY"
