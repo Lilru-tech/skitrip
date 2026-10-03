@@ -187,20 +187,47 @@ Antes de las revisiones la ingesta hacía 54 consultas por POST, marcar avisos u
 
 ## CPU (10 ms)
 
-**No se ha medido en Cloudflare.** El entorno local no aplica el límite, y dentro de workerd el reloj no avanza durante el cálculo, así que no se puede medir allí. Microbenchmarks de la lógica pura en Node 22 en el entorno de desarrollo, orientativos:
+### Cómo se mide (gratis)
 
-| Cálculo | Tiempo medio |
-|---|---|
-| Ventanas comunes, 8 personas × 150 días | 2,6 ms |
-| Evolución de cesta, 150 artículos × 300 observaciones | 1,1 ms |
-| Análisis de CSV de 500 filas | 0,6 ms |
-| Recuentos diarios, 8 × 150 | 0,4 ms |
+- **Analítica de Workers (GraphQL, `workersInvocationsAdaptive`)**: percentiles de CPU (p50, p99, p99.9) y peticiones por estado (`success`, `exceededCpu`, `exceededResources`…), sin la ruta. Necesita el permiso «Account Analytics: Read» del token.
+- **`wrangler tail --format json`**: CPU por petición con la URL. Las rutas se agrupan sin IDs (`tools/cpu-summary.ts`).
+- **«v2 · medir CPU»** (`v2-cpu-probe.yml`, manual): abre el tail y lanza `tools/cpu-probe.ts`. Hace grupos de peticiones separados 3 s por las rutas públicas, de ingesta y autenticadas con dos cuentas de prueba (`prod-check-<ejecución>-p/q`, que borra al final por ID exacto) y, opcionalmente, los recolectores de nieve y ofertas. Luego cruza cada ventana con la analítica.
+- **«v2 · vigilancia»** (`v2-watch.yml`, diaria a las 09:23 UTC): salud de la API, peticiones, errores, cortes por CPU y p99 de 24 h, tamaño y filas de D1, perfiles (y restos de pruebas), antigüedad de las capturas y fuentes con 3 o más fallos seguidos. Marca OK, AVISO o FALLO, y un FALLO hace fallar el workflow. Está separada de la copia y restauración (`v2-recovery-check.yml`).
 
-Los hashes SHA-256 (ingesta y CSV) usan `crypto.subtle`, que es nativo. Queda pendiente medir el CPU real en Free con las métricas del Worker tras el primer despliegue. Si alguna ruta se acercara al límite, el primer candidato es `GET /availability/common` con muchos participantes.
+### Medido en producción el 03/10/2026
+
+24 h tras la publicación (recuperación, run 37126210933): 236 peticiones, p50 2,9 ms, p99 16,3 ms. **Ninguna cortada por CPU**: todas `success`. Free tolera ráfagas por encima de 10 ms, pero no conviene depender de eso.
+
+Sondeo por ruta (run 37136969820, commit 4b3b34a). CPU de la analítica en ms; n = peticiones de la ventana:
+
+| Ruta | n | p50 | p99 / máx. | Nota |
+|---|---|---|---|---|
+| `POST /api/ingest/offers` (~190 ofertas por parte) | 5 | 15 | 31 | 4 de 5 por encima de 10 ms |
+| `GET /api/availability/common` (2 personas × 150 días) | 5 | 12,9 | 18,5 | 4 de 5 por encima de 10 ms |
+| `GET /api/trips/:id/expenses` | 5 | 5,3 | 21,9 | Solo la primera petición (isolate frío) |
+| `GET /api/trips/:id/cost-comparison` | 5 | 5,3 | 17,5 | Idem |
+| `POST /api/me` (alta) | 1 | 16,7 | 16,7 | Una vez por persona |
+| `GET /api/trips/:id/comments` | 5 | 2,8 | 14,5 | Isolate frío |
+| `GET /api/public/catalog` | 5 | 5,1 | 13,1 | Isolate frío |
+| `GET /api/trips/:id/budget` | 5 | 6,5 | 11,9 | |
+| `GET /api/availability/trip/:id` | 5 | 7,4 | 12,2 | Misma búsqueda de intervalos que `common` |
+| `PUT /api/availability/me` (150 días) | 4 | 4,4 | 10,8 | |
+| Resto (32 rutas medidas) | | ≤ 3,8 | ≤ 9,6 | |
+
+La mayoría de los picos son la primera petición de una ventana, cuando el isolate arranca y compila. Las dos rutas con el p50 por encima de 10 ms eran problemas reales, y se han cambiado:
+
+- **Fechas comunes** (`findCandidateWindows`, `dailyCounts`): recorrían cada intervalo día a día con aritmética de fechas sobre cadenas. Ahora calculan la lista de días una vez y usan sumas acumuladas por persona, con el mismo resultado (`calendar.test.ts` lo compara con la definición directa en calendarios pseudoaleatorios). En Node 22: 1,4 → 0,7 ms con 1 persona, 3,9 → 0,6 ms con 8 y 12,1 → 1,1 ms con 30.
+- **Ingesta de ofertas**: el coste crece con las ofertas de la parte (dos SHA-256 y validación por oferta). El recolector las envía ahora en partes de 80 en lugar de 200: mismas ofertas, más POST.
+
+Pendiente: repetir «v2 · medir CPU» con estos cambios publicados y anotar aquí el después.
 
 Importación de la hoja (5.000 filas, un SHA-256 por fila): no medida en Cloudflare. Es una operación puntual de administración. Si superara los 10 ms de CPU, Cloudflare la cortaría sin escribir nada a medias (un solo batch); la solución gratuita es dividir el CSV.
 
+### Filas de D1
+
+Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los recolectores), las filas leídas en 24 h fueron 1.097.029 de 5.000.000 (vigilancia, run 37138208453). La vigilancia avisa por encima del 20 %. Las escrituras fueron 38.259 de 100.000.
+
 ## Qué queda pendiente en Free
 
-- Medir el CPU real por ruta tras desplegar (métricas del panel de Workers).
-- Comprobar en D1 remoto que los recuentos coinciden con los locales. El contador cuenta sentencias en el Worker, así que debería coincidir, pero no se ha ejecutado en remoto.
+- Repetir el sondeo de CPU con los cambios de arriba publicados.
+- Ver si las filas leídas bajan sin pruebas (un día normal). Si no bajan, buscar la ruta en «Métricas» de D1.
