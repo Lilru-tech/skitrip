@@ -87,7 +87,7 @@ try {
   await call(q.token, 'PUT', '/api/availability/me', { set: days('2026-12-01', 150, (i) => (i % 2 ? 'free' : 'maybe')) });
   await call(p.token, 'PUT', '/api/availability/shares', { friends: true, tripIds: [] });
   await call(q.token, 'PUT', '/api/availability/shares', { friends: true, tripIds: [] });
-  await group('mi disponibilidad', p.token, 'GET', '/api/availability/me');
+  await group('mi disponibilidad', p.token, 'GET', '/api/availability/me?from=2026-12-01&to=2027-04-29');
   await group('fechas comunes', p.token, 'GET', `/api/availability/common?from=2026-12-01&to=2027-04-29&ids=${qid}&nights=2`);
   await group('disponibilidad visible', p.token, 'GET', '/api/availability/visible?from=2026-12-01&to=2027-04-29');
 

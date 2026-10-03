@@ -50,3 +50,34 @@ describe('calendario', () => {
     expect(d).toMatchObject({ free: 1, busy: 1, unknown: 1, hidden: 1 });
   });
 });
+
+describe('búsqueda de intervalos con sumas acumuladas', () => {
+  // Referencia: la definición directa, intervalo a intervalo con windowStatus.
+  const reference = (people: { id: string; days: Map<string, DayStatus> | null }[], from: string, to: string, nights: number, need: number) => {
+    const out = [];
+    for (let s = from; daysBetween(s, to) >= nights; s = addDays(s, 1)) {
+      const e = addDays(s, nights);
+      const w = { start: s, end: e, free: [] as string[], maybe: [] as string[], unknown: [] as string[], busy: [] as string[], hidden: [] as string[] };
+      for (const p of people) w[windowStatus(p.days, s, e)].push(p.id);
+      if (w.free.length + w.maybe.length >= need && need > 0) out.push(w);
+    }
+    return out;
+  };
+  it('coincide con la definición directa en calendarios pseudoaleatorios (con cambio de año y de horario)', () => {
+    let seed = 7;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    const days = eachDay('2026-10-20', '2027-04-05');
+    for (let round = 0; round < 25; round++) {
+      const people = Array.from({ length: 1 + Math.floor(rnd() * 8) }, (_, k) => ({
+        id: `p${k}`,
+        days: rnd() < 0.15 ? null : new Map(days.flatMap((d): [string, DayStatus][] => { const r = rnd(); return r < 0.2 ? [] : [[d, r < 0.75 ? 'free' : r < 0.9 ? 'maybe' : 'busy']]; })),
+      }));
+      const nights = Math.floor(rnd() * 6);
+      const need = 1 + Math.floor(rnd() * people.length);
+      const got = findCandidateWindows(people, { from: days[0], to: days.at(-1)!, nights, minPeople: need });
+      const ref = reference(people, days[0], days.at(-1)!, nights, need);
+      const key = (w: { start: string }) => w.start;
+      expect(got.map((w) => ({ start: w.start, end: w.end, free: w.free, maybe: w.maybe, unknown: w.unknown, busy: w.busy, hidden: w.hidden })).sort((a, b) => key(a).localeCompare(key(b)))).toEqual(ref);
+    }
+  });
+});
