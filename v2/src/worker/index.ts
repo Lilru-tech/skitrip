@@ -12,6 +12,7 @@ import { catalogRoutes } from './routes/catalog';
 import { ingestRoutes } from './routes/ingest';
 import { planRoutes } from './routes/plan';
 import { shoppingRoutes } from './routes/shopping';
+import { shoppingListRoutes } from './routes/shopping-lists';
 import { expenseRoutes } from './routes/expenses';
 import { socialRoutes } from './routes/social';
 import { purgeRateLimits } from './ratelimit';
@@ -118,6 +119,7 @@ app.route('/api/ingest', ingestRoutes);
 app.route('/api/trips', planRoutes);
 app.route('/api/trips', expenseRoutes);
 app.route('/api', shoppingRoutes);
+app.route('/api', shoppingListRoutes);
 app.route('/api', socialRoutes);
 
 app.all('/api/*', () => {

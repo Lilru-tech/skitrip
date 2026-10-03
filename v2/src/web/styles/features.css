@@ -159,3 +159,13 @@
 .cost-card.is-incomplete { border-style: dashed; }
 .text-warn { color: var(--st-maybe-fg); }
 .offer-warnings { margin: 0.25rem 0 0; padding-left: 1.1rem; }
+
+/* ---------- Compra: listas generales y copia a un viaje ---------- */
+.gl-picker { align-items: flex-end; }
+.gl-missing { color: var(--warn-text); }
+.copy-row { border-top: 1px solid var(--border); padding: var(--space-2) 0; min-width: 0; overflow-wrap: anywhere; }
+.copy-row:first-child { border-top: 0; }
+.copy-choice { display: flex; flex-direction: column; gap: var(--space-1); }
+.copy-choice legend { margin-bottom: var(--space-1); }
+.copy-choice legend .muted { font-weight: 400; }
+.copy-choice .tag { margin-left: var(--space-2); }
