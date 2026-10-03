@@ -20,7 +20,7 @@ import { availableSeries, basketEvolution, estimate, type Criterion, type PriceO
 export const shoppingRoutes = new Hono<AppEnv>();
 
 /** Observaciones que `me` puede ver: propias, compartidas por alguien con quien comparte viaje, o colaborativas públicas. */
-const VISIBLE = `(po.owner_id = ?1 OR po.visibility = 'public_collab' OR (po.visibility = 'shared_trips' AND EXISTS (
+export const VISIBLE = `(po.owner_id = ?1 OR po.visibility = 'public_collab' OR (po.visibility = 'shared_trips' AND EXISTS (
   SELECT 1 FROM trip_members a JOIN trip_members b ON a.trip_id = b.trip_id WHERE a.user_id = po.owner_id AND b.user_id = ?1)))`;
 
 const productOut = (p: any) => p && ({
@@ -28,7 +28,7 @@ const productOut = (p: any) => p && ({
   netQty: p.net_qty, netUnit: p.net_unit, refUrl: p.ref_url, replacedBy: p.replaced_by,
 });
 
-async function ensureList(db: D1Database, tripId: string) {
+export async function ensureList(db: D1Database, tripId: string) {
   let l = await db.prepare('SELECT * FROM shopping_lists WHERE trip_id = ?1').bind(tripId).first<any>();
   if (!l) {
     await db.prepare('INSERT OR IGNORE INTO shopping_lists (id, trip_id, created_at) VALUES (?1, ?2, ?3)').bind(newId(), tripId, now()).run();
@@ -83,7 +83,7 @@ shoppingRoutes.get('/trips/:id/shopping', async (c) => {
       const up = e && i.p_net_qty ? unitPrice(e.amountCents, i.p_net_qty, i.p_net_unit) : null;
       return {
         id: i.id, name: i.name, qty: i.qty, note: i.note, bought: !!i.bought, assigneeId: i.assignee_id, assigneeAlias: i.assignee_alias, legacyName: i.legacy_name,
-        legacyItemId: i.legacy_item_id ?? null, version: i.version,
+        legacyItemId: i.legacy_item_id ?? null, fromGeneralList: !!i.source_list_item_id, version: i.version,
         product: i.product_id ? { id: i.product_id, name: i.p_name, brand: i.p_brand, format: i.p_format, netQty: i.p_net_qty, netUnit: i.p_net_unit, ean: i.p_ean } : null,
         // Origen y fecha visibles: tipo de precio (estantería o coste efectivo de ticket) y procedencia.
         price: e ? { amountCents: e.amountCents, observedOn: e.observedOn, priceType: e.priceType, source: e.source, unitPrice: up } : null,

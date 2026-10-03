@@ -186,6 +186,40 @@ describe('auditoría de consultas: resto de rutas', () => {
     const pc = await m('POST /prices/import/confirm', '500 filas', api(o.token, 'POST', '/api/prices/import/confirm', { csv }));
     expect(pc.json.created).toBe(500);
 
+    // ---------- Listas generales (migración 0010): 300 artículos, 200 de la hoja antigua, copia a un viaje con 150 ----------
+    const GL = '/api/shopping-lists';
+    const gl = (await m('POST /shopping-lists', '—', api(o.token, 'POST', GL, { name: 'Básicos auditoría' }))).json.list.id;
+    for (let i = 1; i < 20; i++) await api(o.token, 'POST', GL, { name: `Lista ${i}` });
+    await m('GET /shopping-lists', '20 listas', api(o.token, 'GET', GL));
+    await m('GET /shopping-lists/:lid/legacy', '200 artículos legacy', api(o.token, 'GET', `${GL}/${gl}/legacy`));
+    const gli = await m('POST /shopping-lists/:lid/legacy-import', '200 artículos (máximo por petición)', api(o.token, 'POST', `${GL}/${gl}/legacy-import`, { legacyIds: Array.from({ length: 200 }, (_, i) => `aud-ls-${i + 1}`) }));
+    expect(gli.json.created).toBe(200);
+    const glItems: string[] = [];
+    for (let i = 0; i < 100; i++) {
+      glItems.push((await m('POST /shopping-lists/:lid/items', `hasta 300 artículos`, api(o.token, 'POST', `${GL}/${gl}/items`, { name: `General ${i}`, productId: prods[i % PRODUCTS].id, qty: 1 + (i % 3), perDay: i % 5 === 0 }))).json.id);
+    }
+    expect((await api(o.token, 'POST', `${GL}/${gl}/items`, { name: 'Sobra' })).json.error.code).toBe('limit');
+    const GLV = 'lista de 300';
+    await m('PATCH /shopping-lists/:lid/items/:itemId', GLV, api(o.token, 'PATCH', `${GL}/${gl}/items/${glItems[1]}`, { qty: 4, note: 'nota', productId: prods[3].id, version: 1 }));
+    await m('DELETE /shopping-lists/:lid/items/:itemId', GLV, api(o.token, 'DELETE', `${GL}/${gl}/items/${glItems[2]}`));
+    await m('PATCH /shopping-lists/:lid', GLV, api(o.token, 'PATCH', `${GL}/${gl}`, { name: 'Básicos (editada)', version: 1 }));
+    const glGet = await m('GET /shopping-lists/:lid', `299 artículos, ${PRODUCTS} productos con 500 precios`, api(o.token, 'GET', `${GL}/${gl}`));
+    expect(glGet.json.items).toHaveLength(299);
+    // Viaje de destino con 150 artículos sembrados directamente (30 productos repetidos).
+    const dest = (await api(o.token, 'POST', '/api/trips', { name: 'Destino copia', skiDays: 4 })).json.trip.id;
+    await api(o.token, 'GET', `/api/trips/${dest}/shopping`);
+    await db.prepare(`WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 149)
+      INSERT INTO shopping_items (id, list_id, name, product_id, qty, created_by, created_at, updated_at)
+      SELECT 'aud-cp-' || i, (SELECT id FROM shopping_lists WHERE trip_id = ?1), 'Copia ' || i, json_extract(?2, '$[' || (i % 30) || ']'), 1, ?3, ?4, ?4 FROM n`)
+      .bind(dest, JSON.stringify(prods.map((p) => p.id)), o.id, Date.now()).run();
+    const cpv = await m('POST /shopping-lists/:lid/copy/preview', '299 artículos frente a 150 del viaje', api(o.token, 'POST', `${GL}/${gl}/copy/preview`, { tripId: dest }));
+    let room = 150;
+    const actions = cpv.json.rows.map((r: any) => ({ itemId: r.itemId, action: r.match ? (r.actions.includes('sum') ? 'sum' : 'skip') : room-- > 0 ? 'add' : 'skip' }));
+    const cp = await m('POST /shopping-lists/:lid/copy', '299 decisiones: 150 altas, sumas y omisiones', api(o.token, 'POST', `${GL}/${gl}/copy`, { tripId: dest, items: actions }));
+    expect(cp.json.added).toBe(150);
+    expect(cp.json.summed).toBeGreaterThan(0);
+    await m('DELETE /shopping-lists/:lid', '299 artículos, 150 copias en un viaje', api(o.token, 'DELETE', `${GL}/${gl}`));
+
     // ---------- Tickets ----------
     const meta = { storeLabel: 'Mercadona Sallent', channel: 'store', postalCode: '22640' };
     let rid = '';
