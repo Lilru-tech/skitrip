@@ -149,10 +149,11 @@ function detectChildren(t: string): number[] | null {
 
 function detectForfait(t: string, days: number | null): { included: ForfaitIncluded; warning: string | null } {
   const yes = days !== null || /forfait (incluido|incl\.)|con forfait|\+\s*forfait|skipass incluido/.test(t);
-  // «Solo alojamiento» es un régimen (sin comidas) cuando la tarjeta declara los días de forfait (Esquiades, 03/10/2026:
-  // «2 días de forfait en Grandvalira» + insignia «Solo alojamiento», en el mismo hueco que «Con 2 desayunos»).
-  // Sin días declarados sigue contando como «sin forfait» y, junto a otra mención de forfait, como contradicción.
-  const no = /sin forfait|forfait no incluido|no incluye (el )?forfait/.test(t) || (days === null && /s[oó]lo alojamiento/.test(t));
+  // «Solo alojamiento» es un régimen (sin comidas) cuando la tarjeta declara días Y estación del forfait (Esquiades,
+  // 03/10/2026: «2 días de forfait en Grandvalira» + insignia «Solo alojamiento», en el mismo hueco que «Con 2 desayunos»).
+  // Si no, sigue contando como «sin forfait» y, junto a otra mención de forfait, como contradicción.
+  const explicit = days !== null && detectForfaitArea(t) !== null;
+  const no = /sin forfait|forfait no incluido|no incluye (el )?forfait/.test(t) || (!explicit && /s[oó]lo alojamiento/.test(t));
   if (yes && no) return { included: 'unknown', warning: 'La tarjeta menciona forfait y «solo alojamiento/sin forfait» a la vez: forfait desconocido.' };
   return { included: yes ? 'yes' : no ? 'no' : 'unknown', warning: null };
 }

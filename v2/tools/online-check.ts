@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { offerCardsFixture, pageFixture } from '../src/core/parsers/fixture.ts';
 import { cardKey, parseOfferCardsHtml, type OfferCard } from '../src/core/parsers/offers.ts';
+import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, type EmptyReason } from '../src/core/page-outcome.ts';
 import { OFFICIAL_ADAPTERS } from '../src/core/parsers/official-snow.ts';
 import { esquiadesAdapter } from '../src/core/parsers/snow.ts';
 import { allowedByRobots, BlockedError, withBrowser } from './collectors/lib.ts';
@@ -66,7 +67,7 @@ function cardProfile(all: OfferCard[]) {
     conFechas: priced.filter((c) => c.checkIn).length, avisos: priced.filter((c) => c.warnings.length).length,
   };
 }
-function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample: unknown; profile?: unknown; note?: string } {
+function analyse(s: Src, html: string, refusedPaths: string[] = []): { verdict: Verdict; rows: number; sample: unknown; profile?: unknown; reason?: EmptyReason; note?: string } {
   const text = html.replace(/<[^>]+>/g, ' ');
   const verdict = (rows: number): Verdict => (rows > 0 ? 'extracted' : NO_DATA.test(text) ? 'no_data' : 'incompatible');
   if (OFFICIAL_ADAPTERS[s.adapter!]) { const r = OFFICIAL_ADAPTERS[s.adapter!].parse(html); return { verdict: verdict(r ? 1 : 0), rows: r ? 1 : 0, sample: r }; }
@@ -74,10 +75,12 @@ function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample
   if (s.adapter === 'esquiades-cards' || s.adapter === 'estiber-cards') {
     const all = parseOfferCardsHtml(html, s.adapter.startsWith('esquiades') ? 'esquiades' : 'estiber');
     const r = all.filter((c) => c.amount);
-    const v = verdict(r.length);
-    // Sin tarjetas y sin un «no hay ofertas» reconocible: un extracto del texto visible ayuda a decidir si es estructura nueva o un aviso propio.
-    const note = v === 'incompatible' ? incompatibleHint(html) : undefined;
-    return { verdict: v, rows: r.length, profile: cardProfile(all), sample: r.slice(0, 3).map((c) => ({ hotel: c.hotelName, amount: c.amount?.cents ?? null, unit: c.unit, priceKind: c.priceKind, checkIn: c.checkIn, nights: c.nights, warnings: c.warnings })), note };
+    // Mismo criterio que el recolector (core/page-outcome.ts) para no discrepar: ausencia confirmada y fuera de
+    // temporada son «sin datos legítimo»; robots y formato desconocido, incompatibles (con pistas para adaptarlo).
+    const reason = r.length ? undefined : classifyEmptyOffersPage(html, refusedPaths);
+    const v: Verdict = r.length ? 'extracted' : reason === 'no_offers' || reason === 'off_season' ? 'no_data' : 'incompatible';
+    const note = reason ? `${EMPTY_REASON_LABEL[reason]}${v === 'incompatible' ? ` · ${incompatibleHint(html)}` : ''}` : undefined;
+    return { verdict: v, rows: r.length, reason, profile: cardProfile(all), sample: r.slice(0, 3).map((c) => ({ hotel: c.hotelName, amount: c.amount?.cents ?? null, unit: c.unit, priceKind: c.priceKind, checkIn: c.checkIn, nights: c.nights, warnings: c.warnings })), note };
   }
   return { verdict: 'incompatible', rows: 0, sample: null, note: `sin analizador para ${s.adapter}` };
 }
@@ -92,7 +95,7 @@ function writeFixture(s: Src, html: string, at: string) {
   // Sin tarjetas reconocidas se guarda el cuerpo saneado: es justo lo que hace falta para adaptar el analizador.
   writeFileSync(`${fixturesDir}/${s.id}.${at.slice(0, 10)}.html`, out ?? pageFixture(html, { ...meta, note: 'El analizador no reconoció ninguna tarjeta: solo la zona principal de la página.' }, 80_000, true));
 }
-await withBrowser(async (load) => {
+await withBrowser(async (load, refused) => {
   for (const s of sources) {
     const at = new Date().toISOString();
     try {
@@ -100,7 +103,10 @@ await withBrowser(async (load) => {
       const html = await load(s.url);
       if (saveDir) writeFileSync(`${saveDir}/${s.id}.html`, html);
       if (fixturesDir) writeFixture(s, html, at);
-      log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'ok', ...analyse(s, html) });
+      const a = analyse(s, html, refused());
+      // El catálogo y la comprobación no deben discrepar en silencio: una fuente apartada que hoy extrae se señala.
+      const mismatch = a.verdict === 'extracted' && ['unsupported', 'broken', 'disabled'].includes(s.status) ? `el catálogo la tiene como «${s.status}» y hoy extrae: revisar el perfil antes de habilitarla` : undefined;
+      log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'ok', ...a, ...(mismatch ? { note: [mismatch, a.note].filter(Boolean).join(' · ') } : {}) });
     } catch (e) {
       log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: e instanceof BlockedError ? 'blocked' : 'error', error: String((e as Error).message).slice(0, 300) });
     }

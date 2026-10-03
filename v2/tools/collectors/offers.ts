@@ -12,7 +12,7 @@
  *    proveedor está prohibido en su robots.txt. Nunca se reinterpreta un precio de catálogo como precio de un escenario.
  */
 import { readFileSync } from 'node:fs';
-import { dedupeCards, parseOfferCardsHtml, type OfferCard, type Provider } from '../../src/core/parsers/offers.ts';
+import { dedupeCards, forfaitMatchesArea, parseOfferCardsHtml, type OfferCard, type Provider } from '../../src/core/parsers/offers.ts';
 import { chunkBy } from '../../src/core/chunk.ts';
 import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, EMPTY_REASON_STATUS, type EmptyReason } from '../../src/core/page-outcome.ts';
 import { cardToOffer } from './offer-payload.ts';
@@ -64,7 +64,11 @@ async function processSource(load: ((url: string) => Promise<string>) | null, s:
   try {
     if (!useFixtures && !(await allowedByRobots(s.url))) return done('unsupported', [], 'robots.txt no lo permite');
     const html = useFixtures ? readFileSync(fixtures[ad.provider]!, 'utf8') : await withRetry(() => load!(s.url));
-    const cards = dedupeCards(parseOfferCardsHtml(html, ad.provider)).filter((c) => c.amount);
+    const priced = dedupeCards(parseOfferCardsHtml(html, ad.provider)).filter((c) => c.amount);
+    // Destino: si la tarjeta nombra la estación del forfait y no es la de la fuente, no se guarda (otra estación).
+    const cards = priced.filter((c) => forfaitMatchesArea(c, [s.area_id, s.scope_area_id]) !== false);
+    if (priced.length && !cards.length) return done('error', [], `las ${priced.length} tarjetas son de otra estación (forfait en «${priced[0].forfaitArea}»)`);
+    if (priced.length > cards.length) console.error(`${s.id}: ${priced.length - cards.length} tarjetas descartadas por ser de otra estación`);
     if (!cards.length) {
       const reason = classifyEmptyOffersPage(html, useFixtures ? [] : refused());
       return done(EMPTY_REASON_STATUS[reason], [], EMPTY_REASON_LABEL[reason], reason);

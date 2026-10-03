@@ -1483,9 +1483,9 @@
     "offer_cards"
    ],
    "priority": 50,
-   "status": "unsupported",
-   "checked_on": "2026-10-01",
-   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "status": "unverified",
+   "checked_on": "2026-10-03",
+   "limitations": "03/10/2026: las tarjetas llegan en el HTML de la página sin ninguna petición prohibida por robots.txt (el 01/10/2026 se cargaban desde /*/hotel/offer/load, prohibido). Cada tarjeta dice hotel, pueblo, fechas y noches que elige el proveedor, días y estación del forfait, régimen («Solo alojamiento» o desayunos) y precio por persona: se guarda como precio orientativo «desde», nunca como precio de nuestras fechas. Las tarjetas de otra estación se descartan. El hotel puede estar en otro pueblo (p. ej. Sant Julià de Lòria para Grandvalira). Como máximo 60 por página.",
    "adapter": "esquiades-cards",
    "aliases": null
   },
@@ -1501,9 +1501,9 @@
     "offer_cards"
    ],
    "priority": 50,
-   "status": "unsupported",
-   "checked_on": "2026-10-01",
-   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "status": "unverified",
+   "checked_on": "2026-10-03",
+   "limitations": "03/10/2026: las tarjetas llegan en el HTML de la página sin ninguna petición prohibida por robots.txt (el 01/10/2026 se cargaban desde /*/hotel/offer/load, prohibido). Cada tarjeta dice hotel, pueblo, fechas y noches que elige el proveedor, días y estación del forfait, régimen («Solo alojamiento» o desayunos) y precio por persona: se guarda como precio orientativo «desde», nunca como precio de nuestras fechas. Las tarjetas de otra estación se descartan. El hotel puede estar en otro pueblo (p. ej. Sant Julià de Lòria para Grandvalira). Como máximo 60 por página.",
    "adapter": "esquiades-cards",
    "aliases": null
   },
@@ -1519,9 +1519,9 @@
     "offer_cards"
    ],
    "priority": 50,
-   "status": "unsupported",
-   "checked_on": "2026-10-01",
-   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "status": "unverified",
+   "checked_on": "2026-10-03",
+   "limitations": "03/10/2026: las tarjetas llegan en el HTML de la página sin ninguna petición prohibida por robots.txt (el 01/10/2026 se cargaban desde /*/hotel/offer/load, prohibido). Cada tarjeta dice hotel, pueblo, fechas y noches que elige el proveedor, días y estación del forfait, régimen («Solo alojamiento» o desayunos) y precio por persona: se guarda como precio orientativo «desde», nunca como precio de nuestras fechas. Las tarjetas de otra estación se descartan. El hotel puede estar en otro pueblo (p. ej. Sant Julià de Lòria para Grandvalira). Como máximo 60 por página.",
    "adapter": "esquiades-cards",
    "aliases": null
   },
@@ -1609,9 +1609,9 @@
     "offer_cards"
    ],
    "priority": 50,
-   "status": "unsupported",
-   "checked_on": "2026-10-01",
-   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "status": "unverified",
+   "checked_on": "2026-10-03",
+   "limitations": "03/10/2026: las tarjetas llegan en el HTML de la página sin ninguna petición prohibida por robots.txt (el 01/10/2026 se cargaban desde /*/hotel/offer/load, prohibido). Cada tarjeta dice hotel, pueblo, fechas y noches que elige el proveedor, días y estación del forfait, régimen («Solo alojamiento» o desayunos) y precio por persona: se guarda como precio orientativo «desde», nunca como precio de nuestras fechas. Las tarjetas de otra estación se descartan. El hotel puede estar en otro pueblo (p. ej. Sant Julià de Lòria para Grandvalira). Como máximo 60 por página.",
    "adapter": "esquiades-cards",
    "aliases": null
   },
@@ -1645,9 +1645,9 @@
     "offer_cards"
    ],
    "priority": 50,
-   "status": "unsupported",
-   "checked_on": "2026-10-01",
-   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "status": "unverified",
+   "checked_on": "2026-10-03",
+   "limitations": "03/10/2026: las tarjetas llegan en el HTML de la página sin ninguna petición prohibida por robots.txt (el 01/10/2026 se cargaban desde /*/hotel/offer/load, prohibido). Cada tarjeta dice hotel, pueblo, fechas y noches que elige el proveedor, días y estación del forfait, régimen («Solo alojamiento» o desayunos) y precio por persona: se guarda como precio orientativo «desde», nunca como precio de nuestras fechas. Las tarjetas de otra estación se descartan. El hotel puede estar en otro pueblo (p. ej. Sant Julià de Lòria para Grandvalira). Como máximo 60 por página.",
    "adapter": "esquiades-cards",
    "aliases": null
   },
@@ -1663,9 +1663,9 @@
     "offer_cards"
    ],
    "priority": 50,
-   "status": "unsupported",
-   "checked_on": "2026-10-01",
-   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "status": "unverified",
+   "checked_on": "2026-10-03",
+   "limitations": "03/10/2026: las tarjetas llegan en el HTML de la página sin ninguna petición prohibida por robots.txt (el 01/10/2026 se cargaban desde /*/hotel/offer/load, prohibido). Cada tarjeta dice hotel, pueblo, fechas y noches que elige el proveedor, días y estación del forfait, régimen («Solo alojamiento» o desayunos) y precio por persona: se guarda como precio orientativo «desde», nunca como precio de nuestras fechas. Las tarjetas de otra estación se descartan. El hotel puede estar en otro pueblo (p. ej. Sant Julià de Lòria para Grandvalira). Como máximo 60 por página.",
    "adapter": "esquiades-cards",
    "aliases": null
   },
