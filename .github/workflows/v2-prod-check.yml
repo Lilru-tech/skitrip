@@ -1,0 +1,52 @@
+# SkiTrip v2 · comprobar producción: recorrido real en https://lilru-tech.github.io/skitrip/ con la API y Firebase de
+# producción (registro, acceso, privacidad, amigos, viaje, calendario, compra y gastos).
+#
+# Es manual a propósito: crea 3 cuentas de prueba identificables (prod-check-<ejecución>-…@example.com). Al terminar
+# borra su viaje y sus cuentas de Firebase, pero el perfil en D1 queda y ocupa 3 de los MAX_PROFILES.
+# No usa secretos: solo la configuración pública (Variables). Las pruebas locales no cuentan como verificación de producción.
+name: v2 · comprobar producción
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v2-prod-check
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash   # bash --noprofile --norc -eo pipefail: un fallo dentro de una tubería falla el paso
+    working-directory: v2
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROD_URL: https://lilru-tech.github.io/skitrip/
+      PROD_API: ${{ vars.VITE_API_BASE_URL }}
+      FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configuración pública presente (sin ella no se ejecuta nada)
+        run: |
+          [ -n "$PROD_API" ] || { echo "::error::Falta la Variable VITE_API_BASE_URL"; exit 1; }
+          [ -n "$FIREBASE_API_KEY" ] || { echo "::error::Falta la Variable VITE_FIREBASE_API_KEY"; exit 1; }
+          echo "Web: $PROD_URL · API: $PROD_API · commit de las pruebas: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Recorrido en producción
+        run: |
+          status=0
+          npx playwright test -c playwright.prod.config.ts > prod-check.log 2>&1 || status=$?
+          cat prod-check.log
+          { echo '```'; grep -E '✓|✘|passed|failed|skipped|limpieza' prod-check.log || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          [ "$status" = 0 ] || exit "$status"
+          # Un recorrido omitido no cuenta como comprobado.
+          if grep -qE '[0-9]+ skipped' prod-check.log; then echo "::error::El recorrido se omitió"; exit 1; fi

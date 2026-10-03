@@ -63,13 +63,14 @@ En Firebase → Authentication → Settings → Dominios autorizados debe estar 
 
 ## Workflows
 
-Todos están en `.github/workflows/` de la raíz del repositorio. Todos ejecutan sus pasos con `shell: bash`, es decir, `bash -eo pipefail`: si falla un comando dentro de una tubería (`… | tee`), falla el paso. `npm run test:workflows` lo comprueba ejecutando los pasos críticos con un artefacto roto y otro válido.
+Todos están en `.github/workflows/` de la raíz del repositorio. Todos ejecutan sus pasos con `shell: bash`, es decir, `bash -eo pipefail`: si falla un comando dentro de una tubería (`… | tee`), falla el paso. Ojo: un `defaults.run` dentro de un job sustituye entero al del workflow, así que si fija `working-directory` debe repetir `shell: bash`. `npm run test:workflows` lo comprueba ejecutando los pasos críticos con un artefacto roto y otro válido.
 
 | Workflow | Cuándo | Qué hace |
 |---|---|---|
 | `v2-verify.yml` | Lo llaman los dos siguientes | Batería completa de UN commit: comprueba que ha sacado ese SHA, typecheck, Vitest, pruebas de los workflows (`npm run test:workflows`), build normal, build de Pages con verificación del artefacto y Playwright contra emuladores. Sin secretos y con permisos de lectura. |
 | `v2-ci.yml` | Push a ramas que no son `main` y PR | Llama a `v2-verify.yml`. Las PR se prueban con `pull_request` (sin secretos ni escritura), nunca con `pull_request_target`. |
 | `v2-release.yml` («v2 · publicar») | Push a `main` que toque `v2/`, `data/*.json` o los workflows, y manual (casillas «API» y «Pages») | Solo desde `main`. En orden y para el mismo SHA: **1)** `v2-verify.yml`; **2)** API, si toca: D1, marcador de Time Travel (sin marcador no migra), migraciones, catálogo e históricos, Worker, secreto de ingesta y comprobación en vivo (salud, CORS de Pages, otros orígenes rechazados, 401 sin token); **3)** Pages, si toca y la API terminó bien o no tocaba: build con las variables públicas, verificación del artefacto (solo `index.html`, `assets/` y `favicon.svg`), publicación **solo si la fuente de Pages es «GitHub Actions»**, y comprobación de la portada, el meta CSP, un recurso JS y las cabeceras reales. Un manual pasa por las mismas pruebas. |
+| `v2-prod-check.yml` («v2 · comprobar producción») | Manual | Recorrido real con Playwright en `https://lilru-tech.github.io/skitrip/` contra la API y Firebase de producción: alta y acceso, salida, privacidad (401 sin token, 403/404 a un tercero), amistad, calendario compartido, viaje e invitación, compra y gasto con saldos que suman 0, sin errores de CSP o CORS. Crea 3 cuentas `prod-check-<ejecución>-…@example.com`; al final borra su viaje y sus cuentas de Firebase, pero el perfil en D1 queda y ocupa 3 de los `MAX_PROFILES`. |
 | `v2-admin.yml` | Manual | Da o quita el rol de administración por **UID real de Firebase**. |
 | `v2-snow.yml` | Dos veces al día de diciembre a abril; los lunes el resto del año | Estado de pistas → `/api/ingest/snow`. |
 | `v2-offers.yml` | Diario de octubre a abril; los lunes el resto del año | Precios orientativos de catálogo → `/api/ingest/offers`. Las búsquedas por fechas quedan «no soportadas» porque el robots.txt de Esquiades (`/book/`) y el de Estiber (`/csp/online/`) prohíben su buscador. |
@@ -90,6 +91,7 @@ Cada paso dice cómo se comprueba. No se pasa al siguiente con el anterior en ro
 4. **Catálogo e históricos de la web antigua.** Los importa el mismo workflow del paso 3 (`tools/import-legacy.ts`): catálogo curado, histórico de km y de precios de hotel, con su copia íntegra y su hash. Es reejecutable y no duplica. El resumen muestra los totales y el commit de origen.
 5. **Publicar la interfaz.** En Settings → Pages → Build and deployment → Source, elige **GitHub Actions**. Lanza «v2 · publicar» con «Pages» marcado (y «API» también si quieres repetirla; el orden es siempre pruebas → API → Pages).
    - El job publica y comprueba `https://lilru-tech.github.io/skitrip/`: portada 200, CSP en meta y recursos bajo `/skitrip/assets/`.
+   - Lanza «v2 · comprobar producción»: es la verificación automática en la URL final.
    - Prueba a mano: alta, salida, acceso, restablecer contraseña (llega el correo de Firebase en español), crear un viaje y abrir un enlace de invitación en otra sesión.
 6. **Primer acceso y administración.**
    - Date de alta en `https://lilru-tech.github.io/skitrip/`.

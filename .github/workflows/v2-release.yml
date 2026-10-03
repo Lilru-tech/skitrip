@@ -83,6 +83,7 @@ jobs:
       url: ${{ steps.deploy.outputs.url }}
     defaults:
       run:
+        shell: bash   # el defaults del job sustituye al del workflow: hay que repetir bash (pipefail)
         working-directory: v2
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -167,6 +168,7 @@ jobs:
       pages: read
     defaults:
       run:
+        shell: bash   # el defaults del job sustituye al del workflow: hay que repetir bash (pipefail)
         working-directory: v2
     outputs:
       publish: ${{ steps.source.outputs.publish }}

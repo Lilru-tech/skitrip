@@ -3,6 +3,7 @@ dist/
 .wrangler/
 .dev.vars
 test-results/
+test-results-prod/
 playwright-report/
 *.log
 exports/
