@@ -32,6 +32,13 @@ describe('importadores de Sheets', () => {
     expect(m.warnings[0].message).toMatch(/sin equivalencia/);
   });
 
+  it('comentarios: «global» de la hoja real es un comentario general, no una estación desconocida', () => {
+    const m = mapComments('id,resort_id,text,user,created_at,updated_at\n120f,global,En Andorra no hay datos moviles,David,1765720759854,1765720759854\n', new Set(['grandvalira']));
+    expect(m.rows).toHaveLength(1);
+    expect(m.rows[0].resortId).toBe('global');
+    expect(m.warnings).toEqual([]);
+  });
+
   it('comentarios: sin publicar ni asignar, avisa de estaciones desconocidas y exige texto', () => {
     const m = mapComments('id,resort_id,user,text\n1,grandvalira,Ana,Hola\n2,inventada,Ana,Otro\n3,grandvalira,Ana,\n', new Set(['grandvalira']));
     expect(m.rows).toHaveLength(2);
