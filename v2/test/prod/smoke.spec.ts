@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 // Recorrido real en https://lilru-tech.github.io/skitrip/ contra la API y Firebase de producción.
@@ -10,7 +12,17 @@ const RUN = process.env.RUN_ID ?? `local${Date.now()}`;
 const IDT = (process.env.IDENTITY_URL ?? 'https://identitytoolkit.googleapis.com').replace(/\/$/, '');
 test.skip(!URL || !API || !KEY, 'Solo se ejecuta con PROD_URL, PROD_API y FIREBASE_API_KEY (Actions).');
 
-const user = (k: string) => ({ email: `prod-check-${RUN}-${k}@example.com`, password: `pc-${RUN}-${k}-Segura!`, alias: `pc${RUN.slice(-6)}${k}`.slice(0, 24) });
+const user = (k: string) => ({ email: `prod-check-${RUN}-${k}@example.com`, password: `pc-${RUN}-${k}-Segura!`, alias: `pc${RUN.replace(/\D/g, '').slice(-7)}${k}`.slice(0, 24) });
+
+// Manifiesto para la limpieza de D1 (tools/prod-cleanup.ts): se escribe ANTES de crear nada, con los correos exactos de
+// esta ejecución, y se completa con los UID de Firebase al final. Así un fallo a mitad también se limpia.
+const MANIFEST = process.env.CLEANUP_MANIFEST ?? path.resolve('test-results-prod/cleanup-manifest.json');
+const LETTERS = ['a', 'b', 'c'];
+function writeManifest(uids: Record<string, string> = {}) {
+  mkdirSync(path.dirname(MANIFEST), { recursive: true });
+  writeFileSync(MANIFEST, JSON.stringify({ runId: RUN, users: LETTERS.map((k) => ({ email: user(k).email, ...(uids[k] ? { uid: uids[k] } : {}) })) }, null, 2));
+}
+test.beforeAll(() => writeManifest());
 const go = (p: Page, hash: string) => p.goto(`${URL}#${hash}`);
 const toast = (p: Page, t: string | RegExp) => expect(p.locator('.toasts').getByText(t).first()).toBeVisible();
 
@@ -31,16 +43,22 @@ async function idToken(u: ReturnType<typeof user>) {
 }
 
 // Limpieza al final, pase o falle: se borra el viaje de prueba (con sus datos) y las cuentas de Firebase.
-// El perfil en D1 no tiene borrado por API: cada ejecución ocupa 3 de los MAX_PROFILES, con correo prod-check-….
+// El perfil en D1 no tiene borrado por API: lo borra después el workflow con tools/prod-cleanup.ts y el manifiesto.
 let createdTrip: string | undefined;
 test.afterAll(async () => {
   const tokens: (string | null)[] = [];
-  for (const u of ['a', 'b', 'c'].map(user)) {
+  const uids: Record<string, string> = {};
+  for (const k of LETTERS) {
+    const u = user(k);
     const r = await fetch(`${IDT}/v1/accounts:signInWithPassword?key=${KEY}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: u.email, password: u.password, returnSecureToken: true }),
     });
-    tokens.push(r.ok ? ((await r.json()) as { idToken: string }).idToken : null);
+    const j = r.ok ? ((await r.json()) as { idToken: string; localId: string }) : null;
+    tokens.push(j?.idToken ?? null);
+    if (j?.localId) uids[k] = j.localId;
   }
+  // Solo si están todos los UID: si no, la limpieza usa los correos exactos (no se mezcla UID y correo).
+  writeManifest(Object.keys(uids).length === LETTERS.length ? uids : {});
   if (createdTrip && tokens[0]) {
     const r = await fetch(`${API}/api/trips/${createdTrip}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens[0]}` } });
     console.log(`limpieza: viaje de prueba borrado → HTTP ${r.status}`);
