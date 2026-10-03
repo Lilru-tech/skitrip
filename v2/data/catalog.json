@@ -63,7 +63,7 @@
    "vibe_score": 8.5,
    "apres_score": 10,
    "official_url": null,
-   "notes": null,
+   "notes": "Km totales por revisar: el catálogo antiguo dice 166 km y la serie antigua de Esquiades (285 lecturas, 21/12/2025–03/10/2026) dice 173 km.",
    "legacy_id": "baqueira-beret"
   },
   {
@@ -79,7 +79,7 @@
    "vibe_score": 7,
    "apres_score": 4,
    "official_url": null,
-   "notes": null,
+   "notes": "Km totales por revisar: el catálogo antiguo dice 32 km y la serie antigua de Esquiades (285 lecturas) dice 27 km.",
    "legacy_id": "port-aine"
   },
   {
@@ -127,7 +127,7 @@
    "vibe_score": 6.5,
    "apres_score": 0,
    "official_url": null,
-   "notes": null,
+   "notes": "Km totales por revisar: el catálogo antiguo dice 50 km y la serie antigua de Esquiades, 42 km (277 lecturas) o 40 km (6). La web oficial no publica km totales (31 pistas).",
    "legacy_id": "port-del-comte"
   },
   {
@@ -367,7 +367,7 @@
    "vibe_score": 7.5,
    "apres_score": 6,
    "official_url": null,
-   "notes": "El histórico legacy «astun» (101 km) es la serie conjunta. Longitud legacy corregida de 0.50366 a -0.50366 (error de signo: situaba Astún a 85 km de Candanchú).",
+   "notes": "Km totales por revisar: 50 km del catálogo antiguo, sin fuente actual que los confirme. El histórico legacy «astun» (101 km) es la serie conjunta. Longitud legacy corregida de 0.50366 a -0.50366 (error de signo: situaba Astún a 85 km de Candanchú).",
    "legacy_id": "astun"
   },
   {

@@ -36,7 +36,10 @@ test('un gasto de 10 € entre 3 personas deja saldos que suman 0', async ({ pag
 
   const rows = page.getByRole('list', { name: 'Saldo por persona' }).getByRole('listitem');
   await expect(rows).toHaveCount(3);
-  const cents = (await rows.evaluateAll((els) => els.map((e) => Number((e as HTMLElement).dataset.balanceCents)))) as number[];
+  // El aviso sale antes de recargar los saldos (las filas ya existen a 0 por ser miembros): se espera al saldo nuevo.
+  const read = async () => (await rows.evaluateAll((els) => els.map((e) => Number((e as HTMLElement).dataset.balanceCents)))) as number[];
+  await expect.poll(async () => (await read()).filter((c) => c !== 0).length).toBeGreaterThan(0);
+  const cents = await read();
   expect(cents.reduce((a, b) => a + b, 0)).toBe(0);
   expect(cents.filter((c) => c > 0)).toHaveLength(1);
   expect(Math.max(...cents)).toBeGreaterThanOrEqual(666);

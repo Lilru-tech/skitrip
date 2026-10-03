@@ -9,6 +9,9 @@ import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { topLevel, type Catalog, type CatalogArea } from '../catalog';
 import { DEFAULT_WEIGHTS, scoreRows, type Weights } from '../../core/score';
+import { snowStateText } from '../../core/compare';
+import { routeProvenance } from '../../core/legacy';
+import type { LegacyComment } from '../catalog';
 
 type Mode = 'lodging' | 'lodging_forfait';
 /** Km que puntúan en «Nieve abierta ahora»: solo los del dato elegido si es reciente y fiable (snow.rank), nunca snow.openKm tal cual. */
@@ -81,6 +84,7 @@ export function ComparePage() {
             ))}
           </div>
           <p className="muted small">Un dato que falta puntúa 0 en ese criterio y se indica. El coste no puntúa en esta vista porque no hay presupuestos completos por estación. El après-ski se muestra, pero todavía no forma parte de la puntuación.</p>
+          <p className="muted small">La <strong>cobertura</strong> dice qué parte de la puntuación se calcula con datos disponibles. No indica si la estación está abierta: una estación cerrada con el cierre confirmado tiene el dato (0 km abiertos) y por eso puede tener cobertura completa.</p>
         </details>
         <p className="muted small">Las ofertas de cada estación se muestran en su ficha en modo «{MODALITY_LABEL[mode]}». Son orientativas, con fechas del proveedor.</p>
       </section>
@@ -116,7 +120,29 @@ export function ComparePage() {
           )}
         </>
       )}
+      <GeneralTips />
     </div>
+  );
+}
+
+/** Consejos generales del grupo (comentarios «global» de la hoja antigua publicados por administración). */
+function GeneralTips() {
+  const r = useResource(() => get<{ tips: LegacyComment[]; note: string }>('/api/public/tips').catch(() => ({ tips: [], note: '' })), []);
+  if (!r.data?.tips.length) return null;
+  return (
+    <section className="panel stack" aria-labelledby="cmp-tips">
+      <h2 id="cmp-tips">Consejos generales <span className="count">{r.data.tips.length}</span></h2>
+      <p className="small muted">{r.data.note}</p>
+      <ul className="comment-list" aria-label="Consejos generales de la hoja antigua">
+        {r.data.tips.map((c) => (
+          <li key={c.id} className="comment comment-legacy">
+            <p className="comment-meta">De la hoja antigua · escrito por «{c.legacyAuthorName ?? 'sin nombre'}»{c.dateText && ` · ${c.dateText}`}
+              {c.linkedAlias && <> · <span className="tag tag-quiet">vinculado a {c.linkedAlias}</span></>}</p>
+            <p className="comment-body">{c.body}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -126,6 +152,9 @@ function AreaCard({ area, members, mode, score, rank, origin }: {
 }) {
   const href = `/estaciones/${area.id}${mode === 'lodging_forfait' ? '?modalidad=lodging_forfait' : ''}`;
   const r = area.route;
+  const prov = r ? routeProvenance(r) : null;
+  // Cierre confirmado que sí puntúa (0 km): se explica junto a la cobertura en lugar de parecer un dato que falta.
+  const closed = !!area.snow && snowStateText(area.snow).closed && area.snow.rank?.excluded === null;
   return (
     <li className="area-card">
       <div className="area-card-head">
@@ -133,8 +162,8 @@ function AreaCard({ area, members, mode, score, rank, origin }: {
         <span className="tag tag-quiet">{AREA_KIND_LABEL[area.kind] ?? area.kind}</span>
       </div>
       <dl className="area-facts">
-        <div><dt>Carretera</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min`}{!r.validated && <span className="muted"> (sin validar)</span>}</> : `sin distancia desde ${origin === 'tarragona' ? 'Tarragona' : 'Sabadell'}`}</dd></div>
-        <div><dt>Nieve</dt><dd>{area.snow ? <><SnowKm open={area.snow.openKm} total={area.snow.totalKm} /> <Freshness state={area.snow.freshness} at={area.snow.observedAt} /><ReportDate date={area.snow.sourceDate} />
+        <div><dt>Carretera</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min`}{prov && <span className={`small ${prov.level === 'legacy' ? 'text-warn' : 'muted'}`}> · {prov.label}</span>}</> : `sin distancia desde ${origin === 'tarragona' ? 'Tarragona' : 'Sabadell'}`}</dd></div>
+        <div><dt>Nieve</dt><dd>{area.snow ? <><SnowKm open={area.snow.openKm} total={area.snow.totalKm} opStatus={area.snow.opStatus} /> <Freshness state={area.snow.freshness} at={area.snow.observedAt} /><ReportDate date={area.snow.sourceDate} />
           {area.snow.rank?.excluded && <span className="snow-excluded small">no puntúa: {area.snow.rank.label ?? area.snow.rank.excluded}</span>}</> : 'sin dato'}</dd></div>
         <div><dt>Km totales</dt><dd>{kmText(area.officialTotalKm)}{area.totalKmSource && area.officialTotalKm != null && <span className="muted small"> ({area.totalKmSource})</span>}</dd></div>
         <div><dt>Ambiente / après</dt><dd>{area.vibe ?? 'sin dato'} / {area.apres ?? 'sin dato'} <span className="muted small">(0–10, subjetivo)</span></dd></div>
@@ -147,14 +176,15 @@ function AreaCard({ area, members, mode, score, rank, origin }: {
           <span className="muted">Incluye:</span>{' '}
           {members.map((m, i) => (
             <span key={m.id}>{i > 0 && ', '}<Link to={`/estaciones/${m.id}${mode === 'lodging_forfait' ? '?modalidad=lodging_forfait' : ''}`}>{m.name}</Link>
-              {m.snow && <span className="muted"> ({m.snow.openKm ?? 'sin dato'}/{m.snow.totalKm ?? 'sin dato'} km)</span>}</span>
+              {m.snow && <span className="muted"> ({snowStateText(m.snow).closed ? (m.snow.opStatus === 'closed_confirmed' ? 'cerrada' : 'fuera de temporada') : `${m.snow.openKm ?? 'sin dato'}/${m.snow.totalKm ?? 'sin dato'} km`})</span>}</span>
           ))}
           <span className="muted"> · cuentan dentro del dominio, no por separado.</span>
         </div>
       )}
       {score && (
         <p className="score-line">
-          <strong>Puntuación {score.score.toLocaleString('es-ES')}</strong> · cobertura {Math.round(score.coverage * 100)} %
+          <strong>Puntuación {score.score.toLocaleString('es-ES')}</strong> · cobertura {Math.round(score.coverage * 100)} % <span className="muted small">de los criterios con dato</span>
+          {closed && <span className="tag tag-quiet">Cerrada: «nieve abierta ahora» puntúa 0 km</span>}
           {score.missing.length > 0 && <span className="tag tag-warn">Falta: {score.missing.map((k) => WEIGHT_LABEL[k].toLowerCase()).join(', ')} (puntúa 0)</span>}
         </p>
       )}
@@ -162,6 +192,7 @@ function AreaCard({ area, members, mode, score, rank, origin }: {
   );
 }
 
-export function SnowKm({ open, total }: { open: number | null; total: number | null }) {
-  return <span>{open == null ? 'sin dato' : `${open.toLocaleString('es-ES')} km`} abiertos de {total == null ? 'sin dato' : `${total.toLocaleString('es-ES')} km`}</span>;
+/** Km abiertos de totales; con el estado, un cierre confirmado se dice como tal (no «sin dato abiertos de sin dato»). */
+export function SnowKm({ open, total, opStatus }: { open: number | null; total: number | null; opStatus?: string }) {
+  return <span>{snowStateText({ opStatus: opStatus ?? 'unknown', openKm: open, totalKm: total }).text}</span>;
 }

@@ -3,6 +3,7 @@
 // Solo alimentan tablas legacy_*: nada se publica ni se asigna a una cuenta sin una acción administrativa.
 import { csvRecords } from './csv';
 import { isValidDate } from './dates';
+import { GENERAL_SCOPE, isGeneralScope, normName } from './legacy';
 
 export type SheetKind = 'comments' | 'availability' | 'shopping';
 export interface RowIssue { line: number; message: string }
@@ -53,11 +54,14 @@ function requireHeaders(headers: string[], groups: string[][], errors: RowIssue[
 }
 
 // ---------- Comentarios ----------
-/** Ámbito de los comentarios generales en la hoja antigua. */
-export const GENERAL_SCOPE = 'global';
+export { GENERAL_SCOPE };
 export interface LegacyComment { legacyId: string | null; resortId: string | null; author: string | null; body: string; createdText: string | null }
 
-export function mapComments(csv: string, knownResortIds: ReadonlySet<string>): Mapped<LegacyComment> {
+/**
+ * `resortsByName` (nombre normalizado → identificador) permite escribir la estación por su nombre («Grandvalira»,
+ * «Port del Comte») en lugar del identificador interno. «general», «global» o «consejo general» = consejo general.
+ */
+export function mapComments(csv: string, knownResortIds: ReadonlySet<string>, resortsByName: ReadonlyMap<string, string> = new Map()): Mapped<LegacyComment> {
   const { headers, records } = csvRecords(csv);
   const errors: RowIssue[] = [], warnings: RowIssue[] = [];
   if (!requireHeaders(headers, [['text', 'texto', 'comentario']], errors)) return { rows: [], errors, warnings, duplicates: 0, headers };
@@ -67,9 +71,10 @@ export function mapComments(csv: string, knownResortIds: ReadonlySet<string>): M
     const body = pick(r, 'text', 'texto', 'comentario');
     if (!body) { errors.push({ line, message: 'comentario vacío' }); return; }
     if (body.length > 4000) { errors.push({ line, message: 'comentario de más de 4000 caracteres' }); return; }
-    const resortId = pick(r, 'resort_id', 'resort', 'estacion') || null;
+    const rawResort = pick(r, 'resort_id', 'resort', 'estacion') || null;
     // La hoja antigua usaba «global» para los comentarios generales (consejos del viaje), no para una estación.
-    if (resortId && resortId !== GENERAL_SCOPE && !knownResortIds.has(resortId)) warnings.push({ line, message: `estación legacy desconocida «${resortId}»: se guarda sin ámbito verificado` });
+    const resortId = !rawResort ? null : isGeneralScope(rawResort) ? GENERAL_SCOPE : knownResortIds.has(rawResort) ? rawResort : resortsByName.get(normName(rawResort)) ?? rawResort;
+    if (resortId && resortId !== GENERAL_SCOPE && !knownResortIds.has(resortId)) warnings.push({ line, message: `estación desconocida «${rawResort}»: se guarda sin estación verificada (escribe el nombre como en Comparar o «general»)` });
     const author = pick(r, 'user', 'usuario', 'autor', 'author', 'name') || null;
     const createdText = pick(r, 'created', 'created_at', 'fecha', 'ts', 'timestamp', 'updated') || null;
     const legacyId = pick(r, 'id') || null;

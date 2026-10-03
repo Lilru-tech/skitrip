@@ -28,6 +28,7 @@ export interface AreaOffer {
   /** Lo visible: 'unknown' nunca se presenta como «solo alojamiento». */
   forfaitIncluded: 'yes' | 'no' | 'unknown'; rooms: number | null; childrenAges: number[] | null; warnings: string[];
 }
+export interface AreaRoute extends Route { originId: string; originName: string }
 export interface LegacyComment { id: string; body: string; legacyAuthorName: string | null; dateText: string | null; linkedAlias: string | null }
 export interface AreaComment { id: string; body: string; created_at: number; updated_at: number; author_id: string; author_alias: string }
 export interface AreaDetail {
@@ -39,6 +40,7 @@ export interface AreaDetail {
   comments: AreaComment[];
   legacyComments?: LegacyComment[];
   legacyCommentsNote?: string;
+  routes?: AreaRoute[];
   offers: { note: string; items: AreaOffer[] };
 }
 

@@ -1,0 +1,43 @@
+/* Primeros pasos, incorporación guiada de la hoja antigua y jerarquía de las fichas. Mismos tokens: verde pino discreto. */
+
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2) var(--space-3); min-width: 0; }
+.panel-head > * { min-width: 0; overflow-wrap: anywhere; }
+
+/* ---------- Pasos numerados ---------- */
+.steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); counter-reset: step; }
+.step { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: start; }
+.step-mark { grid-row: span 2; width: 2rem; height: 2rem; border-radius: 999px; display: grid; place-content: center; font-weight: 700; font-size: 0.9rem;
+  border: 1.5px solid var(--border-strong); color: var(--text-muted); background: var(--surface); }
+.step.is-done .step-mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.step-title { font-weight: 650; overflow-wrap: anywhere; }
+.step.is-done .step-title { color: var(--text-muted); }
+.step-body { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; color: var(--text-muted); font-size: 0.92rem; min-width: 0; }
+.step-body > p { flex: 1 1 220px; min-width: 0; }
+
+/* ---------- Resumen conservado / pendiente / incorporado ---------- */
+.tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+.tally-item { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3); background: var(--bg); min-width: 0; }
+.tally-item dt { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.tally-item dd { margin: 0; font-size: 1.5rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tally-item dd span { display: block; font-size: 0.82rem; font-weight: 400; color: var(--text-muted); overflow-wrap: anywhere; }
+.tally-item.is-pending { border-color: #e2cf9a; background: var(--warn-soft); }
+.tally-item.is-pending dd { color: var(--warn-text); }
+.tally-item.is-done { border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); background: var(--ok-soft); }
+
+/* ---------- Fichas: lo actual primero ---------- */
+.status-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); }
+.status-main { font-size: 1.25rem; font-weight: 650; overflow-wrap: anywhere; }
+.status-main.is-closed { color: var(--st-busy-fg); }
+.route-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.route-list li { min-width: 0; overflow-wrap: anywhere; }
+.tag-legacy { background: var(--surface-2); color: var(--warn-text); }
+.fold { border: 1px solid var(--border); border-radius: var(--radius-l); background: var(--surface); padding: var(--space-3) var(--space-4); }
+.fold > summary { cursor: pointer; min-height: var(--touch); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-weight: 600; }
+.fold[open] > summary { margin-bottom: var(--space-3); }
+.fold > summary .muted { font-weight: 400; }
+.fold .fold-body { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+
+/* ---------- Selección de comentarios ---------- */
+.select-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.select-row input[type="checkbox"] { width: 22px; height: 22px; margin-top: 2px; }
+.selection-bar { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); }
