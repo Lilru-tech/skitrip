@@ -924,7 +924,7 @@
    "priority": 50,
    "status": "unverified",
    "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Masella no tiene fuente oficial con datos: su web solo enlaza la predicción de meteo.cat y un mapa de pistas (sondeo del 03/10/2026).",
    "adapter": "esquiades-status",
    "aliases": [
     "masella"
@@ -948,7 +948,7 @@
    "priority": 50,
    "status": "unverified",
    "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. La web oficial baqueira.es responde 403 a los navegadores automáticos (03/10/2026): no se elude.",
    "adapter": "esquiades-status",
    "aliases": [
     "baqueira beret",
@@ -1328,20 +1328,25 @@
    "scope": "la-molina",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
-   "method": "playwright",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/15/status",
+   "method": "json",
    "fields": [
     "open_km",
     "total_km",
     "open_runs",
     "total_runs",
-    "op_status"
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-01",
-   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
-   "adapter": null,
+   "checked_on": "2026-10-03",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 15, que debe devolver el nombre «La Molina»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "adapter": "pirineu365-la-molina",
    "aliases": null
   },
   {
@@ -1389,20 +1394,25 @@
    "scope": "vall-de-nuria",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
-   "method": "playwright",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/16/status",
+   "method": "json",
    "fields": [
     "open_km",
     "total_km",
     "open_runs",
     "total_runs",
-    "op_status"
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-01",
-   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
-   "adapter": null,
+   "checked_on": "2026-10-03",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 16, que debe devolver el nombre «Vall de Núria»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "adapter": "pirineu365-vall-de-nuria",
    "aliases": null
   },
   {
@@ -1411,20 +1421,25 @@
    "scope": "espot-esqui",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
-   "method": "playwright",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/18/status",
+   "method": "json",
    "fields": [
     "open_km",
     "total_km",
     "open_runs",
     "total_runs",
-    "op_status"
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-01",
-   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
-   "adapter": null,
+   "checked_on": "2026-10-03",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 18, que debe devolver el nombre «Espot»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "adapter": "pirineu365-espot",
    "aliases": null
   },
   {
@@ -1444,8 +1459,8 @@
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-01",
-   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "checked_on": "2026-10-03",
+   "limitations": "FGC/Pirineu365. La API pública (api.pirineu365.cat/api/v1/web/stations/<n>/status) tiene más estaciones (17, 19 y 20), pero el 03/10/2026 devuelven el nombre vacío y no se puede saber cuál es esta: sin adaptador hasta identificarla en temporada. Mientras tanto se usa el agregador.",
    "adapter": null,
    "aliases": null
   },
@@ -1466,8 +1481,8 @@
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-01",
-   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "checked_on": "2026-10-03",
+   "limitations": "FGC/Pirineu365. La API pública (api.pirineu365.cat/api/v1/web/stations/<n>/status) tiene más estaciones (17, 19 y 20), pero el 03/10/2026 devuelven el nombre vacío y no se puede saber cuál es esta: sin adaptador hasta identificarla en temporada. Mientras tanto se usa el agregador.",
    "adapter": null,
    "aliases": null
   },
