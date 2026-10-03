@@ -65,7 +65,7 @@ export const SOURCE_FIELD_LABEL: Record<string, string> = {
   op_status: 'estado de apertura', open_km: 'km abiertos', total_km: 'km totales', open_runs: 'pistas abiertas', total_runs: 'pistas totales',
   open_lifts: 'remontes abiertos', total_lifts: 'remontes totales', depth_min_cm: 'espesor mínimo', depth_max_cm: 'espesor máximo', source_date: 'fecha del parte', offer_cards: 'tarjetas de ofertas', price: 'precio',
 };
-export const SOURCE_METHOD_LABEL: Record<string, string> = { html: 'lectura de la página', playwright: 'navegador automático', manual: 'a mano' };
+export const SOURCE_METHOD_LABEL: Record<string, string> = { html: 'lectura de la página', json: 'API pública de la fuente', playwright: 'navegador automático', manual: 'a mano' };
 export const SOURCE_KIND_LABEL: Record<string, string> = { snow: 'nieve', offers: 'ofertas', prices: 'precios', lodging: 'alojamiento' };
 export const RUN_STATUS_LABEL: Record<string, string> = { ok: 'correcta', empty: 'sin datos', error: 'error', blocked: 'bloqueada', unsupported: 'no soportada' };
 /** Motivo de una captura sin datos (core/page-outcome.ts), en palabras. */
