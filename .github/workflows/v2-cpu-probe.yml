@@ -1,0 +1,95 @@
+# SkiTrip v2 · medir CPU: medición controlada en producción para saber qué rutas y volúmenes consumen CPU.
+#
+#   1) Minutos con más CPU de las últimas 72 h (analítica gratuita de Cloudflare; no tiene ruta, sirve para cruzar
+#      con la hora de cada actividad).
+#   2) `wrangler tail` abierto mientras tools/cpu-probe.ts lanza grupos de peticiones reales, uno por ruta y separado
+#      en el tiempo, con dos cuentas de prueba prod-check-<ejecución>-{p,q}. Opcionalmente, también los recolectores
+#      de nieve y ofertas (ingesta real, la misma que hacen sus workflows).
+#   3) Tabla por ruta: CPU de cada petición (tail) y percentiles por ventana (analítica).
+#   4) Limpieza de D1 de las cuentas de prueba (pase o falle) y borrado del registro del tail del disco del runner.
+#
+# El registro del tail puede contener cabeceras: no se imprime ni se sube; solo se imprimen cifras por ruta.
+name: v2 · medir CPU
+on:
+  workflow_dispatch:
+    inputs:
+      collectors:
+        description: 'Medir también la ingesta real de los recolectores (nieve y ofertas)'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: v2-prod-check
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash   # bash --noprofile --norc -eo pipefail: un fallo dentro de una tubería falla el paso
+    working-directory: v2
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+      PROD_API: ${{ vars.VITE_API_BASE_URL }}
+      FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+      SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL }}
+      SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
+      RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      CLEANUP_MANIFEST: ${{ runner.temp }}/cleanup-manifest.json
+      TAIL_LOG: ${{ runner.temp }}/tail.jsonl
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configuración presente (sin ella no cuenta como medido)
+        run: for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID FIREBASE_PROJECT_ID PROD_API FIREBASE_API_KEY SKITRIP_INGEST_TOKEN; do [ -n "${!v}" ] || { echo "::error::Falta $v"; exit 1; }; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - if: inputs.collectors
+        run: npx playwright install --with-deps chromium
+      - name: Configuración de wrangler con la D1 real (solo en el disco del runner)
+        run: |
+          id=$(npx wrangler d1 list --json | node -e 'const l=JSON.parse(require("fs").readFileSync(0,"utf8"));const d=l.find(x=>x.name==="skitrip");process.stdout.write(d?d.uuid:"")')
+          [ -n "$id" ] || { echo "::error::No existe la D1 «skitrip»"; exit 1; }
+          node tools/deploy-config.mjs "$id" "$FIREBASE_PROJECT_ID"
+          cp wrangler.deploy.jsonc wrangler.jsonc
+      - name: Minutos con más CPU (72 h, antes de medir)
+        run: npx tsx tools/cpu-summary.ts history 72 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Medición con wrangler tail abierto
+        run: |
+          npx wrangler tail skitrip --format json > "$TAIL_LOG" 2> "$RUNNER_TEMP/tail.err" &
+          tail_pid=$!
+          sleep 20
+          status=0
+          npx tsx tools/cpu-probe.ts || status=$?
+          if [ "${{ inputs.collectors }}" = "true" ]; then
+            npx tsx tools/collectors/snow.ts > "$RUNNER_TEMP/snow.log" 2>&1 || echo "::warning::El recolector de nieve terminó con error"
+            npx tsx tools/collectors/offers.ts > "$RUNNER_TEMP/offers.log" 2>&1 || echo "::warning::El recolector de ofertas terminó con error"
+            tail -n 5 "$RUNNER_TEMP/snow.log" "$RUNNER_TEMP/offers.log"
+          fi
+          sleep 10
+          kill "$tail_pid" || true
+          grep -v -i 'authorization\|token' "$RUNNER_TEMP/tail.err" | tail -n 5 || true
+          exit "$status"
+      - name: Tabla por ruta (espera a que la analítica se actualice)
+        if: always()
+        run: |
+          sleep 120
+          [ -f cpu-windows.json ] || { echo "::error::No hay ventanas de medición"; exit 1; }
+          npx tsx tools/cpu-summary.ts probe cpu-windows.json "$TAIL_LOG" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Limpieza de D1 de las cuentas de prueba (pase o falle)
+        if: always()
+        run: |
+          if [ -f "$CLEANUP_MANIFEST" ]; then args=(--manifest "$CLEANUP_MANIFEST"); else args=(--run "$RUN_ID" --letters p,q); fi
+          npx tsx tools/prod-cleanup.ts "${args[@]}" --remote 2>&1 | grep -v 'Proxy environment' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Borrar el registro del tail
+        if: always()
+        run: rm -f "$TAIL_LOG" "$RUNNER_TEMP/tail.err" "$RUNNER_TEMP"/snow.log "$RUNNER_TEMP"/offers.log

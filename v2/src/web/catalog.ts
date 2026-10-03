@@ -20,7 +20,7 @@ export interface Catalog { origin: string; origins: { id: string; name: string }
 export interface SourceRow {
   id: string; area_id: string; area_name?: string; scope_area_id: string; kind: string; provider: string; url: string; method: string; fields: string[];
   priority: number; status: string; checked_on: string | null; limitations: string | null; adapter: string | null;
-  last_attempt_at: number | null; last_success_at: number | null; last_status: string | null; last_error?: string | null;
+  last_attempt_at: number | null; last_success_at: number | null; last_status: string | null; reason?: string | null; last_error?: string | null;
 }
 export interface AreaOffer {
   id: string; provider_id: string; hotel_name_raw: string | null; modality: 'lodging' | 'lodging_forfait'; board: string | null; nights: number | null; forfait_days: number | null;

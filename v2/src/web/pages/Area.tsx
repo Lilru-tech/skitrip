@@ -6,7 +6,7 @@ import { get } from '../api';
 import { Freshness, ReportDate } from '../components/Badges';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
-import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, instant, kmText, numDate, OP_STATUS_LABEL, PRICE_KIND_LABEL, PROVIDER_LABEL, RUN_STATUS_LABEL, SNOW_QUALITY_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
+import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, healthText, instant, kmText, numDate, OP_STATUS_LABEL, PRICE_KIND_LABEL, PROVIDER_LABEL, RUN_STATUS_LABEL, SNOW_QUALITY_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { useSession } from '../session';
@@ -270,7 +270,7 @@ function RoutesList({ routes }: { routes: AreaRoute[] }) {
 
 /** Fuentes y diagnóstico, plegados: proveedor, tipo, estado, última lectura correcta y el error si lo hubo. */
 function SourcesFold({ sources }: { sources: SourceRow[] }) {
-  const bad = sources.filter((s) => s.last_status && s.last_status !== 'ok').length;
+  const bad = sources.filter((s) => s.last_status && s.last_status !== 'ok' && s.reason !== 'no_offers' && s.reason !== 'off_season').length;
   return (
     <details className="fold">
       <summary>Fuentes y diagnóstico <span className="muted">· {sources.length === 0 ? 'sin fuentes' : `${sources.length} ${sources.length === 1 ? 'fuente' : 'fuentes'}`}{bad > 0 && `, ${bad} con problemas`}</span></summary>
@@ -282,7 +282,7 @@ function SourcesFold({ sources }: { sources: SourceRow[] }) {
                 <span className="list-main"><strong>{PROVIDER_LABEL[s.provider] ?? s.provider}</strong> · {SOURCE_KIND_LABEL[s.kind] ?? s.kind} · {SOURCE_STATUS_LABEL[s.status] ?? s.status}{s.checked_on && ` · revisada el ${numDate(s.checked_on)}`}{s.limitations && <span className="muted small"> · {s.limitations}</span>}</span>
                 <span className="small">
                   Última lectura correcta: {s.last_success_at ? instant(s.last_success_at) : 'nunca'}
-                  {s.last_status && s.last_status !== 'ok' && <> · <span className="text-bad">{RUN_STATUS_LABEL[s.last_status] ?? s.last_status}{s.last_error && `: ${s.last_error}`}</span></>}
+                  {s.last_status && s.last_status !== 'ok' && <> · <span className={s.reason === 'no_offers' || s.reason === 'off_season' ? 'muted' : 'text-bad'}>{healthText(s.last_status, s.reason)}{!s.reason && s.last_error && `: ${s.last_error}`}</span></>}
                 </span>
               </li>
             ))}

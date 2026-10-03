@@ -1,56 +1,15 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { API, cleanupAccounts, CONFIGURED, go, idToken, IDT, KEY, recordAccounts, RUN, signUpUi as signUp, toast, user } from './accounts';
 
 // Recorrido real en https://lilru-tech.github.io/skitrip/ contra la API y Firebase de producción.
-// Requiere PROD_URL, PROD_API, FIREBASE_API_KEY (pública) y RUN_ID. Las cuentas son de prueba y llevan el id de ejecución.
-const URL = (process.env.PROD_URL ?? '').replace(/\/?$/, '/');
-const API = (process.env.PROD_API ?? '').replace(/\/$/, '');
-const KEY = process.env.FIREBASE_API_KEY ?? '';
-const RUN = process.env.RUN_ID ?? `local${Date.now()}`;
-// Solo para ensayarla en local contra el emulador; en producción es la API real de Firebase.
-const IDT = (process.env.IDENTITY_URL ?? 'https://identitytoolkit.googleapis.com').replace(/\/$/, '');
-test.skip(!URL || !API || !KEY, 'Solo se ejecuta con PROD_URL, PROD_API y FIREBASE_API_KEY (Actions).');
+// Las cuentas son de prueba y llevan el id de ejecución (ver accounts.ts).
+test.skip(!CONFIGURED, 'Solo se ejecuta con PROD_URL, PROD_API y FIREBASE_API_KEY (Actions).');
 
-const user = (k: string) => ({ email: `prod-check-${RUN}-${k}@example.com`, password: `pc-${RUN}-${k}-Segura!`, alias: `pc${RUN.slice(-6)}${k}`.slice(0, 24) });
-const go = (p: Page, hash: string) => p.goto(`${URL}#${hash}`);
-const toast = (p: Page, t: string | RegExp) => expect(p.locator('.toasts').getByText(t).first()).toBeVisible();
-
-async function signUp(p: Page, u: ReturnType<typeof user>) {
-  await go(p, '/registro');
-  await p.getByLabel('Email').fill(u.email);
-  await p.getByLabel('Contraseña').fill(u.password);
-  await p.getByLabel('Alias público').fill(u.alias);
-  await p.getByRole('button', { name: 'Crear cuenta' }).click();
-  await expect(p.getByRole('heading', { level: 1, name: 'Mis viajes' })).toBeVisible();
-}
-async function idToken(u: ReturnType<typeof user>) {
-  const r = await fetch(`${IDT}/v1/accounts:signInWithPassword?key=${KEY}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: u.email, password: u.password, returnSecureToken: true }),
-  });
-  expect(r.ok, `acceso de ${u.alias} en Firebase`).toBeTruthy();
-  return ((await r.json()) as { idToken: string }).idToken;
-}
-
-// Limpieza al final, pase o falle: se borra el viaje de prueba (con sus datos) y las cuentas de Firebase.
-// El perfil en D1 no tiene borrado por API: cada ejecución ocupa 3 de los MAX_PROFILES, con correo prod-check-….
+const LETTERS = ['a', 'b', 'c'];
+test.beforeAll(() => recordAccounts(LETTERS));
+// Limpieza al final, pase o falle: viaje de prueba, cuentas de Firebase y UID al manifiesto (D1 lo limpia el workflow).
 let createdTrip: string | undefined;
-test.afterAll(async () => {
-  const tokens: (string | null)[] = [];
-  for (const u of ['a', 'b', 'c'].map(user)) {
-    const r = await fetch(`${IDT}/v1/accounts:signInWithPassword?key=${KEY}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: u.email, password: u.password, returnSecureToken: true }),
-    });
-    tokens.push(r.ok ? ((await r.json()) as { idToken: string }).idToken : null);
-  }
-  if (createdTrip && tokens[0]) {
-    const r = await fetch(`${API}/api/trips/${createdTrip}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens[0]}` } });
-    console.log(`limpieza: viaje de prueba borrado → HTTP ${r.status}`);
-  }
-  for (const t of tokens) {
-    if (!t) continue;
-    const r = await fetch(`${IDT}/v1/accounts:delete?key=${KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: t }) });
-    console.log(`limpieza: cuenta de prueba de Firebase borrada → HTTP ${r.status}`);
-  }
-});
+test.afterAll(async () => { await cleanupAccounts(LETTERS, { a: createdTrip ? [createdTrip] : [] }); });
 
 test('producción: registro, acceso, privacidad, amigos, viaje, calendario, compra y gastos', async ({ browser }) => {
   const [a, b, c] = ['a', 'b', 'c'].map(user);

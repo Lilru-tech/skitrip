@@ -5,14 +5,14 @@ import { IDENTITY_WARNING, UserPicker, type UserHit } from '../components/UserPi
 import { CsvHelp, LegacyCommentsReview, LegacyOverview } from './AdminLegacy';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { instant, plural, RUN_STATUS_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL } from '../format';
+import { healthText, instant, plural, RUN_STATUS_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { Link, usePageTitle } from '../router';
 import { useProfile } from '../session';
 
 interface Health {
   runs: { id: string; pipeline: string; started_at: number; finished_at: number | null; expected: number; ok: number; failed: number; unsupported: number; rows_written: number; status: string; error_summary: string | null; runner: string | null }[];
-  sources: { id: string; area_id: string; kind: string; provider: string; status: string; last_attempt_at: number | null; last_success_at: number | null; last_status: string | null; last_error: string | null; consecutive_fail: number | null }[];
+  sources: { id: string; area_id: string; kind: string; provider: string; status: string; last_attempt_at: number | null; last_success_at: number | null; last_status: string | null; reason: string | null; last_error: string | null; consecutive_fail: number | null }[];
   coverage: { areaId: string; lastSnow: number | null; snowFreshness: 'fresh' | 'stale' | 'never' }[];
   users: { n: number; blocked: number | null };
   maxProfiles: number;
@@ -56,7 +56,7 @@ function HealthPanel() {
   if (r.loading && !r.data) return <section className="panel"><Loading /></section>;
   if (r.error && !r.data) return <section className="panel"><ErrorState message={r.error} onRetry={r.reload} /></section>;
   const h = r.data!;
-  const bad = h.sources.filter((s) => s.last_status && s.last_status !== 'ok');
+  const bad = h.sources.filter((s) => s.last_status && s.last_status !== 'ok' && s.reason !== 'no_offers' && s.reason !== 'off_season');
   return (
     <>
       <section className="panel stack" aria-labelledby="adm-health">
@@ -70,7 +70,7 @@ function HealthPanel() {
               {h.sources.map((s) => (
                 <tr key={s.id}>
                   <th scope="row">{s.area_id} · {SOURCE_KIND_LABEL[s.kind] ?? s.kind} · {s.provider}</th>
-                  <td>{SOURCE_STATUS_LABEL[s.status] ?? s.status}{s.last_status && ` / ${RUN_LABEL[s.last_status] ?? s.last_status}`}{s.consecutive_fail ? ` (${s.consecutive_fail} fallos seguidos)` : ''}</td>
+                  <td>{SOURCE_STATUS_LABEL[s.status] ?? s.status}{s.last_status && ` / ${s.reason ? healthText(s.last_status, s.reason) : RUN_LABEL[s.last_status] ?? s.last_status}`}{s.consecutive_fail ? ` (${s.consecutive_fail} fallos seguidos)` : ''}</td>
                   <td>{s.last_success_at ? instant(s.last_success_at) : 'nunca'}</td>
                   <td>{s.last_attempt_at ? instant(s.last_attempt_at) : 'nunca'}</td>
                   <td className="mono">{s.last_error ?? '—'}</td>

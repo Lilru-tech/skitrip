@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   dedupeCards,
+  forfaitMatchesArea,
   parseOfferCardsHtml,
   perNightFromStay,
   summarize,
@@ -13,7 +14,7 @@ import estMolina from '../../fixtures/parsers/estiber-la-molina.reconstruido.htm
 const card = (over: Partial<OfferCard>): OfferCard => ({
   provider: 'esquiades', providerOfferId: null, hotelName: 'Hotel X', board: 'half_board', nights: 2, forfaitDays: 1,
   adults: 2, childrenAges: null, rooms: null, checkIn: null, checkOut: null, forfaitIncluded: 'yes', cancellation: null, priceText: '100 €',
-  amount: { cents: 10000, currency: 'EUR' }, unit: 'per_person', priceKind: 'advertised_from', saysFrom: false, ambiguousPrice: false, strikethroughIgnored: false, url: null, warnings: [], ...over,
+  amount: { cents: 10000, currency: 'EUR' }, unit: 'per_person', priceKind: 'advertised_from', saysFrom: false, ambiguousPrice: false, strikethroughIgnored: false, url: null, forfaitArea: null, warnings: [], ...over,
 });
 
 describe('parseOfferCardsHtml (esquiades)', () => {
@@ -240,5 +241,36 @@ describe('Estiber · estructura «carousel-cell cl-offer-box cl-offer-box-type-h
     expect(out).toContain('class="carousel-cell cl-offer-box cl-offer-box-type-hotel"');
     expect(out).not.toMatch(/defapt|adu1|recaptcha|cl-banner/);
     expect(parseOfferCardsHtml(out, 'estiber').map((c) => c.amount?.cents)).toEqual([68400, 42100]);
+  });
+});
+
+describe('Esquiades con tarjetas en el HTML (capturas reales del 03/10/2026)', () => {
+  const files = import.meta.glob('../../fixtures/real/esquiades-offers-*.html', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+  const byArea: Record<string, string[]> = { grandvalira: ['grandvalira'], 'pal-arinsal': ['pal-arinsal'], 'boi-taull': ['boi-taull'], cerler: ['cerler'] };
+  for (const [path, html] of Object.entries(files)) {
+    const area = /esquiades-offers-(.+)\.\d{4}-\d\d-\d\d\.html$/.exec(path)![1];
+    it(`${area}: destino, precio por persona, noches, forfait y régimen`, () => {
+      const cards = parseOfferCardsHtml(html, 'esquiades');
+      expect(cards.length).toBe(6);
+      for (const c of cards) {
+        expect(c.amount?.cents).toBeGreaterThan(5000);
+        expect(c.unit).toBe('per_person');
+        expect(c.priceKind).toBe('advertised_from');           // fechas del proveedor, ocupación no declarada
+        expect(c.nights).toBeGreaterThan(0);
+        expect(c.forfaitDays).toBeGreaterThan(0);
+        expect(c.forfaitIncluded).toBe('yes');                 // «N días de forfait en …» + «Solo alojamiento» (régimen)
+        expect(['room_only', 'breakfast']).toContain(c.board);
+        expect(c.checkIn).toMatch(/^2026-12-/);
+        expect(forfaitMatchesArea(c, byArea[area])).toBe(true);
+        expect(forfaitMatchesArea(c, ['la-molina'])).toBe(false);
+        expect(c.warnings.join(' ')).not.toMatch(/a la vez/);
+      }
+    });
+  }
+  it('sin días de forfait, «solo alojamiento» sigue siendo sin forfait', () => {
+    const [c] = parseOfferCardsHtml('<article class="card"><b class="name">Hotel Z</b> 2 noches · Solo alojamiento · 120 € por persona</article>', 'esquiades');
+    expect(c.forfaitIncluded).toBe('no');
+    expect(c.forfaitArea).toBeNull();
+    expect(forfaitMatchesArea(c, ['grandvalira'])).toBeNull();
   });
 });

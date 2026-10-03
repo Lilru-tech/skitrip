@@ -1,6 +1,6 @@
 import { get } from '../api';
 import { ErrorState, Loading, Empty } from '../components/States';
-import { instant, numDate, PROVIDER_LABEL, RUN_STATUS_LABEL, SOURCE_FIELD_LABEL, SOURCE_METHOD_LABEL, SOURCE_STATUS_LABEL } from '../format';
+import { healthText, instant, numDate, PROVIDER_LABEL, RUN_STATUS_LABEL, SOURCE_FIELD_LABEL, SOURCE_METHOD_LABEL, SOURCE_STATUS_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { usePageTitle } from '../router';
 import type { SourceRow } from '../catalog';
@@ -29,7 +29,7 @@ export function SourcesPage() {
                 <p className="small">Datos que extrae: {s.fields.map((f) => SOURCE_FIELD_LABEL[f] ?? f).join(', ') || '—'}{s.scope_area_id !== s.area_id && ` · cifras del ámbito ${s.scope_area_id}`}</p>
                 <p className="small muted">
                   Comprobada: {s.checked_on ? numDate(s.checked_on) : 'nunca'} · Último intento: {s.last_attempt_at ? instant(s.last_attempt_at) : 'nunca'} · Último éxito: {s.last_success_at ? instant(s.last_success_at) : 'nunca'}
-                  {s.last_status && ` · Último resultado: ${RUN_STATUS_LABEL[s.last_status] ?? s.last_status}`}
+                  {s.last_status && ` · Último resultado: ${healthText(s.last_status, s.reason)}`}
                 </p>
                 {s.limitations && <p className="small">Limitaciones: {s.limitations}</p>}
               </li>

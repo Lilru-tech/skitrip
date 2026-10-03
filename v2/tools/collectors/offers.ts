@@ -12,8 +12,9 @@
  *    proveedor está prohibido en su robots.txt. Nunca se reinterpreta un precio de catálogo como precio de un escenario.
  */
 import { readFileSync } from 'node:fs';
-import { dedupeCards, parseOfferCardsHtml, type OfferCard, type Provider } from '../../src/core/parsers/offers.ts';
+import { dedupeCards, forfaitMatchesArea, parseOfferCardsHtml, type OfferCard, type Provider } from '../../src/core/parsers/offers.ts';
 import { chunkBy } from '../../src/core/chunk.ts';
+import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, EMPTY_REASON_STATUS, type EmptyReason } from '../../src/core/page-outcome.ts';
 import { cardToOffer } from './offer-payload.ts';
 import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
 
@@ -45,24 +46,33 @@ const [{ sources }, { scenarios }] = await Promise.all([
 ]);
 
 const catalog: { sourceId: string; outcome: Outcome; offers: ReturnType<typeof cardToOffer>[] }[] = [];
-const health: { sourceId: string; status: Exclude<Outcome, 'results'> | 'ok'; error: string | null; attemptedAt: number }[] = [];
+const health: { sourceId: string; status: Exclude<Outcome, 'results'> | 'ok'; reason?: EmptyReason; error: string | null; attemptedAt: number }[] = [];
 let ok = 0, failed = 0, unsupported = 0;
 
-async function processSource(load: ((url: string) => Promise<string>) | null, s: Source) {
+let confirmedEmpty = 0;
+async function processSource(load: ((url: string) => Promise<string>) | null, s: Source, refused: () => string[] = () => []) {
   const attemptedAt = Date.now();
   const ad = ADAPTERS[s.adapter];
-  const done = (outcome: Outcome, offers: ReturnType<typeof cardToOffer>[], error: string | null) => {
+  const done = (outcome: Outcome, offers: ReturnType<typeof cardToOffer>[], error: string | null, reason?: EmptyReason) => {
     catalog.push({ sourceId: s.id, outcome, offers });
-    health.push({ sourceId: s.id, status: outcome === 'results' ? 'ok' : outcome, error, attemptedAt });
-    if (outcome === 'results') ok++; else if (outcome === 'unsupported') unsupported++; else failed++;
+    health.push({ sourceId: s.id, status: outcome === 'results' ? 'ok' : outcome, ...(reason ? { reason } : {}), error, attemptedAt });
+    // Ausencia confirmada o fuera de temporada: ni éxito ni fallo del analizador (cero nunca cuenta como «válida»).
+    if (outcome === 'results') ok++; else if (outcome === 'unsupported') unsupported++; else if (outcome === 'empty') confirmedEmpty++; else failed++;
   };
   if (!ad) return done('unsupported', [], `sin adaptador ${s.adapter}`);
   if (useFixtures && !fixtures[ad.provider]) return done('unsupported', [], 'sin fixture para este proveedor');
   try {
     if (!useFixtures && !(await allowedByRobots(s.url))) return done('unsupported', [], 'robots.txt no lo permite');
     const html = useFixtures ? readFileSync(fixtures[ad.provider]!, 'utf8') : await withRetry(() => load!(s.url));
-    const cards = dedupeCards(parseOfferCardsHtml(html, ad.provider)).filter((c) => c.amount);
-    if (!cards.length) return done('empty', [], 'la página no devolvió ofertas con precio reconocible');
+    const priced = dedupeCards(parseOfferCardsHtml(html, ad.provider)).filter((c) => c.amount);
+    // Destino: si la tarjeta nombra la estación del forfait y no es la de la fuente, no se guarda (otra estación).
+    const cards = priced.filter((c) => forfaitMatchesArea(c, [s.area_id, s.scope_area_id]) !== false);
+    if (priced.length && !cards.length) return done('error', [], `las ${priced.length} tarjetas son de otra estación (forfait en «${priced[0].forfaitArea}»)`);
+    if (priced.length > cards.length) console.error(`${s.id}: ${priced.length - cards.length} tarjetas descartadas por ser de otra estación`);
+    if (!cards.length) {
+      const reason = classifyEmptyOffersPage(html, useFixtures ? [] : refused());
+      return done(EMPTY_REASON_STATUS[reason], [], EMPTY_REASON_LABEL[reason], reason);
+    }
     const extractor = `${s.adapter}@${ad.version}`;
     done('results', cards.slice(0, MAX_OFFERS_PER_SOURCE).map((c) => cardToOffer(c, extractor)), null);
   } catch (e) {
@@ -72,7 +82,7 @@ async function processSource(load: ((url: string) => Promise<string>) | null, s:
 
 try {
   if (useFixtures) for (const s of sources) await processSource(null, s);
-  else await withBrowser(async (load) => { for (const s of sources) await processSource(load, s); }); // concurrencia 1
+  else await withBrowser(async (load, refused) => { for (const s of sources) await processSource(load, s, refused); }); // concurrencia 1
 } catch (e) {
   console.error('Fallo general del navegador:', (e as Error).message);
   for (const s of sources) if (!catalog.some((c) => c.sourceId === s.id)) { catalog.push({ sourceId: s.id, outcome: 'error', offers: [] }); failed++; }
@@ -91,8 +101,8 @@ const units: Unit[] = [...catalog.map((c) => ({ kind: 'catalog' as const, c })),
 const parts = chunkBy(units, (u) => (u.kind === 'catalog' ? u.c.offers.length : u.r.offers.length), 200, 60);
 const id = runId('offers');
 const runner = process.env.GITHUB_RUN_ID ? `github-actions#${process.env.GITHUB_RUN_ID}` : 'local';
-const errorSummary = failed ? health.filter((h) => h.status !== 'ok' && h.status !== 'unsupported').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null;
-console.log(`Fuentes de catálogo: ${sources.length} · válidas ${ok} · fallidas ${failed} · escenarios ${scenarios.length} (no soportados aún) · partes ${parts.length}`);
+const errorSummary = failed ? health.filter((h) => h.status === 'error' || h.status === 'blocked').slice(0, 10).map((h) => `${h.sourceId}: ${h.error}`).join(' | ') : null;
+console.log(`Fuentes de catálogo: ${sources.length} · válidas ${ok} · sin ofertas confirmado ${confirmedEmpty} · fallidas ${failed} · escenarios ${scenarios.length} (no soportados aún) · partes ${parts.length}`);
 const observedAt = Date.now();
 let last: { written: number; runStatus: string } | null = null;
 for (const [i, part] of parts.entries()) {
@@ -101,7 +111,7 @@ for (const [i, part] of parts.entries()) {
   const ids = new Set(cat.map((c) => c.sourceId));
   const count = (o: Outcome) => cat.filter((c) => c.outcome === o).length + res.filter((r) => r.outcome === o).length;
   const run = { id, pipeline: 'offers', startedAt: started, finishedAt: Date.now(), expected: sources.length + scenarios.length, part: i, parts: parts.length,
-    ok: count('results'), failed: count('error') + count('blocked') + count('empty'), unsupported: count('unsupported'), runner, errorSummary };
+    ok: count('results'), failed: count('error') + count('blocked'), unsupported: count('unsupported'), runner, errorSummary };
   const payload = { run, observedAt, results: res, catalog: cat, health: health.filter((h) => ids.has(h.sourceId)) };
   if (dry) { console.log(JSON.stringify(payload, null, 2)); continue; }
   last = await apiPost<{ written: number; runStatus: string }>('/api/ingest/offers', payload); // reintentable: idempotente por parte

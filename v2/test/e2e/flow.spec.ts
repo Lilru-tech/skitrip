@@ -85,6 +85,15 @@ test('dos amigos organizan un viaje y encuentran una ventana candidata', async (
   await waitToast(pa, 'Voto guardado: Sí.');
   await expect(pa.getByRole('group', { name: /Tu voto para vie 11 dic/ }).getByRole('button', { name: 'Sí' })).toHaveAttribute('aria-pressed', 'true');
 
+  // Usar la propuesta como fechas del viaje (la propietaria puede; Bea, miembro, no ve el botón).
+  await pa.getByRole('button', { name: /Usar vie 11 dic a dom 13 dic como fechas del viaje/ }).click();
+  await waitToast(pa, /Fechas del viaje: vie 11 dic → dom 13 dic/);
+  await expect(pa.getByText('Son las fechas del viaje.')).toBeVisible();
+  await pb.goto(pa.url().replace(/^.*#/, '/#'));
+  await expect(pb.getByRole('heading', { level: 1, name: 'Calendario del viaje' })).toBeVisible();
+  await expect(pb.getByText('Son las fechas del viaje.')).toBeVisible();
+  await expect(pb.getByRole('button', { name: /como fechas del viaje/ })).toHaveCount(0);
+
   // El email de la otra persona nunca aparece.
   for (const [p, other] of [[pa, bea], [pb, ana]] as const) {
     await expect(p.locator('body')).not.toContainText(other.email);
