@@ -16,6 +16,10 @@ on:
         type: boolean
         required: false
         default: false
+      probe_urls:
+        description: 'Solo sondear estas URL candidatas (separadas por espacios), sin el catálogo'
+        required: false
+        default: ''
       print_fixtures:
         description: 'Imprimir en el registro los fixtures saneados (para copiarlos a los tests sin descargar artefactos)'
         type: boolean
@@ -40,7 +44,18 @@ jobs:
           cache-dependency-path: v2/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - env:
+      - name: Sondeo de páginas candidatas (robots, peticiones y texto principal)
+        if: inputs.probe_urls != ''
+        env:
+          PROBE_URLS: ${{ inputs.probe_urls }}
+          FIXTURES: ${{ inputs.print_fixtures }}
+        run: |
+          extra=()
+          if [ "$FIXTURES" = "true" ]; then extra=(--fixtures); fi
+          read -ra urls <<<"$PROBE_URLS"
+          npx tsx tools/probe-pages.ts "${urls[@]}" "${extra[@]}"
+      - if: inputs.probe_urls == ''
+        env:
           FILTER: ${{ inputs.filter }}
           FIXTURES: ${{ inputs.fixtures || inputs.print_fixtures }}
         run: |
