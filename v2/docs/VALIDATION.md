@@ -1,8 +1,33 @@
 # Validación
 
+## Estado en producción (03/10/2026)
+
+SkiTrip v2 está publicado en https://lilru-tech.github.io/skitrip/ (Pages desde Actions) con la API en https://skitrip.cold-fire-2451.workers.dev. Todo lo de esta sección se ejecutó en GitHub Actions contra los servicios reales; un workflow omitido por falta de secretos no cuenta.
+
+| Comprobación | Ejecución | Resultado |
+|---|---|---|
+| Publicación unificada (pruebas → API → Pages) de las PRs 6, 7 y 8 | v2-release 37138388054 | ✔ |
+| Humo en producción con cuentas de prueba (a, b, c) | v2-prod-check 37133307031, 37133422887 | ✔ perfiles 4 → 7 → 4, administradores 1 |
+| Limpieza de restos de pruebas anteriores por UID exacto | v2-prod-cleanup 37136211279 | ✔ perfiles 4 → 1 (solo la cuenta de David) |
+| Recorrido completo (humo + calendario compartido d, e, f) | v2-prod-check 37138923075 | Humo ✔; calendario ✘ (la selección se perdía al repintar). Limpieza 1 → 4 → 1 igualmente |
+| Calendario compartido con la prueba corregida | v2-prod-check 37139560555 (rama ops/cpu-followup) | ✔ amistad, viaje, propuesta, revocación y acceso ajeno; limpieza 1 → 4 → 1, administradores 1 |
+| Copia de seguridad restaurada en una copia de solo lectura | v2-recovery-check 37126210933 | ✔ 57 tablas, 9 hashes heredados |
+| CPU por ruta (ver `QUOTAS.md`) | v2-cpu-probe 37136969820 | p99 de ofertas 31 ms y común 18,5 ms antes de optimizar; 0 exceededCpu en 24 h |
+
+Reglas de las pruebas en producción: solo cuentas dedicadas con alias y correo identificables; la limpieza borra por los UID e IDs exactos que registra la propia ejecución, comprueba que cada fila pertenece a esas cuentas y no toca a David ni a ningún administrador (`tools/prod-cleanup*.ts`). No hay endpoint de limpieza público. La disponibilidad de David no se modifica y no se invita a usuarios reales.
+
+### Fuentes (03/10/2026)
+
+- **Ofertas:** 17 páginas correctas y 795 filas «desde», incluidas las de Esquiades. Baqueira y Port del Comte en Estiber: sin tarjetas, clasificadas «fuera de temporada» con capturas reales (`page-outcome.test.ts`). Un cero nunca cuenta como éxito: se distingue sin ofertas confirmado, fuera de temporada, bloqueo, robots y formato desconocido.
+- **Nieve oficial:** La Molina, Vall de Núria y Espot desde la API pública de Pirineu365 (FGC), además de las fuentes de Andorra, Aramón y Port del Comte. Fuera de temporada se guarda «fuera de temporada» con los números vacíos. **Ninguna página de octubre valida el formato de invierno**: los casos de invierno son sintéticos y están marcados así.
+- **Limitaciones:** el agregador de nieve de Esquiades no se reconoce (formato desconocido; ya no se confunde con «sin datos»). Port Ainé, Boí Taüll y Vallter no tienen nombre en la API fuera de temporada, así que no hay adaptador todavía. Masella no publica datos oficiales. baqueira.es responde 403 y no se elude.
+- **update-data.yml:** sus 19 páginas de ofertas son las mismas que lee v2 y el parte de Esquiades también, así que v2 lo cubre. Desactivado el 03/10/2026 (estado `disabled_manually`), sin borrarlo: se puede reactivar desde Actions. Ya no hace commits de datos que lanzaban v2-release.
+
+## Validación local anterior (01/10/2026)
+
 Fecha: 01/10/2026. Rama `rebuild/v2`, commit c66957a. Todo lo que figura aquí se ha ejecutado en el entorno de desarrollo, que no tiene cuentas de Cloudflare ni Firebase ni permiso de push. Sus scripts no salen a las webs de estaciones y proveedores; esas webs se han leído con una herramienta de lectura web, que devuelve texto y no el HTML crudo.
 
-**SkiTrip v2 no está publicado.** Faltan los accesos de `ACCESOS.md`. Ningún workflow se ha ejecutado en GitHub, y uno omitido no cuenta como probado.
+En aquella fecha SkiTrip v2 aún no estaba publicado. Faltan los accesos de `ACCESOS.md`. Ningún workflow se ha ejecutado en GitHub, y uno omitido no cuenta como probado.
 
 Categorías:
 
