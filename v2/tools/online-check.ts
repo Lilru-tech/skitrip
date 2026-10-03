@@ -36,6 +36,18 @@ const sources = catalog.sources.filter((s) => s.adapter && s.id.includes(filter)
 const NO_DATA = /no hemos encontrado ning[uú]n resultado|no hay ofertas|sin resultados|no est[aá] disponible en este momento|temporada[^.]{0,40}(finalizad|terminad)/i;
 /** Texto visible (sin scripts, estilos ni plantillas), compactado. */
 const visibleText = (html: string) => html.replace(/<(script|style|template|noscript|svg)\b[\s\S]*?<\/\1\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+/** Pistas para adaptar el analizador: «€» visibles, clases con aspecto de tarjeta y el texto tras el título principal. */
+function incompatibleHint(html: string): string {
+  const text = visibleText(html);
+  const euros = (text.match(/€/g) ?? []).length;
+  const classes = new Map<string, number>();
+  for (const m of html.matchAll(/class=["']([^"']+)["']/gi)) for (const c of m[1].split(/\s+/)) if (/offer|oferta|card|hotel|price|precio/i.test(c)) classes.set(c, (classes.get(c) ?? 0) + 1);
+  const top = [...classes].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c, n]) => `${c}×${n}`).join(' ');
+  const h1 = /<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() ?? '';
+  const at = h1 ? text.indexOf(h1, text.indexOf(h1) + 1) : -1;
+  const from = at >= 0 ? at : h1 ? Math.max(0, text.indexOf(h1)) : 0;
+  return `€×${euros} · clases: ${top || 'ninguna'} · h1: ${h1.slice(0, 80)} · texto: ${text.slice(from, from + 600)}`;
+}
 type Verdict = 'extracted' | 'no_data' | 'incompatible';
 function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample: unknown; note?: string } {
   const text = html.replace(/<[^>]+>/g, ' ');
@@ -46,7 +58,7 @@ function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample
     const r = parseOfferCardsHtml(html, s.adapter.startsWith('esquiades') ? 'esquiades' : 'estiber').filter((c) => c.amount);
     const v = verdict(r.length);
     // Sin tarjetas y sin un «no hay ofertas» reconocible: un extracto del texto visible ayuda a decidir si es estructura nueva o un aviso propio.
-    const note = v === 'incompatible' ? `texto: ${visibleText(html).slice(0, 400)}` : undefined;
+    const note = v === 'incompatible' ? incompatibleHint(html) : undefined;
     return { verdict: v, rows: r.length, sample: r.slice(0, 3).map((c) => ({ hotel: c.hotelName, amount: c.amount?.cents ?? null, unit: c.unit, priceKind: c.priceKind, checkIn: c.checkIn, nights: c.nights, warnings: c.warnings })), note };
   }
   return { verdict: 'incompatible', rows: 0, sample: null, note: `sin analizador para ${s.adapter}` };
