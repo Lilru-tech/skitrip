@@ -71,7 +71,12 @@ function analyse(s: Src, html: string, refusedPaths: string[] = []): { verdict: 
   const text = html.replace(/<[^>]+>/g, ' ');
   const verdict = (rows: number): Verdict => (rows > 0 ? 'extracted' : NO_DATA.test(text) ? 'no_data' : 'incompatible');
   if (OFFICIAL_ADAPTERS[s.adapter!]) { const r = OFFICIAL_ADAPTERS[s.adapter!].parse(html); return { verdict: verdict(r ? 1 : 0), rows: r ? 1 : 0, sample: r }; }
-  if (s.adapter === 'esquiades-status') { const r = esquiadesAdapter.parse(html); return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3) }; }
+  if (s.adapter === 'esquiades-status') {
+    const r = esquiadesAdapter.parse(html);
+    // Sin filas: el texto que hace que cuente como «sin datos legítimo», para poder clasificarlo en el recolector.
+    const t = visibleText(html), m = r.length ? null : NO_DATA.exec(t);
+    return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3), note: m ? `aviso de la página: «…${t.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200)}…»` : undefined };
+  }
   if (s.adapter === 'esquiades-cards' || s.adapter === 'estiber-cards') {
     const all = parseOfferCardsHtml(html, s.adapter.startsWith('esquiades') ? 'esquiades' : 'estiber');
     const r = all.filter((c) => c.amount);

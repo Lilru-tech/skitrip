@@ -142,20 +142,21 @@ export function parseAramon(input: string): OfficialSnow | null {
   };
 }
 
-// ---------- FGC · Pirineu365 (La Molina, Vall de Núria, Espot): JSON de api.pirineu365.cat/api/v1/web/stations/<n>/status ----------
+// ---------- FGC · Pirineu365 (La Molina, Vall de Núria, Espot): JSON de api.pirineu365.cat/api/v1/web/stations/<n>/status o /report ----------
 // La web carga los datos de esta API pública (robots.txt «Disallow:» vacío, comprobado el 03/10/2026). El navegador
 // la muestra dentro de un <pre>; también se acepta el JSON tal cual. Cada estación tiene un número fijo, pero fuera de
 // temporada algunas devuelven el nombre vacío: el adaptador exige el nombre esperado y si no coincide lanza un error
 // (nunca se atribuyen cifras de otra estación). Un total 0 es «no publicado», no «0 km»: queda nulo.
 
-interface P365Pair { is_open?: number; total?: number }
+interface P365Pair { is_open?: number; open?: number; total?: number }
+// /status trae {is_open, total}; /report trae kilometers {open, total} y skislopes/skilifts {stats: {open, total}}.
 interface P365Status {
   station_name?: string; is_active?: boolean; is_winter?: boolean; report_type?: string; open_status?: string; updated?: string;
-  skislopes?: P365Pair; km?: P365Pair; skilifts?: P365Pair; snow?: { min?: number; max?: number };
+  skislopes?: P365Pair & { stats?: P365Pair }; km?: P365Pair; kilometers?: P365Pair; skilifts?: P365Pair & { stats?: P365Pair }; snow?: { min?: number; max?: number };
 }
 
 const p365Pair = (p: P365Pair | undefined, kind: PairKind): [number, number] | null => {
-  const a = Number(p?.is_open), b = Number(p?.total);
+  const a = Number(p?.is_open ?? p?.open), b = Number(p?.total);
   return Number.isFinite(a) && Number.isFinite(b) && b > 0 && b <= LIMITS[kind] && a >= 0 && a <= b ? [a, b] : null;
 };
 
@@ -167,7 +168,7 @@ export function parsePirineu365Status(input: string, expectedName: string): Offi
   if (!json?.success || !d || typeof d !== 'object') return null;
   const norm = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   if (norm(d.station_name ?? '') !== norm(expectedName)) throw new Error(`Pirineu365: se esperaba «${expectedName}» y la API devuelve «${d.station_name ?? ''}»`);
-  const km = p365Pair(d.km, 'km'), runs = p365Pair(d.skislopes, 'runs'), lifts = p365Pair(d.skilifts, 'lifts');
+  const km = p365Pair(d.km ?? d.kilometers, 'km'), runs = p365Pair(d.skislopes?.stats ?? d.skislopes, 'runs'), lifts = p365Pair(d.skilifts?.stats ?? d.skilifts, 'lifts');
   const date = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(d.updated ?? '');
   // Fuera de la temporada de esquí (parte de verano o estación inactiva) las cifras de pistas no describen la nieve.
   const offSeason = d.is_winter === false || d.is_active === false;
@@ -185,7 +186,8 @@ export function parsePirineu365Status(input: string, expectedName: string): Offi
   };
 }
 
-/** Número de estación en la API de Pirineu365 y nombre que debe devolver (comprobados el 03/10/2026). */
+/** Número de estación en la API de Pirineu365 y nombre que debe devolver (comprobados el 03/10/2026). Espot devuelve el
+ *  nombre vacío en /status fuera de temporada pero no en /report, así que su fuente usa /report. */
 export const PIRINEU365_STATIONS = { 'la-molina': [15, 'La Molina'], 'vall-de-nuria': [16, 'Vall de Núria'], 'espot-esqui': [18, 'Espot'] } as const;
 
 /** Adaptadores oficiales por id de la columna `adapter` de sources. */
@@ -197,5 +199,5 @@ export const OFFICIAL_ADAPTERS: Record<string, { version: string; parse: (input:
   'aramon-official': { version: '1.1.0', parse: parseAramon },
   'pirineu365-la-molina': { version: '1.0.0', parse: (i) => parsePirineu365Status(i, PIRINEU365_STATIONS['la-molina'][1]) },
   'pirineu365-vall-de-nuria': { version: '1.0.0', parse: (i) => parsePirineu365Status(i, PIRINEU365_STATIONS['vall-de-nuria'][1]) },
-  'pirineu365-espot': { version: '1.0.0', parse: (i) => parsePirineu365Status(i, PIRINEU365_STATIONS['espot-esqui'][1]) },
+  'pirineu365-espot': { version: '1.1.0', parse: (i) => parsePirineu365Status(i, PIRINEU365_STATIONS['espot-esqui'][1]) },
 };
