@@ -1,0 +1,15 @@
+# REAL TEXT EXCERPT — https://www.grandvalira.com/es/estacion/estado-pistas
+# Obtenido el 30/09/2026 con una herramienta de lectura web que convierte la página a texto (no es el HTML crudo).
+# Solo contiene las líneas de estado (sin datos personales). Fuera de temporada: km y pistas a 0, remontes de verano abiertos.
+0/215km
+Km esquiables 0 / 215
+Pistas 0 / 142
+Pistas Verde 0/23
+Pistas Azul 0/53
+Pistas Roja 0/46
+Pistas Negra 0/20
+Instalaciones 4 / 73
+Kilómetros esquiables 0/215
+Espesores de nieve (cm) 0-0
+Enlaces 0/14
+Última actualización: Mié, 23/09/2026 - 11:31

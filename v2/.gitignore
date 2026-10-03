@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+test-results/
+playwright-report/
+*.log
+exports/
+.env
+.env.*.local
+.env.local
+test/e2e/.state/
+dist-pages/
+dist-pages-test/
+wrangler.deploy.jsonc

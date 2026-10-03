@@ -1,0 +1,256 @@
+# REAL TEXT EXCERPT — https://www.portdelcomte.net/pistes/
+# Obtenido el 01/10/2026 con una herramienta de lectura web que convierte la página a texto (no es el HTML crudo; puede omitir o reordenar texto).
+# Solo contiene las líneas de estado (sin datos personales). Fuera de temporada: estación TANCAT, último parte del 05/04/26, todas las pistas y remontes TANCAT.
+ACCÉSOBERT GRUIX MÀXIM0 cm GRUIX MÍNIM0 cm QUALITAT-- KM. ESQUIABLES0,0 km      TOTAL PISTES OBERTES: 0
+ACCÉSOBERT GRUIX MÀXIM0 cm GRUIX MÍNIM0 cm QUALITAT-- KM. ESQUIABLES0,0 km      TOTAL PISTES OBERTES: 0
+ESTACIÓ TANCAT
+ÚLTIMA ACTUALITZACIÓ: 05/04/26 (19:34 PM)
+Total pistas oberts: 0
+ACCÉS
+OBERT
+GRUIX MÀXIM
+0 cm
+GRUIX MÍNIM
+0 cm
+QUALITAT
+--
+KM. ESQUIABLES
+0,0 km
+LA SERP
+Estat: TANCAT
+Tipus: blava
+Zona: Prat Donadó
+Longitud: 3800 m
+Desnivell: 325 m
+EL TUB COMA
+Estat: TANCAT
+Tipus: negra
+Zona: Prat Donadó
+Longitud: 850 m
+Desnivell: 215 m
+LA NOVA
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 715 m
+Desnivell: 100 m
+LA QUEROL
+Estat: TANCAT
+Tipus: negra
+Zona: Prat Donadó
+Longitud: 720 m
+Desnivell: 205 m
+LA DIAGONAL
+Estat: TANCAT
+Tipus: blava
+Zona: Prat Donadó
+Longitud: 1685 m
+Desnivell: 125 m
+JARDI DE NEU
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 150 m
+Desnivell: 20 m
+EL DONADO II
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 495 m
+Desnivell: 55 m
+LA DRECERA
+Estat: TANCAT
+Tipus: blava
+Zona: Prat Donadó
+Longitud: 715 m
+Desnivell: 45 m
+ELS DEBUTANTS
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 220 m
+Desnivell: 20 m
+TUBBYS
+Estat: TANCAT
+Tipus: trineus
+Zona: Prat Donadó
+Longitud: 550 m
+Desnivell: 50 m
+DEBUTANT
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 176 m
+Desnivell: 15 m
+LA SANT GRAU
+Estat: TANCAT
+Tipus: negra
+Zona: Prat Donadó
+Longitud: 1300 m
+Desnivell: 220 m
+EL DONADO I
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 770 m
+Desnivell: 100 m
+BOIXERA
+Estat: TANCAT
+Tipus: verda
+Zona: Prat Donadó
+Longitud: 550 m
+Desnivell: 80 m
+LA RASA COMA
+Estat: TANCAT
+Tipus: blava
+Zona: Prat Donadó
+Longitud: 3745 m
+Desnivell: 380 m
+LA DRETA
+Estat: TANCAT
+Tipus: vermella
+Zona: Prat Donadó
+Longitud: 2030 m
+Desnivell: 380 m
+RASA SUCRE
+Estat: TANCAT
+Tipus: blava
+Zona: Sucre
+Longitud: 890 m
+Desnivell: 60 m
+L'OBAGA
+Estat: TANCAT
+Tipus: vermella
+Zona: Sucre
+Longitud: 1380 m
+Desnivell: 240 m
+LA PELADA
+Estat: TANCAT
+Tipus: vermella
+Zona: Sucre
+Longitud: 1490 m
+Desnivell: 215 m
+LA PLETA
+Estat: TANCAT
+Tipus: vermella
+Zona: Sucre
+Longitud: 1640 m
+Desnivell: 240 m
+ELS GALLS
+Estat: TANCAT
+Tipus: blava
+Zona: Sucre
+Longitud: 2195 m
+Desnivell: 320 m
+EL LLOP
+Estat: TANCAT
+Tipus: vermella
+Zona: Sucre
+Longitud: 1775 m
+Desnivell: 300 m
+EL BOSQUET
+Estat: TANCAT
+Tipus: fora_pista
+Zona: Bófia
+Longitud: 1950 m
+Desnivell: 265 m
+EL PI VELL
+Estat: TANCAT
+Tipus: blava
+Zona: Bófia
+Longitud: 800 m
+Desnivell: 135 m
+EL FORAT
+Estat: TANCAT
+Tipus: blava
+Zona: Bófia
+Longitud: 2490 m
+Desnivell: 265 m
+LA BÒFIA
+Estat: TANCAT
+Tipus: vermella
+Zona: Bófia
+Longitud: 705 m
+Desnivell: 145 m
+COMA DELS MARRANS
+Estat: TANCAT
+Tipus: blava
+Zona: Bófia
+Longitud: 1830 m
+Desnivell: 145 m
+LA RASA BÒFIA
+Estat: TANCAT
+Tipus: vermella
+Zona: Bófia
+Longitud: 1875 m
+Desnivell: 265 m
+L'ORRI
+Estat: TANCAT
+Tipus: vermella
+Zona: Bófia
+Longitud: 1395 m
+Desnivell: 265 m
+LA GINEBROSA
+Estat: TANCAT
+Tipus: blava
+Zona: Bófia
+Longitud: 3850 m
+Desnivell: 265 m
+SOLEI
+Estat: TANCAT
+Tipus: blava
+Zona: Bófia
+Longitud: 1265 m
+Desnivell: 110 m
+Cta.Llebre
+Estado: TANCAT
+T. Instalación: cinta
+Longitud: 171 m
+TS EL SUCRE
+Estado: TANCAT
+T. Instalación: telecadira
+Longitud: 1178 m
+Cinta Esquirol
+Estado: TANCAT
+T. Instalación: cinta
+Longitud: 66 m
+TS LA BÒFIA
+Estado: TANCAT
+T. Instalación: telecadira
+Longitud: 1080 m
+TQ LA RATA
+Estado: TANCAT
+T. Instalación: telesqui
+Longitud: 550 m
+TQ EL SUCRE
+Estado: TANCAT
+T. Instalación: telesqui
+Longitud: 968 m
+TQ PRAT DONADÓ
+Estado: TANCAT
+T. Instalación: telesqui
+Longitud: 587 m
+TSD EL QUEROL
+Estado: TANCAT
+T. Instalación: Telecadira desenbragable
+Longitud: 1441 m
+Cta.Jardí de Neu
+Estado: TANCAT
+T. Instalación: cinta
+Longitud: 62 m
+Cta.Tubby
+Estado: TANCAT
+T. Instalación: cinta
+Longitud: 146 m
+TQ ELS GALLS
+Estado: TANCAT
+T. Instalación: telesqui
+Longitud: 997 m
+TQ.BAMBI
+Estado: TANCAT
+T. Instalación: telesqui
+Longitud: 180 m
+TQ PRAT BERLÀ
+Estado: TANCAT
+T. Instalación: telesqui
+Longitud: 381 m

@@ -1,0 +1,20 @@
+# SkiTrip v2 · integración continua en ramas y pull requests. Sin secretos y sin permisos de escritura: el código de
+# una PR (también desde forks) se prueba con `pull_request`, nunca con `pull_request_target`. En main, la misma batería
+# la ejecuta «v2 · publicar» antes de desplegar.
+name: v2 · CI
+on:
+  push:
+    branches-ignore: [main]
+    paths: ['v2/**', 'data/*.json', '.github/workflows/v2-*.yml']
+  pull_request:
+    paths: ['v2/**', 'data/*.json', '.github/workflows/v2-*.yml']
+permissions:
+  contents: read
+concurrency:
+  group: v2-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    uses: ./.github/workflows/v2-verify.yml
+    with:
+      sha: ${{ github.sha }}

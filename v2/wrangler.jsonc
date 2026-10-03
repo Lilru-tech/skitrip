@@ -1,0 +1,26 @@
+{
+  // SkiTrip v2: el Worker es solo la API (/api/*). La interfaz se publica en GitHub Pages
+  // (https://lilru-tech.github.io/skitrip/) y llama a esta API desde ese origen (CORS exacto).
+  "name": "skitrip",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "skitrip",
+      // Sustituir por el ID real tras `wrangler d1 create skitrip` (ver docs/DEPLOY.md).
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "AUTH_MODE": "firebase",
+    "FIREBASE_PROJECT_ID": "skitrip-demo",
+    "ALLOWED_ORIGINS": "https://lilru-tech.github.io",
+    "MAX_PROFILES": "50"
+  },
+  // Limpieza diaria de contadores de límite de peticiones (1 de los 5 cron gratuitos por cuenta).
+  "triggers": { "crons": ["17 3 * * *"] },
+  "observability": { "enabled": false }
+}

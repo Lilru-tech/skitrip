@@ -1,0 +1,1957 @@
+{
+ "generated": "2026-10-01",
+ "note": "Catálogo curado para SkiTrip v2. Valores legacy marcados como sin verificar; coordenadas nuevas aproximadas.",
+ "areas": [
+  {
+   "id": "grandvalira",
+   "name": "Grandvalira",
+   "kind": "resort",
+   "country": "AD",
+   "region": "Andorra",
+   "lat": 42.576571,
+   "lon": 1.668275,
+   "official_total_km": 215,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 9,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "grandvalira"
+  },
+  {
+   "id": "pal-arinsal",
+   "name": "Pal Arinsal",
+   "kind": "resort",
+   "country": "AD",
+   "region": "Andorra",
+   "lat": 42.571443,
+   "lon": 1.488769,
+   "official_total_km": 63,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "pal-arinsal"
+  },
+  {
+   "id": "ordino-arcalis",
+   "name": "Ordino Arcalís",
+   "kind": "resort",
+   "country": "AD",
+   "region": "Andorra",
+   "lat": 42.63,
+   "lon": 1.5,
+   "official_total_km": 30,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "ordino-arcalis"
+  },
+  {
+   "id": "baqueira-beret",
+   "name": "Baqueira Beret",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña (Val d'Aran)",
+   "lat": 42.699167,
+   "lon": 0.946667,
+   "official_total_km": 166,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8.5,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "baqueira-beret"
+  },
+  {
+   "id": "port-aine",
+   "name": "Port Ainé",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.42833,
+   "lon": 1.21194,
+   "official_total_km": 32,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 4,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "port-aine"
+  },
+  {
+   "id": "espot-esqui",
+   "name": "Espot Esquí",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.57861,
+   "lon": 1.08862,
+   "official_total_km": 25,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 3,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "espot-esqui"
+  },
+  {
+   "id": "boi-taull",
+   "name": "Boí Taüll",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.47834,
+   "lon": 0.868545,
+   "official_total_km": 45,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 0,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "boi-taull"
+  },
+  {
+   "id": "port-del-comte",
+   "name": "Port del Comte",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.169442,
+   "lon": 1.56963,
+   "official_total_km": 50,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 6.5,
+   "apres_score": 0,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "port-del-comte"
+  },
+  {
+   "id": "vall-de-nuria",
+   "name": "Vall de Núria",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.396465,
+   "lon": 2.153968,
+   "official_total_km": 8,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 1,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "vall-de-nuria"
+  },
+  {
+   "id": "cerler",
+   "name": "Cerler",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.5893,
+   "lon": 0.5363,
+   "official_total_km": 81,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8,
+   "apres_score": 8,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "cerler"
+  },
+  {
+   "id": "valdelinares",
+   "name": "Valdelinares",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Teruel",
+   "lat": 40.385007,
+   "lon": -0.632772,
+   "official_total_km": 17,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 4,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "valdelinares"
+  },
+  {
+   "id": "javalambre",
+   "name": "Javalambre",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Teruel",
+   "lat": 40.111178,
+   "lon": -1.023617,
+   "official_total_km": 15,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 6.5,
+   "apres_score": 3,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "javalambre"
+  },
+  {
+   "id": "font-romeu-pyrenees-2000",
+   "name": "Font-Romeu Pyrénées 2000",
+   "kind": "resort",
+   "country": "FR",
+   "region": "Pyrénées-Orientales",
+   "lat": 42.520876,
+   "lon": 2.034989,
+   "official_total_km": 43,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "font-romeu-pyrenees-2000"
+  },
+  {
+   "id": "les-angles",
+   "name": "Les Angles",
+   "kind": "resort",
+   "country": "FR",
+   "region": "Pyrénées-Orientales",
+   "lat": 42.577282,
+   "lon": 2.073585,
+   "official_total_km": 55,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "les-angles"
+  },
+  {
+   "id": "ax-3-domaines",
+   "name": "Ax 3 Domaines",
+   "kind": "resort",
+   "country": "FR",
+   "region": "Ariège",
+   "lat": 42.70083,
+   "lon": 1.81389,
+   "official_total_km": 80,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": null,
+   "legacy_id": "ax-3-domaines"
+  },
+  {
+   "id": "alp-2500",
+   "name": "Alp 2500 (La Molina + Masella)",
+   "kind": "domain",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.343917,
+   "lon": 1.921592,
+   "official_total_km": 145,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": "Dominio conjunto. El histórico legacy «alp-2500» con total 71 km corresponde en realidad a La Molina.",
+   "legacy_id": "alp-2500"
+  },
+  {
+   "id": "la-molina",
+   "name": "La Molina",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.336,
+   "lon": 1.941,
+   "official_total_km": 71,
+   "total_km_source": "Esquiades estado-pistas (serie legacy, sin verificar en fuente oficial)",
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Coordenadas aproximadas, pendientes de comprobar.",
+   "legacy_id": null
+  },
+  {
+   "id": "masella",
+   "name": "Masella",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Cataluña",
+   "lat": 42.354,
+   "lon": 1.906,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Total de km pendiente de fuente oficial. Coordenadas aproximadas.",
+   "legacy_id": null
+  },
+  {
+   "id": "formigal-panticosa",
+   "name": "Formigal-Panticosa",
+   "kind": "domain",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.744164,
+   "lon": 0.055364,
+   "official_total_km": 143,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 8,
+   "apres_score": 10,
+   "official_url": null,
+   "notes": "Dominio conjunto (forfait común). Las cifras legacy son del conjunto.",
+   "legacy_id": "formigal-panticosa"
+  },
+  {
+   "id": "formigal",
+   "name": "Formigal",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.775,
+   "lon": -0.362,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Total pendiente de fuente oficial. Coordenadas aproximadas.",
+   "legacy_id": null
+  },
+  {
+   "id": "panticosa",
+   "name": "Panticosa",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.721,
+   "lon": -0.284,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Total pendiente de fuente oficial. Coordenadas aproximadas.",
+   "legacy_id": null
+  },
+  {
+   "id": "astun-candanchu",
+   "name": "Astún + Candanchú",
+   "kind": "domain",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.79324,
+   "lon": -0.521045,
+   "official_total_km": 101,
+   "total_km_source": "Esquiades estado-pistas (serie legacy conjunta, sin verificar)",
+   "vibe_score": null,
+   "apres_score": null,
+   "official_url": null,
+   "notes": "Serie conjunta de 101 km. No se replica en los miembros.",
+   "legacy_id": null
+  },
+  {
+   "id": "astun",
+   "name": "Astún",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.80583,
+   "lon": -0.50366,
+   "official_total_km": 50,
+   "total_km_source": "catálogo legacy (sin verificar)",
+   "vibe_score": 7.5,
+   "apres_score": 6,
+   "official_url": null,
+   "notes": "El histórico legacy «astun» (101 km) es la serie conjunta. Longitud legacy corregida de 0.50366 a -0.50366 (error de signo: situaba Astún a 85 km de Candanchú).",
+   "legacy_id": "astun"
+  },
+  {
+   "id": "candanchu",
+   "name": "Candanchú",
+   "kind": "resort",
+   "country": "ES",
+   "region": "Aragón",
+   "lat": 42.78065,
+   "lon": -0.53843,
+   "official_total_km": null,
+   "total_km_source": null,
+   "vibe_score": 7,
+   "apres_score": 5,
+   "official_url": null,
+   "notes": "El catálogo legacy le asignaba 101 km, que es el total conjunto con Astún.",
+   "legacy_id": "candanchu"
+  }
+ ],
+ "links": [
+  {
+   "parent": "alp-2500",
+   "child": "la-molina",
+   "relation": "member"
+  },
+  {
+   "parent": "alp-2500",
+   "child": "masella",
+   "relation": "member"
+  },
+  {
+   "parent": "formigal-panticosa",
+   "child": "formigal",
+   "relation": "member"
+  },
+  {
+   "parent": "formigal-panticosa",
+   "child": "panticosa",
+   "relation": "member"
+  },
+  {
+   "parent": "astun-candanchu",
+   "child": "astun",
+   "relation": "member"
+  },
+  {
+   "parent": "astun-candanchu",
+   "child": "candanchu",
+   "relation": "member"
+  }
+ ],
+ "origins": [
+  {
+   "id": "tarragona",
+   "name": "Tarragona",
+   "lat": 41.1189,
+   "lon": 1.2445
+  },
+  {
+   "id": "sabadell",
+   "name": "Sabadell",
+   "lat": 41.5486,
+   "lon": 2.1076
+  }
+ ],
+ "routes": [
+  {
+   "origin": "tarragona",
+   "area": "grandvalira",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 211,
+   "duration_min": 203,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "pal-arinsal",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 202,
+   "duration_min": 193,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "ordino-arcalis",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 215,
+   "duration_min": 211,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "alp-2500",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 207,
+   "duration_min": 159,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "baqueira-beret",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 283,
+   "duration_min": 252,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "port-aine",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 225,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null,
+   "notes": "Distancia heredada sin verificar: la consulta a OSRM del 01/10/2026 no se pudo completar (límite de peticiones)."
+  },
+  {
+   "origin": "tarragona",
+   "area": "espot-esqui",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 226,
+   "duration_min": 210,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "boi-taull",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 252,
+   "duration_min": 226,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "port-del-comte",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 153,
+   "duration_min": 137,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "vall-de-nuria",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 215,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null,
+   "notes": "Núria no tiene acceso por carretera (cremallera desde Ribes de Freser o Queralbs). Distancia heredada sin verificar; OSRM (01/10/2026) solo llega a una pista a 3 km y no sirve."
+  },
+  {
+   "origin": "tarragona",
+   "area": "cerler",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 260,
+   "duration_min": 279,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "formigal-panticosa",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 370,
+   "duration_min": 334,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01",
+   "notes": "El punto del dominio queda entre Formigal y Panticosa; OSRM lo ajustó a una carretera a 2,9 km, del lado de Formigal."
+  },
+  {
+   "origin": "tarragona",
+   "area": "astun",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 304,
+   "duration_min": 223,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "candanchu",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 298,
+   "duration_min": 215,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "valdelinares",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 247,
+   "duration_min": 230,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "javalambre",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 328,
+   "duration_min": 234,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "font-romeu-pyrenees-2000",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 231,
+   "duration_min": 185,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "les-angles",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 244,
+   "duration_min": 196,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "tarragona",
+   "area": "ax-3-domaines",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 262,
+   "duration_min": 220,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "grandvalira",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 177,
+   "duration_min": 151,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "pal-arinsal",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 187,
+   "duration_min": 160,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "ordino-arcalis",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 199,
+   "duration_min": 178,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "alp-2500",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 131,
+   "duration_min": 104,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "baqueira-beret",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 277,
+   "duration_min": 247,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "port-aine",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 233,
+   "duration_min": 212,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "espot-esqui",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 242,
+   "duration_min": 202,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "boi-taull",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 293,
+   "duration_min": 249,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "port-del-comte",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 119,
+   "duration_min": 103,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "vall-de-nuria",
+   "access_name": "(acceso principal, sin especificar)",
+   "road_km": 130,
+   "duration_min": null,
+   "source": "legacy_hardcode",
+   "checked_on": null,
+   "notes": "Núria no tiene acceso por carretera (cremallera desde Ribes de Freser o Queralbs). Distancia heredada sin verificar; OSRM (01/10/2026) solo llega a una pista a 3 km y no sirve."
+  },
+  {
+   "origin": "sabadell",
+   "area": "cerler",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 294,
+   "duration_min": 304,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "formigal-panticosa",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 416,
+   "duration_min": 361,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01",
+   "notes": "El punto del dominio queda entre Formigal y Panticosa; OSRM lo ajustó a una carretera a 2,9 km, del lado de Formigal."
+  },
+  {
+   "origin": "sabadell",
+   "area": "astun",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 350,
+   "duration_min": 251,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "candanchu",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 344,
+   "duration_min": 242,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "valdelinares",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 352,
+   "duration_min": 295,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "javalambre",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 432,
+   "duration_min": 300,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "font-romeu-pyrenees-2000",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 156,
+   "duration_min": 130,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "les-angles",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 168,
+   "duration_min": 141,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  },
+  {
+   "origin": "sabadell",
+   "area": "ax-3-domaines",
+   "access_name": "(punto de la estación en el catálogo)",
+   "road_km": 187,
+   "duration_min": 164,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-01"
+  }
+ ],
+ "sources": [
+  {
+   "id": "esquiades-status-grandvalira",
+   "area": "grandvalira",
+   "scope": "grandvalira",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "grandvalira"
+   ]
+  },
+  {
+   "id": "esquiades-status-pal-arinsal",
+   "area": "pal-arinsal",
+   "scope": "pal-arinsal",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "vallnord pal arinsal",
+    "pal arinsal"
+   ]
+  },
+  {
+   "id": "esquiades-status-ordino-arcalis",
+   "area": "ordino-arcalis",
+   "scope": "ordino-arcalis",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "ordino arcalis",
+    "vallnord ordino arcalis"
+   ]
+  },
+  {
+   "id": "esquiades-status-alp-2500",
+   "area": "alp-2500",
+   "scope": "alp-2500",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Solo la fila «Alp 2500»; la fila «La Molina» es otra fuente con otro ámbito.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "alp 2500 la molina masella",
+    "alp 2500"
+   ]
+  },
+  {
+   "id": "esquiades-status-la-molina",
+   "area": "la-molina",
+   "scope": "la-molina",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "la molina"
+   ]
+  },
+  {
+   "id": "esquiades-status-masella",
+   "area": "masella",
+   "scope": "masella",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "masella"
+   ]
+  },
+  {
+   "id": "esquiades-status-baqueira-beret",
+   "area": "baqueira-beret",
+   "scope": "baqueira-beret",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "baqueira beret",
+    "baqueira"
+   ]
+  },
+  {
+   "id": "esquiades-status-port-aine",
+   "area": "port-aine",
+   "scope": "port-aine",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "port aine"
+   ]
+  },
+  {
+   "id": "esquiades-status-espot-esqui",
+   "area": "espot-esqui",
+   "scope": "espot-esqui",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "espot esqui",
+    "espot"
+   ]
+  },
+  {
+   "id": "esquiades-status-boi-taull",
+   "area": "boi-taull",
+   "scope": "boi-taull",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "boi taull"
+   ]
+  },
+  {
+   "id": "esquiades-status-port-del-comte",
+   "area": "port-del-comte",
+   "scope": "port-del-comte",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "port del comte"
+   ]
+  },
+  {
+   "id": "esquiades-status-vall-de-nuria",
+   "area": "vall-de-nuria",
+   "scope": "vall-de-nuria",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "vall de nuria"
+   ]
+  },
+  {
+   "id": "esquiades-status-cerler",
+   "area": "cerler",
+   "scope": "cerler",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "cerler"
+   ]
+  },
+  {
+   "id": "esquiades-status-formigal-panticosa",
+   "area": "formigal-panticosa",
+   "scope": "formigal-panticosa",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Fila del conjunto; no se replica en Formigal ni en Panticosa.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "formigal panticosa"
+   ]
+  },
+  {
+   "id": "esquiades-status-astun-candanchu",
+   "area": "astun-candanchu",
+   "scope": "astun-candanchu",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Esquiades publicaba la misma cifra (101 km) bajo Astún y bajo Candanchú: es el dominio conjunto. Se registra una sola vez, en el dominio.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "astun",
+    "candanchu"
+   ]
+  },
+  {
+   "id": "esquiades-status-valdelinares",
+   "area": "valdelinares",
+   "scope": "valdelinares",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "valdelinares"
+   ]
+  },
+  {
+   "id": "esquiades-status-javalambre",
+   "area": "javalambre",
+   "scope": "javalambre",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "javalambre"
+   ]
+  },
+  {
+   "id": "esquiades-status-font-romeu-pyrenees-2000",
+   "area": "font-romeu-pyrenees-2000",
+   "scope": "font-romeu-pyrenees-2000",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "font romeu pyrenees 2000",
+    "font romeu"
+   ]
+  },
+  {
+   "id": "esquiades-status-les-angles",
+   "area": "les-angles",
+   "scope": "les-angles",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "les angles"
+   ]
+  },
+  {
+   "id": "esquiades-status-ax-3-domaines",
+   "area": "ax-3-domaines",
+   "scope": "ax-3-domaines",
+   "kind": "snow",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/informacion-interes/estado-pistas/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": null,
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "adapter": "esquiades-status",
+   "aliases": [
+    "ax 3 domaines"
+   ]
+  },
+  {
+   "id": "grandvalira-official",
+   "area": "grandvalira",
+   "scope": "grandvalira",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.grandvalira.com/es/estacion/estado-pistas",
+   "method": "html",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Adaptador de texto probado con extractos REALES de la página (30/09 y 01/10/2026, fuera de temporada: 0/215 km, remontes 4/73, los 7 sectores «Cerrado»). Los sectores se leen con su estado, pistas e instalaciones, pero no se guardan como áreas ni se les reparten km (la web no publica km por sector). Cerrado confirmado solo si todos los sectores lo dicen. El HTML crudo no se ha capturado desde el entorno de desarrollo: pendiente de la primera ejecución online.",
+   "adapter": "grandvalira-official",
+   "aliases": null
+  },
+  {
+   "id": "ordino-arcalis-official",
+   "area": "ordino-arcalis",
+   "scope": "ordino-arcalis",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.ordinoarcalis.com/es/estacion/estado-pistas",
+   "method": "html",
+   "fields": [
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Misma plantilla que Grandvalira. Texto real del 01/10/2026: pistas 0/27, instalaciones 1/2, «Última actualización: Jue, 01/10/2026 - 11:50», sector «Ordino Arcalís Cerrado». NO publica kilómetros: quedan vacíos, no se infieren. Pendiente de la primera ejecución online.",
+   "adapter": "ordino-arcalis-official",
+   "aliases": null
+  },
+  {
+   "id": "fgc-pirineu365",
+   "area": "la-molina",
+   "scope": "la-molina",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "altiservice-font-romeu",
+   "area": "font-romeu-pyrenees-2000",
+   "scope": "font-romeu-pyrenees-2000",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.altiservice.com/font-romeu-pyrenees-2000/meteo-et-enneigement",
+   "method": "html",
+   "fields": [
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Comprobada el 30/09/2026 fuera de temporada: solo pistas de verano y remontes (0/7, 0/5). Sin km. Revalidar en invierno.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "ax-official",
+   "area": "ax-3-domaines",
+   "scope": "ax-3-domaines",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.ax.ski/en/ouverture-pistes",
+   "method": "playwright",
+   "fields": [
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-09-30",
+   "limitations": "Comprobada el 30/09/2026: periodo de apertura 05/12/2026–29/03/2027 y mapa interactivo; no publica km ni recuentos en texto. No se infieren km.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "fgc-pirineu365-vall-de-nuria",
+   "area": "vall-de-nuria",
+   "scope": "vall-de-nuria",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "fgc-pirineu365-espot-esqui",
+   "area": "espot-esqui",
+   "scope": "espot-esqui",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "fgc-pirineu365-port-aine",
+   "area": "port-aine",
+   "scope": "port-aine",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "fgc-pirineu365-boi-taull",
+   "area": "boi-taull",
+   "scope": "boi-taull",
+   "kind": "snow",
+   "provider": "pirineu365",
+   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
+   "method": "playwright",
+   "fields": [
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "op_status"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Fuente oficial de FGC (robots.txt lo permite). Los datos se cargan por JavaScript y fuera de temporada muestran «–»; la etiqueta «Actualizado:» existe. Sin adaptador hasta observar en temporada el contenido renderizado de /es/<estación>/en-directo/infonieve. Mientras tanto se usa el agregador.",
+   "adapter": null,
+   "aliases": null
+  },
+  {
+   "id": "offers-grandvalira",
+   "area": "grandvalira",
+   "scope": "grandvalira",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-grandvalira-130041",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unsupported",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-pal-arinsal",
+   "area": "pal-arinsal",
+   "scope": "pal-arinsal",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/pal-arinsal-1451",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unsupported",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-ordino-arcalis",
+   "area": "ordino-arcalis",
+   "scope": "ordino-arcalis",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/arcalis-1453",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unsupported",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-alp-2500",
+   "area": "la-molina",
+   "scope": "la-molina",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-la-molina",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra. La página es la de La Molina (no hay una de Alp 2500 ni de Masella con ese nombre).",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-baqueira-beret",
+   "area": "baqueira-beret",
+   "scope": "baqueira-beret",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-baqueira-beret",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga pero sin ninguna tarjeta con precio. Se reintenta en temporada; sin datos no se muestra nada.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-port-aine",
+   "area": "port-aine",
+   "scope": "port-aine",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-port-aine",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-espot-esqui",
+   "area": "espot-esqui",
+   "scope": "espot-esqui",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-espot",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-boi-taull",
+   "area": "boi-taull",
+   "scope": "boi-taull",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-boi-taull-1300410",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unsupported",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-port-del-comte",
+   "area": "port-del-comte",
+   "scope": "port-del-comte",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-port-del-comte",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga pero sin ninguna tarjeta con precio. Se reintenta en temporada; sin datos no se muestra nada.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-vall-de-nuria",
+   "area": "vall-de-nuria",
+   "scope": "vall-de-nuria",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/esqui-fin-de-semana-vall-de-nuria-1300462",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unsupported",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-cerler",
+   "area": "cerler",
+   "scope": "cerler",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/cerler-1418",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unsupported",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: la página carga sin ofertas («No hemos encontrado ningún resultado»); las ofertas llegan por una petición posterior a /*/hotel/offer/load, que el robots.txt de Esquiades prohíbe. No se carga. Consulta manual.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-formigal-panticosa",
+   "area": "formigal-panticosa",
+   "scope": "formigal-panticosa",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-formigal-panticosa",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-astun",
+   "area": "astun",
+   "scope": "astun",
+   "kind": "offers",
+   "provider": "esquiades",
+   "url": "https://www.esquiades.com/viajes-esqui/astun-1435",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: muestra paquetes genéricos sin hotel ni fechas («Esquí Temporada 26/27 2 noches + 2 días de forfait Desde 159 €»), de Astún y Candanchú. Solo orientativo.",
+   "adapter": "esquiades-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-candanchu",
+   "area": "astun-candanchu",
+   "scope": "astun-candanchu",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-astun-candanchu",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-valdelinares",
+   "area": "valdelinares",
+   "scope": "valdelinares",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-valdelinares",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-javalambre",
+   "area": "javalambre",
+   "scope": "javalambre",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-javalambre",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-font-romeu-pyrenees-2000",
+   "area": "font-romeu-pyrenees-2000",
+   "scope": "font-romeu-pyrenees-2000",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-font-romeu",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-les-angles",
+   "area": "les-angles",
+   "scope": "les-angles",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-les-angles",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: las tarjetas son de hoteles de la Cerdanya (Puigcerdà), algunos también en la página de La Molina, y no dicen de qué estación es el forfait. Orientativo y con alcance dudoso; como todo precio de catálogo, nunca se toma como precio confirmado.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "offers-ax-3-domaines",
+   "area": "ax-3-domaines",
+   "scope": "ax-3-domaines",
+   "kind": "offers",
+   "provider": "estiber",
+   "url": "https://www.estiber.com/es_ES/ofertas-esqui-ax-3-domaines",
+   "method": "playwright",
+   "fields": [
+    "offer_cards"
+   ],
+   "priority": 50,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "01/10/2026: página permitida por robots.txt con tarjetas de precio en el HTML («<hotel> N noches del dd/mm/aaaa al dd/mm/aaaa Forfait N días Por N€ por persona»). Fechas y ocupación las elige el proveedor: precio orientativo, nunca de vuestras fechas. Precio rebajado sin tachado («Por 222€ 199€» con «-10%») resuelto solo si el descuento cuadra.",
+   "adapter": "estiber-cards",
+   "aliases": null
+  },
+  {
+   "id": "pal-arinsal-official",
+   "area": "pal-arinsal",
+   "scope": "pal-arinsal",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.palarinsal.com/es/estacion/parte-nieve",
+   "method": "html",
+   "fields": [
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Misma plantilla que Grandvalira. Texto real del 01/10/2026: pistas 0/47, instalaciones 0/5, sectores «Pal Cerrado» y «Arinsal Cerrado». NO publica kilómetros. Pendiente de la primera ejecución online.",
+   "adapter": "pal-arinsal-official",
+   "aliases": null
+  },
+  {
+   "id": "port-del-comte-official",
+   "area": "port-del-comte",
+   "scope": "port-del-comte",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.portdelcomte.net/pistes/",
+   "method": "html",
+   "fields": [
+    "open_km",
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Texto real del 01/10/2026 (en catalán): «ESTACIÓ TANCAT», «ÚLTIMA ACTUALITZACIÓ: 05/04/26», km esquiables 0,0, una ficha por pista (31) y por remonte (13). El total de km no se publica. El 0,0 km de hoy es el parte final de la temporada pasada: la fecha del parte lo distingue de la fecha de captura. Pendiente de la primera ejecución online.",
+   "adapter": "port-del-comte-official",
+   "aliases": null
+  },
+  {
+   "id": "cerler-official",
+   "area": "cerler",
+   "scope": "cerler",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.cerler.com/partes/parteNieve?prevision=0",
+   "method": "html",
+   "fields": [
+    "op_status",
+    "source_date",
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Aramón. Texto real del 01/10/2026: solo «Emitido a las 16:39 h del 5 de abril de 2026» y «Estación cerrada · Temporada 2025-2026 finalizada» (fuera de temporada). Las cifras de temporada no se han podido observar: se leen solo si aparecen con etiqueta y formato «x / y». Pendiente de verificar en temporada.",
+   "adapter": "aramon-official",
+   "aliases": null
+  },
+  {
+   "id": "formigal-panticosa-official",
+   "area": "formigal-panticosa",
+   "scope": "formigal-panticosa",
+   "kind": "snow",
+   "provider": "official",
+   "url": "https://www.formigal-panticosa.com/partes/parteNieve?prevision=0",
+   "method": "html",
+   "fields": [
+    "op_status",
+    "source_date",
+    "open_km",
+    "total_km",
+    "open_runs",
+    "total_runs",
+    "open_lifts",
+    "total_lifts"
+   ],
+   "priority": 10,
+   "status": "unverified",
+   "checked_on": "2026-10-01",
+   "limitations": "Aramón, dominio Formigal-Panticosa (no se separan las estaciones: la página no lo hace). Texto real del 01/10/2026: «Emitido a las 15:46 h del 5 de abril de 2026», temporada finalizada. Cifras de temporada pendientes de verificar en invierno.",
+   "adapter": "aramon-official",
+   "aliases": null
+  }
+ ],
+ "legacy_scope_rules": {
+  "snow": {
+   "alp-2500": {
+    "71": "la-molina",
+    "145": "alp-2500"
+   },
+   "astun": {
+    "101": "astun-candanchu"
+   },
+   "candanchu": {
+    "101": "astun-candanchu"
+   }
+  },
+  "hotel": {
+   "alp-2500": "la-molina",
+   "candanchu": "astun-candanchu"
+  }
+ },
+ "legacy_rental_estimates": {
+  "grandvalira": 38,
+  "pal-arinsal": 35,
+  "ordino-arcalis": 35,
+  "alp-2500": 32,
+  "baqueira-beret": 42,
+  "port-aine": 30,
+  "espot-esqui": 30,
+  "boi-taull": 30,
+  "port-del-comte": 28,
+  "vall-de-nuria": 25,
+  "cerler": 35,
+  "formigal-panticosa": 36,
+  "astun": 34,
+  "candanchu": 33,
+  "valdelinares": 28,
+  "javalambre": 27,
+  "font-romeu-pyrenees-2000": 32,
+  "les-angles": 32,
+  "ax-3-domaines": 32
+ }
+}

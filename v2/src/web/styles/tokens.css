@@ -1,0 +1,60 @@
+/* SkiTrip v2 — tokens de diseño. Fondo cálido neutro, un único acento oscuro (verde pino). */
+:root {
+  --bg: #f6f3ee;
+  --surface: #fffdf9;
+  --surface-2: #efebe4;
+  --text: #1c211f;
+  --text-muted: #565d59;       /* 6.6:1 sobre --bg */
+  --border: #ddd7cd;
+  --border-strong: #b9b2a6;
+
+  --accent: #1f4d3a;           /* verde pino: 9.7:1 sobre blanco */
+  --accent-hover: #163a2b;
+  --accent-soft: #e4ede7;
+  --on-accent: #ffffff;
+
+  --danger: #9b2c1d;
+  --danger-soft: #f8e6e1;
+  --warn-soft: #f6ecd2;
+  --warn-text: #6b4a05;
+  --ok-soft: #e1eee5;
+
+  /* Estados de calendario: siempre con símbolo + trama, el color solo acompaña. */
+  --st-free-bg: #dcebe1;
+  --st-free-fg: #174a32;
+  --st-maybe-bg: #f5e9c8;
+  --st-maybe-fg: #5f4300;
+  --st-busy-bg: #efe2dc;
+  --st-busy-fg: #7c2616;
+  --st-busy-hatch: #d9c0b5;
+  --st-unknown-fg: #646b67;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Noto Serif", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius-s: 6px;
+  --radius: 10px;
+  --radius-l: 14px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --touch: 44px;
+  --focus: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent);
+  --shadow: 0 1px 2px rgba(28, 33, 31, 0.06), 0 4px 16px rgba(28, 33, 31, 0.06);
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 140ms;
+
+  --header-h: 60px;
+  --bottom-nav-h: 64px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur: 0ms; }
+}
