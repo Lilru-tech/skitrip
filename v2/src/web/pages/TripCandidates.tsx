@@ -1,5 +1,5 @@
 // Candidaturas de alojamiento y votos (uno por persona, se puede cambiar). Votar no es reservar.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { del, errorMessage, get, patch, post, put } from '../api';
 import { ConfirmDialog, Dialog } from '../components/Dialog';
 import { Field, SelectField } from '../components/Field';
@@ -10,6 +10,7 @@ import { agesText, euros, humanDates, MODALITY_LABEL, parseAges, parseEuros, PRI
 import type { Catalog } from '../catalog';
 import { useResource } from '../hooks';
 import { useProfile } from '../session';
+import { setQuery, useLocation } from '../router';
 import type { TripDetail } from '../types';
 
 export interface Candidate {
@@ -62,6 +63,13 @@ function Candidates({ tripId, detail }: { tripId: string; detail: TripDetail }) 
   const [form, setForm] = useState<CandForm | null>(null);
   const [deleting, setDeleting] = useState<Candidate | null>(null);
   const role = detail.trip.role;
+  // Desde la ficha de una estación («Apuntar cotización»): abre el formulario con la estación elegida, una sola vez.
+  const quoteArea = useLocation().query.get('cotizar');
+  useEffect(() => {
+    if (!quoteArea) return;
+    setForm(candidateFormFor(detail, { areaId: quoteArea, priceKind: 'user_quote' }));
+    setQuery('cotizar', null);
+  }, [quoteArea, detail]);
 
   const vote = async (c: Candidate, v: 1 | -1) => {
     const value = c.my_vote === v ? null : v;

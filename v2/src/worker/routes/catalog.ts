@@ -78,7 +78,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
   if (!area) throw notFound('Estación');
   const nowMs = Date.now();
   const since = nowMs - 90 * 86400_000;
-  const [links, sources, snow, legacySnow, legacyHotel, comments, offers, legacyComments] = await db.batch([
+  const [links, sources, snow, legacySnow, legacyHotel, comments, offers, legacyComments, routes] = await db.batch([
     db.prepare(`SELECT l.parent_id, p.name AS parent_name, l.child_id, ch.name AS child_name, l.relation FROM area_links l
                 JOIN areas p ON p.id = l.parent_id JOIN areas ch ON ch.id = l.child_id WHERE l.parent_id = ?1 OR l.child_id = ?1`).bind(id),
     db.prepare(`SELECT s.*, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.last_error FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
@@ -100,6 +100,9 @@ catalogRoutes.get('/areas/:id', async (c) => {
     db.prepare(`SELECT l.id, l.body, l.legacy_author_name, l.created_at_text, u.alias AS linked_alias FROM legacy_comments l LEFT JOIN users u ON u.id = l.reconciled_user_id
                 WHERE l.published = 1 AND (l.legacy_resort_id = ?1 OR l.legacy_resort_id IN (SELECT legacy_id FROM legacy_id_map WHERE legacy_kind = 'resort' AND new_id = ?1))
                 ORDER BY l.created_at_text DESC LIMIT 100`).bind(id),
+    // Cómo llegar desde cada origen, con su procedencia (heredada, calculada o revisada) y sus avisos.
+    db.prepare(`SELECT r.origin_id, o.name AS origin_name, r.access_name, r.road_km, r.duration_min, r.toll_cents, r.source, r.checked_on, r.validated, r.notes
+                FROM routes r JOIN origins o ON o.id = r.origin_id WHERE r.area_id = ?1 ORDER BY o.name`).bind(id),
   ]);
   c.header('Cache-Control', 'public, max-age=120');
   return c.json({
@@ -114,11 +117,29 @@ catalogRoutes.get('/areas/:id', async (c) => {
     },
     comments: comments.results,
     legacyComments: (legacyComments.results as any[]).map((l) => ({ id: l.id, body: l.body, legacyAuthorName: l.legacy_author_name, dateText: l.created_at_text, linkedAlias: l.linked_alias ?? null })),
+    routes: (routes.results as any[]).map((r) => ({ originId: r.origin_id, originName: r.origin_name, accessName: r.access_name, roadKm: r.road_km, durationMin: r.duration_min,
+      tollCents: r.toll_cents, source: r.source, checkedOn: r.checked_on, validated: !!r.validated, notes: r.notes })),
     legacyCommentsNote: 'Comentarios de la hoja antigua. El autor es el nombre escrito en la hoja (texto libre): no identifica una cuenta salvo vinculación explícita de administración.',
     // «modality» es técnica; lo visible es forfaitIncluded: 'unknown' nunca se presenta como «solo alojamiento».
     offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.',
       items: (offers.results as any[]).map(({ forfait_included, warnings, children_ages, ...o }) => ({ ...o, forfaitIncluded: forfait_included ?? 'unknown',
         childrenAges: children_ages ? JSON.parse(children_ages) : null, warnings: warnings ? JSON.parse(warnings) : [] })) },
+  });
+});
+
+/**
+ * Consejos generales del grupo: comentarios de la hoja antigua con ámbito «global» (no son de una estación) que
+ * administración ha publicado uno a uno. Sin publicar no aparecen.
+ */
+catalogRoutes.get('/tips', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT l.id, l.body, l.legacy_author_name, l.created_at_text, u.alias AS linked_alias FROM legacy_comments l LEFT JOIN users u ON u.id = l.reconciled_user_id
+     WHERE l.published = 1 AND l.legacy_resort_id = 'global' ORDER BY l.created_at_text DESC LIMIT 100`,
+  ).all<any>();
+  c.header('Cache-Control', 'public, max-age=120');
+  return c.json({
+    tips: results.map((l) => ({ id: l.id, body: l.body, legacyAuthorName: l.legacy_author_name, dateText: l.created_at_text, linkedAlias: l.linked_alias ?? null })),
+    note: 'Consejos generales de la hoja antigua, publicados por administración. El autor es el nombre escrito en la hoja (texto libre).',
   });
 });
 

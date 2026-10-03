@@ -1,3 +1,4 @@
-date,user,status
-10/01/2026,Ejemplo,ocupado
-2026-01-11,Ejemplo,quizá
+fecha,persona,estado
+10/01/2026,Nombre como en la hoja,ocupado
+11/01/2026,Nombre como en la hoja,quizá
+12/01/2026,Nombre como en la hoja,libre

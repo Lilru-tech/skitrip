@@ -8,7 +8,9 @@ INSERT INTO areas (id, name, kind, country, region, lat, lon, official_total_km,
   ('e2e-alfa-sur', 'Alfa Sur (sintético)', 'resort', 'ES', 'Pirineo sintético', 42.29, 1.89, 50, 'e2e', 6, 5, NULL),
   ('e2e-beta', 'Beta (sintético)', 'resort', 'AD', 'Andorra sintética', 42.55, 1.60, 90, 'e2e', 9, 9, NULL),
   ('e2e-lejana', 'Gamma Lejana (sintético)', 'resort', 'FR', 'Alpes sintéticos', 45.30, 6.50, 300, 'e2e', 9, 8, NULL),
-  ('e2e-sin-ruta', 'Delta Sin Ruta (sintético)', 'resort', 'ES', 'Pirineo sintético', 42.70, 0.90, NULL, NULL, NULL, NULL, NULL);
+  ('e2e-sin-ruta', 'Delta Sin Ruta (sintético)', 'resort', 'ES', 'Pirineo sintético', 42.70, 0.90, NULL, NULL, NULL, NULL, NULL),
+  -- Cierre confirmado sin km publicados (como Ordino Arcalís fuera de temporada), sin ofertas automáticas.
+  ('e2e-cerrada', 'Épsilon Cerrada (sintético)', 'resort', 'AD', 'Andorra sintética', 42.63, 1.50, 30, 'e2e', 7, 6, NULL);
 
 INSERT INTO area_links (parent_id, child_id, relation) VALUES ('e2e-dominio', 'e2e-alfa-norte', 'member'), ('e2e-dominio', 'e2e-alfa-sur', 'member');
 
@@ -18,6 +20,7 @@ INSERT INTO routes (origin_id, area_id, access_name, road_km, duration_min, sour
   ('tarragona', 'e2e-alfa-sur', 'Alfa Sur', 185, 145, 'manual', '2026-09-01', 1, NULL),
   ('tarragona', 'e2e-beta', 'Beta', 250, 190, 'manual', '2026-09-01', 0, 'Pendiente de validar (sintético).'),
   ('tarragona', 'e2e-lejana', 'Gamma', 780, 480, 'manual', '2026-09-01', 1, NULL),
+  ('tarragona', 'e2e-cerrada', '(punto de la estación en el catálogo)', 215, 211, 'OSRM (OpenStreetMap), router.project-osrm.org', '2026-10-01', 0, NULL),
   ('sabadell', 'e2e-dominio', 'Acceso Alfa', 150, 120, 'manual', '2026-09-01', 1, NULL),
   ('sabadell', 'e2e-alfa-norte', 'Alfa Norte', 155, 125, 'manual', '2026-09-01', 1, NULL),
   ('sabadell', 'e2e-alfa-sur', 'Alfa Sur', 145, 115, 'manual', '2026-09-01', 1, NULL),
@@ -28,6 +31,8 @@ INSERT INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fi
   ('e2e-dominio-snow', 'e2e-dominio', 'e2e-dominio', 'snow', 'official', 'https://example.invalid/alfa', 'html', '["open_km","total_km"]', 10, 'verified', '2026-09-01', 'Fuente sintética.', 'e2e'),
   ('e2e-beta-snow', 'e2e-beta', 'e2e-beta', 'snow', 'official', 'https://example.invalid/beta', 'html', '["open_km","total_km"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
   ('e2e-lejana-snow', 'e2e-lejana', 'e2e-lejana', 'snow', 'official', 'https://example.invalid/gamma', 'html', '["open_km","total_km","source_date"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
+  ('e2e-cerrada-snow', 'e2e-cerrada', 'e2e-cerrada', 'snow', 'official', 'https://example.invalid/epsilon', 'html', '["op_status","open_runs","source_date"]', 10, 'unverified', '2026-09-01', NULL, 'e2e'),
+  ('e2e-cerrada-offers', 'e2e-cerrada', 'e2e-cerrada', 'offers', 'esquiades', 'https://example.invalid/ofertas-epsilon', 'playwright', '["offer_cards"]', 20, 'unverified', '2026-09-01', NULL, 'e2e'),
   ('e2e-beta-offers', 'e2e-beta', 'e2e-beta', 'offers', 'esquiades', 'https://example.invalid/ofertas', 'html', '["price"]', 20, 'broken', '2026-09-01', 'Adaptador roto (sintético).', 'e2e'),
   -- Fuente de ofertas para el recorrido de avisos (extracción → ingesta → aviso → «Marcar todos»).
   ('e2e-alfa-sur-offers', 'e2e-alfa-sur', 'e2e-alfa-sur', 'offers', 'estiber', 'https://example.invalid/ofertas-alfa', 'html', '["price"]', 20, 'unverified', '2026-09-01', 'Fuente sintética.', 'estiber-cards');
@@ -44,11 +49,14 @@ INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date,
   ('e2e-s3', 'e2e-dominio', 'e2e-dominio-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 2 * 86400000 - 3600000, NULL, 'partial', 60, 120, 'h3', 'e2e'),
   ('e2e-s4', 'e2e-beta', 'e2e-beta-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 5 * 86400000, NULL, 'open', 40, 90, 'h4', 'e2e'),
   -- Gamma: capturada hace 1 h, pero la fuente publica un parte de hace 7 días.
-  ('e2e-s5', 'e2e-lejana', 'e2e-lejana-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now', '-7 days'), 'partial', 200, 300, 'h5', 'e2e');
+  ('e2e-s5', 'e2e-lejana', 'e2e-lejana-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now', '-7 days'), 'partial', 200, 300, 'h5', 'e2e'),
+  -- Épsilon: parte de hoy, cerrada, sin km publicados (open_km y total_km NULL).
+  ('e2e-s6', 'e2e-cerrada', 'e2e-cerrada-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now'), 'closed_confirmed', NULL, NULL, 'h6', 'e2e');
 
 INSERT INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, imported_at) VALUES ('e2e-legacy', 'open_km_history', 'sintetico.json', 'e2e-sha', 1, 1, 0);
 INSERT INTO legacy_snow_observations (file_id, legacy_resort_id, obs_date, open_km, total_km, anomalies, scope_area_id) VALUES
-  ('e2e-legacy', 'beta', '2026-02-10', 0, 90, '["cero posiblemente «-»"]', 'e2e-beta');
+  ('e2e-legacy', 'beta', '2026-02-10', 0, 90, '["cero posiblemente «-»"]', 'e2e-beta'),
+  ('e2e-legacy', 'beta', '2026-02-11', 0, 90, '["zero_ambiguous","total_mismatch_catalog"]', 'e2e-beta');
 
 INSERT OR IGNORE INTO providers (id, name, base_url, enabled) VALUES ('esquiades', 'Esquiades', 'https://example.invalid', 0), ('estiber', 'Estiber', 'https://example.invalid', 0);
 INSERT INTO offers (id, provider_id, hotel_name_raw, area_id, modality, forfait_included, check_in, check_out, nights, adults, board, url, identity_hash, first_seen_at) VALUES

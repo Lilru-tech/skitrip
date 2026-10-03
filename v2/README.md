@@ -51,6 +51,7 @@ Los tests nunca escriben en producción: usan D1 en memoria o en `test/e2e/.stat
 | `npx tsx tools/backup.ts export --local\|--remote` / `restore-test <dir>` | Copia de seguridad y prueba de restauración. |
 | `npm run collect:snow` / `npm run collect:offers` | Recolectores (los ejecuta GitHub Actions; en local aceptan `--fixture`/`--dry-run`). |
 | `npx tsx tools/gen-sources-doc.ts` | Regenera `docs/SOURCES.md`. |
+| `npx tsx tools/review-routes.ts` | Compara distancias heredadas, rutas del catálogo y km totales antiguos (sin red; no valida nada). |
 
 ## Estructura
 

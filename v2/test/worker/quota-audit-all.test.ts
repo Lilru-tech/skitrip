@@ -171,7 +171,7 @@ describe('auditoría de consultas: resto de rutas', () => {
         INSERT INTO legacy_comments (id, file_id, row_hash, legacy_author_name, legacy_resort_id, body, created_at_text, published) SELECT 'aud-lc-' || i, 'aud-lf', 'aud-lc-' || i, 'Pepe', NULL, 'Comentario legacy ' || i, '01/02/2024', 0 FROM n`),
       db.prepare(`WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 1199)
         INSERT INTO legacy_availability (id, file_id, row_hash, legacy_person_name, day, legacy_status, mapped_status)
-        SELECT 'aud-la-' || i, 'aud-lf', 'aud-la-' || i, 'Persona ' || (i / 150), date('2026-12-01', '+' || (i % 150) || ' days'), 'x', CASE i % 4 WHEN 0 THEN 'free' WHEN 1 THEN 'busy' WHEN 2 THEN 'maybe' END FROM n`),
+        SELECT 'aud-la-' || i, 'aud-lf', 'aud-la-' || i, 'Persona ' || (i / 150), date('now', '+30 days', '+' || (i % 150) || ' days'), 'x', CASE i % 4 WHEN 0 THEN 'free' WHEN 1 THEN 'busy' WHEN 2 THEN 'maybe' END FROM n`),
     ]);
     await m('GET /trips/:id/shopping/legacy', `200 artículos legacy, ${SH}`, api(o.token, 'GET', `${T}/shopping/legacy`));
     const legacyItems = Array.from({ length: 140 }, (_, i) => ({ legacyId: `aud-ls-${i + 1}`, productId: i % 2 ? prods[i % PRODUCTS].id : null, qty: 1 + (i % 4) }));
@@ -323,12 +323,17 @@ describe('auditoría de consultas: resto de rutas', () => {
     }
     await m('GET /admin/legacy/comments', '500 comentarios legacy', A('GET', '/legacy/comments'));
     await m('POST /admin/legacy/comments/:lid/reconcile', '—', A('POST', '/legacy/comments/aud-lc-1/reconcile', { userId: m1.id, publish: true }));
+    await m('POST /admin/legacy/comments/publish', '500 comentarios elegidos', A('POST', '/legacy/comments/publish', { ids: Array.from({ length: 500 }, (_, i) => `aud-lc-${i + 1}`), publish: true }));
+    await m('GET /public/tips', '—', api(null, 'GET', '/api/public/tips'));
+    await m('GET /admin/legacy/summary', '500 comentarios, 8 personas × 150 días + 20 × 250', A('GET', '/legacy/summary'));
     await m('GET /admin/legacy/availability', '8 personas × 150 días', A('GET', '/legacy/availability'));
     const rec = await m('POST /admin/legacy/availability/reconcile', '150 días', A('POST', '/legacy/availability/reconcile', { person: 'Persona 1', userId: m1.id }));
     expect(rec.json.days).toBe(150);
     const mine = await m('GET /legacy/availability/mine', '150 días', api(m1.token, 'GET', '/api/legacy/availability/mine'));
     const inc = await m('POST /legacy/availability/mine/incorporate', '150 días', api(m1.token, 'POST', '/api/legacy/availability/mine/incorporate', { days: mine.json.days.map((d: any) => d.day), overwrite: true }));
     expect(inc.json.incorporated + inc.json.skippedUnmapped).toBe(150);
+    await m('POST /admin/legacy/identities/link', '150 días + 500 comentarios de «Pepe»', A('POST', '/legacy/identities/link', { name: 'Pepe', userId: r1.id }));
+    await m('POST /admin/legacy/identities/link (disponibilidad)', '150 días', A('POST', '/legacy/identities/link', { name: 'Persona 2', userId: r1.id }));
 
     // ---------- Destructivas, al final ----------
     await m('DELETE /trips/:id/members/:userId', `${MEMBERS + 1} miembros`, api(o.token, 'DELETE', `${T}/members/${m7.id}`));

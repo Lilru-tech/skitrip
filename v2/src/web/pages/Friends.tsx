@@ -4,7 +4,7 @@ import { ConfirmDialog } from '../components/Dialog';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
 import { useBusy, useResource } from '../hooks';
-import { usePageTitle } from '../router';
+import { Link, usePageTitle } from '../router';
 import type { FriendsResponse, PublicUser } from '../types';
 
 type Confirm = { kind: 'remove' | 'block'; user: PublicUser } | null;
@@ -144,7 +144,8 @@ export function FriendsPage() {
             <h2 id="fr-h">Tus amigos <span className="count">{data.friends.length}</span></h2>
             {data.friends.length === 0 ? (
               <Empty title="Todavía no tienes amigos en SkiTrip">
-                <p>Busca a tu grupo por su alias y envíales una solicitud.</p>
+                <p>Busca a tu grupo por su alias (arriba) y envíales una solicitud. Si aún no tienen cuenta, pídeles que se registren y te digan su alias.</p>
+                <p className="small">Después, comparte tu disponibilidad en <Link to="/calendario?vista=compartir">Calendario › Compartir</Link> para encontrar fechas en común.</p>
               </Empty>
             ) : (
               <ul className="list">

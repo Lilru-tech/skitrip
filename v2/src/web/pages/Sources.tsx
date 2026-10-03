@@ -1,6 +1,6 @@
 import { get } from '../api';
 import { ErrorState, Loading, Empty } from '../components/States';
-import { healthText, instant, SOURCE_STATUS_LABEL } from '../format';
+import { healthText, instant, numDate, PROVIDER_LABEL, RUN_STATUS_LABEL, SOURCE_FIELD_LABEL, SOURCE_METHOD_LABEL, SOURCE_STATUS_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { usePageTitle } from '../router';
 import type { SourceRow } from '../catalog';
@@ -25,10 +25,10 @@ export function SourcesPage() {
           <ul className="list">
             {rows.map((s) => (
               <li key={s.id} className="source-row">
-                <p><strong>{KIND_LABEL[s.kind] ?? s.kind}</strong> · {s.provider} · método {s.method} · <span className={`tag ${s.status === 'verified' ? 'tag-ok' : s.status === 'broken' ? 'tag-bad' : 'tag-quiet'}`}>{SOURCE_STATUS_LABEL[s.status] ?? s.status}</span></p>
-                <p className="small">Campos: {s.fields.join(', ') || '—'}{s.scope_area_id !== s.area_id && ` · cifras del ámbito ${s.scope_area_id}`}</p>
+                <p><strong>{KIND_LABEL[s.kind] ?? s.kind}</strong> · {PROVIDER_LABEL[s.provider] ?? s.provider} · {SOURCE_METHOD_LABEL[s.method] ?? s.method} · <span className={`tag ${s.status === 'verified' ? 'tag-ok' : s.status === 'broken' ? 'tag-bad' : 'tag-quiet'}`}>{SOURCE_STATUS_LABEL[s.status] ?? s.status}</span></p>
+                <p className="small">Datos que extrae: {s.fields.map((f) => SOURCE_FIELD_LABEL[f] ?? f).join(', ') || '—'}{s.scope_area_id !== s.area_id && ` · cifras del ámbito ${s.scope_area_id}`}</p>
                 <p className="small muted">
-                  Comprobada: {s.checked_on ?? 'nunca'} · Último intento: {s.last_attempt_at ? instant(s.last_attempt_at) : 'nunca'} · Último éxito: {s.last_success_at ? instant(s.last_success_at) : 'nunca'}
+                  Comprobada: {s.checked_on ? numDate(s.checked_on) : 'nunca'} · Último intento: {s.last_attempt_at ? instant(s.last_attempt_at) : 'nunca'} · Último éxito: {s.last_success_at ? instant(s.last_success_at) : 'nunca'}
                   {s.last_status && ` · Último resultado: ${healthText(s.last_status, s.reason)}`}
                 </p>
                 {s.limitations && <p className="small">Limitaciones: {s.limitations}</p>}

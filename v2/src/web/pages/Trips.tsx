@@ -8,6 +8,7 @@ import { useBusy, useResource } from '../hooks';
 import { Link, navigate, usePageTitle } from '../router';
 import type { MyInvitation, Trip } from '../types';
 import { emptyTripForm, formToPayload, TripForm, validateTripForm, type TripFormValues } from './TripForm';
+import { GettingStarted, LegacyPendingNotice } from '../components/GettingStarted';
 
 export function TripsPage() {
   usePageTitle('Mis viajes');
@@ -39,6 +40,8 @@ export function TripsPage() {
     }
   };
 
+  const openCreate = () => { setFormErr(null); setNightsErr(null); setCreating(true); };
+
   const respond = async (inv: MyInvitation, action: 'accept' | 'decline') => {
     try {
       await run(`${action}:${inv.id}`, () => post(`/api/trips/invitations/${inv.id}/${action}`));
@@ -53,8 +56,11 @@ export function TripsPage() {
     <div className="page">
       <div className="page-head">
         <h1>Mis viajes</h1>
-        <button type="button" className="btn btn-primary" onClick={() => { setFormErr(null); setNightsErr(null); setCreating(true); }}>Nuevo viaje</button>
+        <button type="button" className="btn btn-primary" onClick={openCreate}>Nuevo viaje</button>
       </div>
+
+      <LegacyPendingNotice />
+      {trips.data && <GettingStarted tripCount={trips.data.trips.length} onCreateTrip={openCreate} />}
 
       {invs.data && invs.data.invitations.length > 0 && (
         <section className="panel panel-accent stack" aria-labelledby="inv-h">
@@ -81,7 +87,8 @@ export function TripsPage() {
       {trips.error && !trips.data && <ErrorState message={trips.error} onRetry={trips.reload} />}
       {trips.data && (trips.data.trips.length === 0 ? (
         <Empty title="Aún no tienes viajes">
-          <p>Crea uno para invitar a tu grupo y buscar fechas en común, o acepta una invitación.</p>
+          <p>Un viaje reúne al grupo: fechas en común, estación, alojamiento, presupuesto, compra y gastos. Créalo aunque falten datos, o acepta una invitación cuando te llegue.</p>
+          <p><button type="button" className="btn btn-secondary" onClick={openCreate}>Crear el primer viaje</button></p>
         </Empty>
       ) : (
         <ul className="trip-list" aria-label="Tus viajes">

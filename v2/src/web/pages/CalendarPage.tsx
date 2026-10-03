@@ -199,7 +199,7 @@ function SharingSettings() {
         </div>
         <fieldset className="stack-s">
           <legend>Miembros de estos viajes</legend>
-          {trips.data!.trips.length === 0 ? <p className="muted">No tienes viajes todavía.</p> : trips.data!.trips.map((t) => (
+          {trips.data!.trips.length === 0 ? <p className="muted">No tienes viajes todavía. Cuando <Link to="/viajes">crees uno</Link> o te unas, podrás compartirla solo con sus miembros.</p> : trips.data!.trips.map((t) => (
             <div className="check" key={t.id}>
               <input id={`share-${t.id}`} type="checkbox" checked={tripIds?.has(t.id) ?? false}
                 onChange={(e) => setTripIds((s) => { const n = new Set(s ?? []); if (e.target.checked) n.add(t.id); else n.delete(t.id); return n; })} />

@@ -8,6 +8,8 @@ import { rateLimit } from '../ratelimit';
 import { zId } from '../schemas';
 import { sha256Hex } from '../crypto';
 import { mapAvailability, mapComments, mapShopping } from '../../core/sheets';
+import { normName } from '../../core/legacy';
+import { todayMadrid } from '../../core/dates';
 
 // Comentarios (públicos por estación o privados de viaje), avisos internos y administración.
 export const socialRoutes = new Hono<AppEnv>();
@@ -166,8 +168,12 @@ admin.post('/comments/:cid/hide', async (c) => {
 });
 
 admin.get('/legacy/comments', async (c) => {
+  // Nombre de la estación para mostrarlo en lugar del identificador legacy («global» = consejo general).
   const { results } = await c.env.DB.prepare(
-    `SELECT l.*, u.alias AS reconciled_alias FROM legacy_comments l LEFT JOIN users u ON u.id = l.reconciled_user_id ORDER BY l.created_at_text LIMIT 500`,
+    `SELECT l.*, u.alias AS reconciled_alias, a.name AS area_name FROM legacy_comments l LEFT JOIN users u ON u.id = l.reconciled_user_id
+     LEFT JOIN legacy_id_map m ON m.legacy_kind = 'resort' AND m.legacy_id = l.legacy_resort_id
+     LEFT JOIN areas a ON a.id = COALESCE(m.new_id, l.legacy_resort_id)
+     ORDER BY l.created_at_text LIMIT 500`,
   ).all();
   return c.json({ comments: results, note: 'Autoría legacy = nombre libre. Solo se asigna a una cuenta por acción administrativa explícita.' });
 });
@@ -182,6 +188,80 @@ admin.post('/legacy/comments/:lid/reconcile', async (c) => {
   if (!r.meta.changes) throw notFound('Comentario legacy');
   await audit(c.env.DB, me.id, 'legacy_comment.reconcile', 'legacy_comment', c.req.param('lid'), { userId, publish });
   return c.json({ ok: true });
+});
+
+// Publicar o retirar varios comentarios elegidos a la vez. Solo cambia «published»: no toca la vinculación a cuentas.
+admin.post('/legacy/comments/publish', async (c) => {
+  const me = c.get('user');
+  const { ids, publish } = await parseBody(c, z.object({ ids: z.array(zId).min(1).max(500), publish: z.boolean() }));
+  const unique = [...new Set(ids)];
+  const r = await c.env.DB.prepare('UPDATE legacy_comments SET published = ?1, reconciled_by = ?2, reconciled_at = ?3 WHERE id IN (SELECT value FROM json_each(?4))')
+    .bind(publish ? 1 : 0, me.id, now(), JSON.stringify(unique)).run();
+  if (!r.meta.changes) throw notFound('Comentario legacy');
+  await audit(c.env.DB, me.id, publish ? 'legacy_comment.publish' : 'legacy_comment.unpublish', 'legacy_comment', unique.length === 1 ? unique[0] : `${unique.length} comentarios`, { ids: unique });
+  return c.json({ ok: true, updated: r.meta.changes ?? 0 });
+});
+
+/**
+ * Resumen guiado de la hoja antigua: qué se conserva, qué espera revisión y qué está incorporado, más los nombres de la
+ * hoja con su vinculación. Solo lectura; los días anteriores a hoy son históricos y nunca se trasladan a otra temporada.
+ */
+admin.get('/legacy/summary', async (c) => {
+  const db = c.env.DB;
+  const [totals, names] = await db.batch([
+    db.prepare(`SELECT
+        (SELECT COUNT(*) FROM legacy_comments) AS c_total,
+        (SELECT COUNT(*) FROM legacy_comments WHERE published = 1) AS c_published,
+        (SELECT COUNT(*) FROM legacy_comments WHERE legacy_resort_id = 'global') AS c_general,
+        (SELECT COUNT(*) FROM legacy_comments WHERE reconciled_user_id IS NOT NULL) AS c_linked,
+        (SELECT COUNT(*) FROM legacy_availability) AS a_days,
+        (SELECT COUNT(DISTINCT legacy_person_name) FROM legacy_availability) AS a_people,
+        (SELECT COUNT(*) FROM legacy_availability WHERE reconciled_user_id IS NOT NULL) AS a_linked,
+        (SELECT COUNT(*) FROM legacy_availability WHERE incorporated_at IS NOT NULL) AS a_incorporated,
+        (SELECT COUNT(*) FROM legacy_availability WHERE day < ?1) AS a_past,
+        (SELECT MIN(day) FROM legacy_availability) AS a_first,
+        (SELECT MAX(day) FROM legacy_availability) AS a_last,
+        (SELECT COUNT(*) FROM legacy_shopping_items) AS s_total`).bind(todayMadrid()),
+    db.prepare(`SELECT x.name, SUM(x.days) AS days, SUM(x.days_linked) AS days_linked, SUM(x.comments) AS comments, SUM(x.comments_linked) AS comments_linked,
+                       MIN(x.u_min) AS u_min, MAX(x.u_max) AS u_max, u.alias
+                FROM (SELECT legacy_person_name AS name, COUNT(*) AS days, COUNT(reconciled_user_id) AS days_linked, 0 AS comments, 0 AS comments_linked,
+                             MIN(reconciled_user_id) AS u_min, MAX(reconciled_user_id) AS u_max FROM legacy_availability GROUP BY legacy_person_name
+                      UNION ALL
+                      SELECT legacy_author_name, 0, 0, COUNT(*), COUNT(reconciled_user_id), MIN(reconciled_user_id), MAX(reconciled_user_id)
+                      FROM legacy_comments WHERE legacy_author_name IS NOT NULL GROUP BY legacy_author_name) x
+                LEFT JOIN users u ON u.id = x.u_min
+                GROUP BY x.name ORDER BY x.name LIMIT 500`),
+  ]);
+  const t = (totals.results as any[])[0];
+  return c.json({
+    comments: { total: t.c_total, published: t.c_published, pending: t.c_total - t.c_published, general: t.c_general, linked: t.c_linked },
+    availability: { days: t.a_days, people: t.a_people, linkedDays: t.a_linked, unlinkedDays: t.a_days - t.a_linked, incorporated: t.a_incorporated, pastDays: t.a_past, firstDay: t.a_first, lastDay: t.a_last },
+    shopping: { total: t.s_total },
+    names: (names.results as any[]).map((n) => {
+      const linked = n.days_linked + n.comments_linked;
+      const total = n.days + n.comments;
+      // Un solo usuario en todas sus filas = vinculado; filas sin usuario o con varios = parcial.
+      const state = linked === 0 ? 'unlinked' : linked === total && n.u_min === n.u_max ? 'linked' : 'partial';
+      return { name: n.name, days: n.days, comments: n.comments, state, userId: state === 'linked' ? n.u_min : null, alias: state === 'linked' ? n.alias : null };
+    }),
+    note: 'Nada de la hoja se publica ni se asigna a una cuenta sin una acción tuya. Los días anteriores a hoy quedan como consulta histórica: no se trasladan a otra temporada.',
+  });
+});
+
+/** Vincula (o desvincula) un nombre de la hoja a una cuenta en disponibilidad y comentarios a la vez. No publica nada. */
+admin.post('/legacy/identities/link', async (c) => {
+  const me = c.get('user');
+  const { name, userId } = await parseBody(c, z.object({ name: z.string().min(1).max(120), userId: zId.nullable() }));
+  const db = c.env.DB;
+  if (userId && !(await db.prepare('SELECT 1 FROM users WHERE id = ?1').bind(userId).first())) throw notFound('Usuario');
+  const [av, cm] = await db.batch([
+    db.prepare('UPDATE legacy_availability SET reconciled_user_id = ?1 WHERE legacy_person_name = ?2').bind(userId, name),
+    db.prepare('UPDATE legacy_comments SET reconciled_user_id = ?1, reconciled_by = ?2, reconciled_at = ?3 WHERE legacy_author_name = ?4').bind(userId, me.id, now(), name),
+  ]);
+  const days = av.meta.changes ?? 0, comments = cm.meta.changes ?? 0;
+  if (!days && !comments) throw notFound('Nombre de la hoja');
+  await audit(db, me.id, 'legacy_identity.link', 'legacy_person', name, { userId, days, comments });
+  return c.json({ ok: true, days, comments });
 });
 
 // Disponibilidad legacy: resumen por nombre y asignación explícita a una cuenta. No se copia al calendario nuevo.
@@ -217,6 +297,7 @@ socialRoutes.get('/legacy/availability/mine', async (c) => {
   ).bind(c.get('user').id).all<any>();
   return c.json({
     days: results.map((r) => ({ day: r.day, legacyStatus: r.legacy_status, mappedStatus: r.mapped_status, currentStatus: r.current_status ?? null, incorporatedAt: r.incorporated_at })),
+    today: todayMadrid(),
     note: 'Datos de la hoja antigua, asignados a tu cuenta por administración. No se copian a tu calendario hasta que los incorpores. Los días que no estaban en la hoja siguen sin indicar.',
   });
 });
@@ -229,9 +310,13 @@ socialRoutes.post('/legacy/availability/mine/incorporate', async (c) => {
     `SELECT l.day, l.mapped_status, a.status AS current_status FROM legacy_availability l LEFT JOIN availability a ON a.user_id = l.reconciled_user_id AND a.day = l.day
      WHERE l.reconciled_user_id = ?1 AND l.day IN (SELECT value FROM json_each(?2))`,
   ).bind(me, JSON.stringify([...new Set(days)])).all<{ day: string; mapped_status: string | null; current_status: string | null }>();
-  const unmapped = results.filter((r) => !r.mapped_status);
-  const existing = results.filter((r) => r.mapped_status && r.current_status && !overwrite);
-  const take = results.filter((r) => r.mapped_status && (overwrite || !r.current_status)).map((r) => ({ day: r.day, status: r.mapped_status }));
+  // Los días ya pasados son historia: se consultan, pero no se copian al calendario (ni a otra temporada).
+  const today = todayMadrid();
+  const past = results.filter((r) => r.day < today);
+  const future = results.filter((r) => r.day >= today);
+  const unmapped = future.filter((r) => !r.mapped_status);
+  const existing = future.filter((r) => r.mapped_status && r.current_status && !overwrite);
+  const take = future.filter((r) => r.mapped_status && (overwrite || !r.current_status)).map((r) => ({ day: r.day, status: r.mapped_status }));
   if (take.length) {
     const t = Date.now();
     const J = (k: string) => `json_extract(value, '$.${k}')`;
@@ -241,7 +326,7 @@ socialRoutes.post('/legacy/availability/mine/incorporate', async (c) => {
       db.prepare(`UPDATE legacy_availability SET incorporated_at = ?2 WHERE reconciled_user_id = ?1 AND day IN (SELECT ${J('day')} FROM json_each(?3))`).bind(me, t, JSON.stringify(take)),
     ]);
   }
-  return c.json({ incorporated: take.length, skippedExisting: existing.length, skippedUnmapped: unmapped.length, notAssigned: new Set(days).size - results.length });
+  return c.json({ incorporated: take.length, skippedExisting: existing.length, skippedUnmapped: unmapped.length, skippedPast: past.length, notAssigned: new Set(days).size - results.length });
 });
 
 // Importación de las hojas antiguas (CSV exportado a mano) desde la administración, para no depender de wrangler en
@@ -262,8 +347,14 @@ admin.post('/legacy/sheets/import', async (c) => {
   const db = c.env.DB;
   const b = await parseBody(c, zSheetImport);
   const content = b.csv.replace(/^﻿/, '');
-  const { results: ids } = await db.prepare("SELECT legacy_id FROM legacy_id_map WHERE legacy_kind = 'resort'").all<{ legacy_id: string }>();
-  const mapped = b.kind === 'comments' ? mapComments(content, new Set(ids.map((r) => r.legacy_id)))
+  // Estaciones por identificador legacy, identificador de área o nombre: el CSV puede decir «Grandvalira» sin conocer IDs.
+  // Primero las áreas y después el mapa legacy, para que el identificador legacy (si existe) gane al nombrar la estación.
+  const { results: areas } = await db.prepare(`SELECT id, name, NULL AS legacy_id FROM areas
+      UNION ALL SELECT m.new_id, a.name, m.legacy_id FROM legacy_id_map m LEFT JOIN areas a ON a.id = m.new_id WHERE m.legacy_kind = 'resort'`)
+    .all<{ id: string; name: string | null; legacy_id: string | null }>();
+  const known = new Set(areas.flatMap((a) => [a.id, ...(a.legacy_id ? [a.legacy_id] : [])]));
+  const byName = new Map(areas.flatMap((a) => [...(a.name ? [[normName(a.name), a.legacy_id ?? a.id]] : []), [normName(a.id), a.legacy_id ?? a.id]] as [string, string][]));
+  const mapped = b.kind === 'comments' ? mapComments(content, known, byName)
     : b.kind === 'availability' ? mapAvailability(content) : mapShopping(content);
   const sha = await sha256Hex(content);
   const fileId = `legacy-sheets_${b.kind}-${sha.slice(0, 16)}`;

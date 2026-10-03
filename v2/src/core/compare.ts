@@ -49,6 +49,23 @@ export function snowForRanking(s: SnowCandidate | null, nowMs: number): { openKm
   return { openKm: s.openKm, excluded: null };
 }
 
+const kmEs = (v: number) => `${v.toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`;
+
+/**
+ * Texto del estado de nieve para mostrar (no puntúa: eso es snowForRanking, que no cambia). Una estación cerrada o
+ * fuera de temporada por confirmación de la fuente se dice como tal aunque la fuente no publique km, en lugar de
+ * «sin dato abiertos de sin dato».
+ */
+export function snowStateText(s: { opStatus: string; openKm: number | null; totalKm: number | null }): { text: string; closed: boolean } {
+  const total = s.totalKm == null ? null : kmEs(s.totalKm);
+  if (s.opStatus === 'closed_confirmed' || s.opStatus === 'out_of_season') {
+    const what = s.opStatus === 'closed_confirmed' ? 'Cerrada' : 'Fuera de temporada';
+    const km = s.openKm != null ? ` · ${kmEs(s.openKm)} abiertos${total ? ` de ${total}` : ''}` : total ? ` · ${total} en total` : ' · la fuente no publica km';
+    return { text: `${what} (confirmado por la fuente)${km}`, closed: true };
+  }
+  return { text: `${s.openKm == null ? 'sin dato' : kmEs(s.openKm)} abiertos de ${total ?? 'sin dato'}`, closed: false };
+}
+
 export interface CostOption {
   id: string; title: string; areaId: string | null; roadKm: number | null; roadValidated: boolean; budget: BudgetResult;
 }
