@@ -34,6 +34,8 @@ const sources = catalog.sources.filter((s) => s.adapter && s.id.includes(filter)
 // Resultado por fuente: transporte (carga o no), extracción (filas reconocidas), «sin datos legítimo» (la página lo dice
 // con texto propio) o estructura incompatible (cargó pero no se reconoce nada). Un bloqueo o el robots.txt van aparte.
 const NO_DATA = /no hemos encontrado ning[uú]n resultado|no hay ofertas|sin resultados|no est[aá] disponible en este momento|temporada[^.]{0,40}(finalizad|terminad)/i;
+/** Texto visible (sin scripts, estilos ni plantillas), compactado. */
+const visibleText = (html: string) => html.replace(/<(script|style|template|noscript|svg)\b[\s\S]*?<\/\1\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 type Verdict = 'extracted' | 'no_data' | 'incompatible';
 function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample: unknown; note?: string } {
   const text = html.replace(/<[^>]+>/g, ' ');
@@ -42,7 +44,10 @@ function analyse(s: Src, html: string): { verdict: Verdict; rows: number; sample
   if (s.adapter === 'esquiades-status') { const r = esquiadesAdapter.parse(html); return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3) }; }
   if (s.adapter === 'esquiades-cards' || s.adapter === 'estiber-cards') {
     const r = parseOfferCardsHtml(html, s.adapter.startsWith('esquiades') ? 'esquiades' : 'estiber').filter((c) => c.amount);
-    return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3).map((c) => ({ hotel: c.hotelName, amount: c.amount?.cents ?? null, unit: c.unit, priceKind: c.priceKind, checkIn: c.checkIn, nights: c.nights, warnings: c.warnings })) };
+    const v = verdict(r.length);
+    // Sin tarjetas y sin un «no hay ofertas» reconocible: un extracto del texto visible ayuda a decidir si es estructura nueva o un aviso propio.
+    const note = v === 'incompatible' ? `texto: ${visibleText(html).slice(0, 400)}` : undefined;
+    return { verdict: v, rows: r.length, sample: r.slice(0, 3).map((c) => ({ hotel: c.hotelName, amount: c.amount?.cents ?? null, unit: c.unit, priceKind: c.priceKind, checkIn: c.checkIn, nights: c.nights, warnings: c.warnings })), note };
   }
   return { verdict: 'incompatible', rows: 0, sample: null, note: `sin analizador para ${s.adapter}` };
 }
