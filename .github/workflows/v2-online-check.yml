@@ -16,6 +16,11 @@ on:
         type: boolean
         required: false
         default: false
+      print_fixtures:
+        description: 'Imprimir en el registro los fixtures saneados (para copiarlos a los tests sin descargar artefactos)'
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
 jobs:
@@ -37,7 +42,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - env:
           FILTER: ${{ inputs.filter }}
-          FIXTURES: ${{ inputs.fixtures }}
+          FIXTURES: ${{ inputs.fixtures || inputs.print_fixtures }}
         run: |
           mkdir -p diag
           extra=()
@@ -52,6 +57,18 @@ jobs:
             const rows = log.map((l) => `| ${l.id} | ${l.catalogStatus} | ${l.transport} | ${l.verdict ?? ""} | ${l.rows ?? ""} | ${(l.error ?? l.note ?? "").replace(/[|\n]/g, " ").slice(0, 900)} |`);
             console.log(["| Fuente | Catálogo | Transporte | Extracción | Filas | Nota |", "|---|---|---|---|---|---|", ...rows].join("\n"));
           ' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Perfil de las tarjetas por fuente (destino, precio, unidad, noches, forfait, duplicados)
+        if: always()
+        run: |
+          [ -s diag/online-check.json ] || exit 0
+          node -e '
+            const log = JSON.parse(require("fs").readFileSync("diag/online-check.json", "utf8"));
+            for (const l of log.filter((l) => l.profile)) console.log(`${l.id} · ${JSON.stringify(l.profile)} · muestra: ${JSON.stringify(l.sample)}`);
+          '
+      - name: Fixtures saneados en el registro
+        if: always() && inputs.print_fixtures
+        run: |
+          for f in diag/fixtures/*.html; do [ -f "$f" ] || continue; echo "===== FIXTURE $(basename "$f") ====="; cat "$f"; echo; echo "===== FIN $(basename "$f") ====="; done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
