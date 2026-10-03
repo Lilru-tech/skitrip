@@ -56,10 +56,17 @@ export function offerCardsFixture(html: string, provider: Provider, meta: Fixtur
   return `${header(meta, `${cards.length} tarjetas de oferta tal como las reconoce el analizador`)}<!doctype html>\n<html lang="es"><body>\n${body}\n</body></html>\n`;
 }
 
-/** Cuerpo de la página saneado (partes de nieve), acotado a `maxBytes`. */
-export function pageFixture(html: string, meta: FixtureMeta, maxBytes = 80_000): string {
+/** Zona principal de una página (sin menús ni pie): <main> o el contenedor «main» de ofertas, si existe. */
+function mainRegion(doc: El): El | null {
+  return findAll(doc, (e) => e.tag === 'main')[0]
+    ?? findAll(doc, (e) => (e.attrs.class ?? '').split(/\s+/).some((c) => /(^|-)main(-|$)|offers-page|ofertas/i.test(c) && !/menu|nav|header|footer/i.test(c)))[0]
+    ?? null;
+}
+
+/** Cuerpo de la página saneado (partes de nieve), acotado a `maxBytes`. Con `main`, solo la zona principal. */
+export function pageFixture(html: string, meta: FixtureMeta, maxBytes = 80_000, main = false): string {
   const doc = parseHtml(html);
-  const body = findAll(doc, (e) => e.tag === 'body')[0] ?? doc;
+  const body = (main ? mainRegion(doc) : null) ?? findAll(doc, (e) => e.tag === 'body')[0] ?? doc;
   let out = body.children.map((c) => serialize(c, meta.url, 0)).join('').replace(/\s{2,}/g, ' ');
   const cut = out.length > maxBytes;
   if (cut) out = out.slice(0, maxBytes);

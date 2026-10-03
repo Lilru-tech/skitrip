@@ -2,7 +2,7 @@ import { get } from '../api';
 import { Freshness, ReportDate } from '../components/Badges';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
-import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, instant, kmText, OP_STATUS_LABEL, PRICE_KIND_LABEL, RUN_STATUS_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
+import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, healthText, instant, kmText, OP_STATUS_LABEL, PRICE_KIND_LABEL, RUN_STATUS_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { useSession } from '../session';
@@ -116,7 +116,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
                 <span className="list-main"><strong>{s.provider}</strong> · {s.kind} · {SOURCE_STATUS_LABEL[s.status] ?? s.status}{s.limitations && <span className="muted small"> · {s.limitations}</span>}</span>
                 <span className="small">
                   Último éxito: {s.last_success_at ? instant(s.last_success_at) : 'nunca'}
-                  {s.last_status && s.last_status !== 'ok' && <> · <span className="text-bad">{RUN_STATUS_LABEL[s.last_status] ?? s.last_status}{s.last_error && `: ${s.last_error}`}</span></>}
+                  {s.last_status && s.last_status !== 'ok' && <> · <span className={s.reason === 'no_offers' || s.reason === 'off_season' ? 'muted' : 'text-bad'}>{healthText(s.last_status, s.reason)}{!s.reason && s.last_error && `: ${s.last_error}`}</span></>}
                 </span>
               </li>
             ))}

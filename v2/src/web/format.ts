@@ -60,6 +60,16 @@ export const AVAILABILITY_LABEL: Record<string, string> = {
 };
 export const SOURCE_STATUS_LABEL: Record<string, string> = { verified: 'verificada', unverified: 'sin verificar', broken: 'rota', unsupported: 'no soportada', disabled: 'desactivada' };
 export const RUN_STATUS_LABEL: Record<string, string> = { ok: 'correcta', empty: 'sin datos', error: 'error', blocked: 'bloqueada', unsupported: 'no soportada' };
+/** Motivo de una captura sin datos (core/page-outcome.ts), en palabras. */
+export const HEALTH_REASON_LABEL: Record<string, string> = {
+  no_offers: 'sin ofertas publicadas (la página lo dice)',
+  off_season: 'fuera de temporada (la página no publica precios)',
+  robots_subrequests: 'no se pueden leer: las ofertas se cargan desde una dirección que el robots.txt prohíbe',
+  unknown_structure: 'formato no reconocido: hay que adaptar el lector',
+};
+/** Último resultado de una fuente: el motivo si lo hay, si no el estado. */
+export const healthText = (status: string | null | undefined, reason?: string | null) =>
+  !status ? '' : reason && HEALTH_REASON_LABEL[reason] ? HEALTH_REASON_LABEL[reason] : RUN_STATUS_LABEL[status] ?? status;
 export const OP_STATUS_LABEL: Record<string, string> = { open: 'abierta', partial: 'parcial', closed_confirmed: 'cerrada', out_of_season: 'fuera de temporada', unknown: 'estado desconocido' };
 export const kmText = (v: number | null | undefined) => (v == null ? 'sin dato' : `${v.toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`);
 export const signedEuros = (cents: number) => (cents > 0 ? `+${euros(cents)}` : euros(cents));

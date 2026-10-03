@@ -81,7 +81,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
   const [links, sources, snow, legacySnow, legacyHotel, comments, offers, legacyComments] = await db.batch([
     db.prepare(`SELECT l.parent_id, p.name AS parent_name, l.child_id, ch.name AS child_name, l.relation FROM area_links l
                 JOIN areas p ON p.id = l.parent_id JOIN areas ch ON ch.id = l.child_id WHERE l.parent_id = ?1 OR l.child_id = ?1`).bind(id),
-    db.prepare(`SELECT s.*, h.last_attempt_at, h.last_success_at, h.last_status, h.last_error FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
+    db.prepare(`SELECT s.*, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.last_error FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
                 WHERE s.area_id = ?1 OR s.scope_area_id = ?1 ORDER BY s.kind, s.priority`).bind(id),
     db.prepare('SELECT * FROM snow_observations WHERE area_id = ?1 AND observed_at >= ?2 ORDER BY observed_at').bind(id, since),
     db.prepare(`SELECT obs_date, open_km, total_km, anomalies FROM legacy_snow_observations WHERE scope_area_id = ?1 ORDER BY obs_date DESC LIMIT 120`).bind(id),
@@ -126,7 +126,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
 catalogRoutes.get('/sources', async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT s.id, s.area_id, a.name AS area_name, s.scope_area_id, s.kind, s.provider, s.url, s.method, s.fields, s.priority, s.status, s.checked_on, s.limitations, s.adapter,
-            h.last_attempt_at, h.last_success_at, h.last_status
+            h.last_attempt_at, h.last_success_at, h.last_status, h.reason
      FROM sources s JOIN areas a ON a.id = s.area_id LEFT JOIN source_health h ON h.source_id = s.id ORDER BY a.name, s.kind, s.priority`,
   ).all<any>();
   c.header('Cache-Control', 'public, max-age=300');

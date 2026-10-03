@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { errorMessage, get, post, put, qs } from '../api';
+import { errorMessage, get, patch, post, put, qs } from '../api';
 import { Field } from '../components/Field';
 import { ErrorState, Loading, Empty } from '../components/States';
 import { useToast } from '../components/Toast';
@@ -109,6 +109,22 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
     }
   };
 
+  // Fijar una propuesta como fechas del viaje (propietario o editor; el servidor lo vuelve a comprobar).
+  const canEdit = detail.data?.trip.role === 'owner' || detail.data?.trip.role === 'editor';
+  const useDates = async (p: Proposal) => {
+    if (!detail.data) return;
+    setBusy(`use:${p.id}`);
+    try {
+      await patch(`/api/trips/${tripId}`, { startDate: p.start_date, endDate: p.end_date, version: detail.data.trip.version });
+      await detail.reload();
+      toast.show(`Fechas del viaje: ${dayShort(p.start_date)} → ${dayShort(p.end_date)}.`);
+    } catch (e) {
+      toast.show(errorMessage(e), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const submitProposal = async (e: FormEvent) => {
     e.preventDefault();
     if (!propStart || !propEnd) { setPropErr('Indica la llegada y la salida.'); return; }
@@ -194,6 +210,10 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
                         })}
                         <span className="vote-count muted">Sin votar: {Math.max(0, data.members.length - p.votes.length)}</span>
                       </p>
+                      {detail.data?.trip.startDate === p.start_date && detail.data?.trip.endDate === p.end_date
+                        ? <p className="small"><strong>Son las fechas del viaje.</strong></p>
+                        : canEdit && <button type="button" className="btn btn-small btn-secondary" disabled={busy !== null} onClick={() => void useDates(p)}
+                            aria-label={`Usar ${dayShort(p.start_date)} a ${dayShort(p.end_date)} como fechas del viaje`}>Usar estas fechas en el viaje</button>}
                     </li>
                   );
                 })}

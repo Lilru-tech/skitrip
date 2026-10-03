@@ -70,7 +70,7 @@ export async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseMs = 
 }
 
 /** Carga una página con un único navegador compartido (nunca uno por usuario ni por tarjeta). */
-export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>) => Promise<T>): Promise<T> {
+export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>, refused: () => string[], requested: () => string[]) => Promise<T>): Promise<T> {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined });
   try {
@@ -79,8 +79,10 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
     // Lo que la página pide al renderizarse (XHR, fetch, documentos) también respeta el robots.txt de su host:
     // p. ej. Esquiades prohíbe /*/hotel/offer/load, así que esas ofertas no se cargan en lugar de leerse igualmente.
     let refused: string[] = [];
+    let requested: string[] = [];
     await page.route('**/*', async (route) => {
       const req = route.request();
+      if (['xhr', 'fetch'].includes(req.resourceType()) && /^https?:/.test(req.url())) { const u = new URL(req.url()); requested.push(`${u.host}${u.pathname}`); }
       if (['document', 'xhr', 'fetch'].includes(req.resourceType()) && /^https?:/.test(req.url()) && !(await allowedByRobots(req.url()))) {
         refused.push(new URL(req.url()).pathname);
         return route.abort('blockedbyclient');
@@ -89,6 +91,7 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
     });
     const load = async (url: string) => {
       refused = [];
+      requested = [];
       const res = await page.goto(url, { waitUntil: 'networkidle', timeout: 45_000 });
       const html = await page.content();
       const block = detectBlock(res?.status() ?? 0, html);
@@ -97,7 +100,8 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
       if (refused.length) console.error(`${url}: ${refused.length} peticiones no cargadas por robots.txt (${[...new Set(refused)].slice(0, 3).join(', ')})`);
       return html;
     };
-    return await fn(load);
+    // Rutas que el robots.txt impidió cargar en la última página (para distinguir «sin ofertas» de «no se pudieron cargar»).
+    return await fn(load, () => [...refused], () => [...requested]);
   } finally {
     await browser.close();
   }

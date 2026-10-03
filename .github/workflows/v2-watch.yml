@@ -1,0 +1,49 @@
+# SkiTrip v2 · vigilar: comprobación diaria y ligera de producción (tools/watch.ts). Salud de la API, peticiones y
+# errores del Worker, cortes por CPU y percentiles, tamaño y filas de D1 frente a los límites Free, perfiles y restos
+# de pruebas, edad de las capturas de nieve y ofertas y fuentes que fallan seguidas.
+#
+# Solo lee (unas pocas consultas de recuento): no exporta ni restaura (eso es «v2 · comprobar recuperación», manual).
+# Con algún FALLO el workflow queda en rojo; la tabla con lo que hay que hacer está en el resumen de la ejecución.
+name: v2 · vigilar
+on:
+  schedule:
+    - cron: '23 9 * * *'   # diaria, después de las capturas de la mañana (UTC)
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v2-watch
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash   # bash --noprofile --norc -eo pipefail: un fallo dentro de una tubería falla el paso
+    working-directory: v2
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+      PROD_API: ${{ vars.VITE_API_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configuración presente (sin ella no cuenta como vigilado)
+        run: for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID FIREBASE_PROJECT_ID PROD_API; do [ -n "${!v}" ] || { echo "::error::Falta $v"; exit 1; }; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - name: Configuración de wrangler con la D1 real (solo en el disco del runner)
+        run: |
+          id=$(npx wrangler d1 list --json | node -e 'const l=JSON.parse(require("fs").readFileSync(0,"utf8"));const d=l.find(x=>x.name==="skitrip");process.stdout.write(d?d.uuid:"")')
+          [ -n "$id" ] || { echo "::error::No existe la D1 «skitrip»"; exit 1; }
+          node tools/deploy-config.mjs "$id" "$FIREBASE_PROJECT_ID"
+          cp wrangler.deploy.jsonc wrangler.jsonc
+      - name: Comprobaciones
+        run: npx tsx tools/watch.ts | tee -a "$GITHUB_STEP_SUMMARY"
