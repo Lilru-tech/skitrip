@@ -61,6 +61,25 @@ test('todos los pasos con run de los workflows v2 usan shell bash (pipefail)', (
   assert.deepEqual(bad, []);
 });
 
+// GitHub rechaza el workflow entero (422 al lanzarlo) si el env del workflow o del job usa un contexto que allí no existe.
+// Contextos permitidos: https://docs.github.com/actions/learn-github-actions/contexts#context-availability
+test('el env del workflow y del job solo usa contextos disponibles en ese nivel', () => {
+  const allowed = { workflow: ['github', 'inputs', 'vars', 'secrets'], job: ['github', 'needs', 'strategy', 'matrix', 'vars', 'secrets', 'inputs'] };
+  const bad = [];
+  const check = (f, level, env) => {
+    for (const [k, v] of Object.entries(env ?? {})) {
+      for (const m of String(v).matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
+        for (const ctx of m[1].matchAll(/(?<![\w.'"-])([a-z_]+)\s*[.[]/gi)) if (!allowed[level].includes(ctx[1])) bad.push(`${f} · ${level} · ${k}: ${ctx[1]}`);
+      }
+    }
+  };
+  for (const [f, w] of Object.entries(wf)) {
+    check(f, 'workflow', w.env);
+    for (const job of Object.values(w.jobs)) check(f, 'job', job.env);
+  }
+  assert.deepEqual(bad, []);
+});
+
 test('verificación del artefacto de Pages: uno roto bloquea la subida, uno válido pasa', () => {
   const { run: script, flags } = step('pages-build', 'verify-artifact');
   const make = (index, extra = {}) => {
