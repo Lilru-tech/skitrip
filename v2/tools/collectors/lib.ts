@@ -93,7 +93,8 @@ export async function withBrowser<T>(fn: (load: (url: string) => Promise<string>
       const html = await page.content();
       const block = detectBlock(res?.status() ?? 0, html);
       if (block.blocked) throw new BlockedError(`bloqueado o CAPTCHA en ${new URL(url).host}: ${block.reason}`);
-      if (refused.length) console.log(`${url}: ${refused.length} peticiones no cargadas por robots.txt (${[...new Set(refused)].slice(0, 3).join(', ')})`);
+      // A stderr: stdout lleva el JSON de online-check y de los --dry-run.
+      if (refused.length) console.error(`${url}: ${refused.length} peticiones no cargadas por robots.txt (${[...new Set(refused)].slice(0, 3).join(', ')})`);
       return html;
     };
     return await fn(load);
