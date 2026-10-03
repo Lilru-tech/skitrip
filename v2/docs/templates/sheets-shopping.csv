@@ -1,2 +1,3 @@
-id,name,quantity,price,per
-g-001,Pan de molde,2,"1,35",grupo
+nombre,cantidad,precio,persona
+Pan de molde,2,"1,35",grupo
+Leche,6,,Nombre como en la hoja

@@ -31,6 +31,62 @@ Los nombres de autor de las hojas no prueban identidad. Nada legacy se asocia a 
 
 La hoja solo guardaba los días marcados como ocupados. Se importan esos días con su valor original; los días que no aparecen siguen **sin indicar**, nunca libres. No se copian al calendario nuevo de nadie: cuando un administrador asigna un nombre a una cuenta, esa persona ve sus días antiguos como referencia de solo lectura (`GET /api/legacy/availability/mine`) y marca su disponibilidad en la v2.
 
+### Incorporación guiada (Administración, 03/10/2026)
+
+Arriba de Administración, «Hoja antigua: incorporación guiada» resume en tres cifras lo que hay y en qué punto está, sin decidir nada por ti:
+
+- **Conservado:** todo lo importado (comentarios, días de disponibilidad, artículos de compra), con su copia original.
+- **Pendiente de revisión:** comentarios sin publicar y nombres de la hoja sin vincular a una cuenta.
+- **Incorporado:** comentarios publicados, días que alguien ha incorporado a su calendario y nombres vinculados.
+
+Los pasos que siguen son explícitos y quedan auditados:
+
+1. **Vincular nombres** («Nombres de la hoja»): cada nombre escrito en la hoja, con sus días y sus comentarios. Vincular uno a una cuenta (`POST /api/admin/legacy/identities/link`) asigna ambas cosas a esa persona y **no publica nada**. Si no hay certeza, se deja sin vincular.
+2. **Revisar comentarios:** se marcan uno a uno y «Publicar los elegidos» (`POST /api/admin/legacy/comments/publish`) publica solo esos, sin tocar su vinculación. Los de ámbito `global` (consejos generales, no de una estación) se muestran en Comparar › «Consejos generales» (`GET /api/public/tips`); antes no aparecían en ningún sitio.
+3. **Disponibilidad:** la hoja real cubre enero–marzo de 2026 (temporada 2025–26). Esos días son **consulta histórica**: la persona vinculada los ve en Calendario › Hoja antigua, resumidos por mes, pero no se ofrecen para incorporar y el servidor rechaza incorporar días anteriores a hoy (`skippedPast`). Nada se traslada a la temporada 2026–27.
+4. **Compra:** se recupera desde la página Compra, artículo a artículo.
+
+`GET /api/admin/legacy/summary` da las cifras del resumen. Todas estas rutas son solo de administración (rol comprobado en el servidor; para el resto responden 404).
+
+## Revisión de rutas y km totales (03/10/2026)
+
+`npx tsx tools/review-routes.ts` compara, sin red, las distancias del SkiTrip antiguo (`app.js`, `ROAD_DISTANCE_KM`) con las rutas del catálogo, la línea recta y los km totales del catálogo antiguo (`data/resorts.json`) con la serie antigua de nieve (`data/open_km_history.json`). No valida nada.
+
+**Procedencia de las rutas.** La interfaz distingue tres niveles y no los infla: *estimación heredada* (`legacy_hardcode`, sin fuente ni fecha: Port Ainé desde Tarragona y Vall de Núria desde ambos orígenes), *calculada* con fuente y fecha (OSRM del 01/10/2026, `validated = 0`, el resto) y *revisada por una persona* (`validated = 1`, ninguna todavía). El importador sigue escribiendo `validated = 0`. Todas las rutas OSRM van al **punto aproximado de la estación en el catálogo**, no a un acceso o aparcamiento confirmado, y así se indica.
+
+**Accesos por confirmar** (no se pueden comprobar desde aquí): Vall de Núria no tiene acceso por carretera (cremallera desde Ribes de Freser o Queralbs); Formigal-Panticosa usa un punto entre las dos estaciones que OSRM ajustó a 2,9 km del lado de Formigal; el resto, el punto del catálogo («coordenadas aproximadas» en Masella, Formigal y Panticosa).
+
+**Diferencias de 40 km o más entre la distancia heredada y OSRM:**
+
+| Origen | Estación | Heredada | OSRM | Diferencia |
+|---|---|---|---|---|
+| Tarragona | Candanchú | 405 | 298 | −107 (la heredada tampoco cuadra con Astún, 315, a 3 km) |
+| Tarragona | Grandvalira | 260 | 211 | −49 |
+| Tarragona | Pal Arinsal | 250 | 202 | −48 |
+| Tarragona | Ax 3 Domaines | 310 | 262 | −48 |
+| Tarragona | Ordino Arcalís | 255 | 215 | −40 |
+| Sabadell | Formigal-Panticosa | 280 | 416 | +136 (desde Tarragona, 370: revisar el punto de destino) |
+| Sabadell | Boí Taüll | 190 | 293 | +103 |
+| Sabadell | Astún | 250 | 350 | +100 |
+| Sabadell | Cerler | 225 | 294 | +69 |
+| Sabadell | Port Ainé | 165 | 233 | +68 |
+| Sabadell | Baqueira Beret | 210 | 277 | +67 |
+| Sabadell | Espot Esquí | 190 | 242 | +52 |
+
+Varias heredadas desde Sabadell son apenas 1,3 veces la línea recta por los valles del Pirineo (p. ej. Boí Taüll: 190 km frente a 145 en línea recta), lo que apunta a que eran optimistas; pero una persona debe revisarlas antes de marcar ninguna como revisada. `validateRoutes` no da avisos con las rutas actuales.
+
+**Km totales del catálogo antiguo que no coinciden con la serie de nieve antigua** (Esquiades, 285 lecturas del 21/12/2025 al 03/10/2026). Se conservan los del catálogo, marcados «sin verificar», con una nota visible en la ficha:
+
+| Estación | Catálogo antiguo | Serie antigua | Fuente actual |
+|---|---|---|---|
+| Baqueira Beret | 166 | 173 | sin lectura oficial de km |
+| Port Ainé | 32 | 27 | sin lectura oficial de km |
+| Port del Comte | 50 | 42 (277) / 40 (6) | la web oficial no publica km (31 pistas) |
+| Astún | 50 | 101 | 101 es la serie conjunta Astún-Candanchú |
+| Alp 2500 | 145 | 71 (275) / 145 (10) | 71 es La Molina (ya reasignado) |
+
+Grandvalira es el único total confirmado con una fuente oficial leída (215 km en el parte real del 30/09/2026). Ordino Arcalís y Pal Arinsal no publican km en su web: sus 30 y 63 km siguen sin verificar.
+
 ## Exportar e importar las hojas (sin tocarlas)
 
 1. En la hoja, para cada pestaña (comentarios, compra, disponibilidad): Archivo › Descargar › Valores separados por comas (.csv). Se descarga solo la pestaña activa. No hace falta permiso de edición ni tocar el Apps Script. Los pasos para encontrar la hoja a partir del Apps Script están en `ACCESOS.md`.
@@ -40,9 +96,9 @@ La hoja solo guardaba los días marcados como ocupados. Se importan esos días c
    - en disponibilidad, el reparto ocupado/libre/quizá/sin equivalencia;
    - si el archivo ya se importó, y las primeras filas.
 4. Pulsa **Importar**. Con errores, solo se importa si marcas «omitir solo las filas con errores». Repetir la importación no duplica: cada fila tiene un hash y el archivo se identifica por su SHA-256. Se guarda una copia íntegra del CSV en la base.
-5. Debajo, asigna cada nombre de la hoja a su cuenta, solo si has confirmado con esa persona que es ella. Cada persona ve sus días antiguos en Calendario → «Hoja antigua» y decide cuáles incorpora. Los comentarios se publican uno a uno.
+5. En «Nombres de la hoja», vincula cada nombre a su cuenta, solo si has confirmado con esa persona que es ella. Cada persona ve sus días antiguos en Calendario → «Hoja antigua»: los futuros los puede incorporar; los pasados son solo consulta. Los comentarios se publican eligiéndolos uno a uno.
 
-Columnas aceptadas: `docs/templates/sheets-*.csv`; también reconoce cabeceras en español. Alternativa por línea de comandos (mismos identificadores, idempotente con la vía web):
+Columnas aceptadas: `docs/templates/sheets-*.csv` (también se descargan desde Administración › «Plantillas CSV y ayuda»), con cabeceras en español o en inglés. La estación de un comentario se escribe por su nombre, como aparece en Comparar, o «general» para un consejo del viaje: no hace falta conocer ningún identificador interno. Alternativa por línea de comandos (mismos identificadores, idempotente con la vía web):
 
 ```bash
 npx tsx tools/import-sheets.ts --kind availability --file ~/skitrip-csv/disponibilidad.csv --dry-run

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, get, post, qs } from '../api';
+import { errorMessage, get, post } from '../api';
 import { ConfirmDialog } from '../components/Dialog';
-import { Field } from '../components/Field';
+import { IDENTITY_WARNING, UserPicker, type UserHit } from '../components/UserPicker';
+import { CsvHelp, LegacyCommentsReview, LegacyOverview } from './AdminLegacy';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { instant, plural, RUN_STATUS_LABEL, SOURCE_STATUS_LABEL } from '../format';
+import { instant, plural, RUN_STATUS_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { Link, usePageTitle } from '../router';
 import { useProfile } from '../session';
@@ -18,13 +19,10 @@ interface Health {
   rows: Record<string, number>;
   quotas: { note: string };
 }
-interface LegacyComment { id: string; legacy_author_name: string | null; legacy_resort_id: string | null; body: string; created_at_text: string | null; reconciled_user_id: string | null; reconciled_alias: string | null; published: number }
 interface LegacyPerson { person: string; days: number; first_day: string; last_day: string; unmapped: number; reconciled_user_id: string | null; reconciled_alias: string | null }
-interface UserHit { id: string; alias: string }
 
 const PIPELINE_LABEL: Record<string, string> = { snow: 'Nieve', offers: 'Ofertas', prices: 'Precios' };
 const RUN_LABEL: Record<string, string> = { ...RUN_STATUS_LABEL, running: 'en curso', partial: 'parcial' };
-const IDENTITY_WARNING = 'Un nombre parecido no prueba identidad. Asigna solo si has confirmado con esa persona que es ella.';
 
 export function AdminPage() {
   usePageTitle('Administración');
@@ -42,12 +40,13 @@ export function AdminPage() {
   return (
     <div className="page page-wide">
       <h1>Administración</h1>
-      <p className="lead-s">Estado de las capturas, cuentas y datos heredados de la hoja antigua. Cada acción queda registrada.</p>
-      <HealthPanel />
-      <UsersPanel />
+      <p className="lead-s">Datos heredados de la hoja antigua, cuentas y estado de las capturas. Cada acción queda registrada.</p>
+      <LegacyOverview rev={rev} onChanged={() => setRev((n) => n + 1)} />
       <SheetImportPanel onImported={() => setRev((n) => n + 1)} />
-      <LegacyCommentsPanel rev={rev} />
-      <LegacyAvailabilityPanel rev={rev} />
+      <LegacyCommentsReview rev={rev} onChanged={() => setRev((n) => n + 1)} />
+      <LegacyAvailabilityPanel rev={rev} onChanged={() => setRev((n) => n + 1)} />
+      <UsersPanel />
+      <HealthPanel />
     </div>
   );
 }
@@ -70,7 +69,7 @@ function HealthPanel() {
             <tbody>
               {h.sources.map((s) => (
                 <tr key={s.id}>
-                  <th scope="row">{s.area_id} · {s.kind} · {s.provider}</th>
+                  <th scope="row">{s.area_id} · {SOURCE_KIND_LABEL[s.kind] ?? s.kind} · {s.provider}</th>
                   <td>{SOURCE_STATUS_LABEL[s.status] ?? s.status}{s.last_status && ` / ${RUN_LABEL[s.last_status] ?? s.last_status}`}{s.consecutive_fail ? ` (${s.consecutive_fail} fallos seguidos)` : ''}</td>
                   <td>{s.last_success_at ? instant(s.last_success_at) : 'nunca'}</td>
                   <td>{s.last_attempt_at ? instant(s.last_attempt_at) : 'nunca'}</td>
@@ -112,38 +111,6 @@ function HealthPanel() {
         <p className="small muted">{h.quotas.note}</p>
       </section>
     </>
-  );
-}
-
-/** Buscador de cuentas por alias (solo muestra alias, nunca correo). */
-function UserPicker({ id, label, onPick }: { id: string; label: string; onPick: (u: UserHit) => void }) {
-  const [q, setQ] = useState('');
-  const [hits, setHits] = useState<UserHit[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
-    const t = q.trim();
-    if (t.length < 2) { setHits([]); return; }
-    let alive = true;
-    const h = setTimeout(() => {
-      get<{ users: UserHit[] }>(`/api/friends/search?${qs({ q: t })}`).then((r) => { if (alive) { setHits(r.users); setErr(null); } }, (e) => { if (alive) setErr(errorMessage(e)); });
-    }, 250);
-    return () => { alive = false; clearTimeout(h); };
-  }, [q]);
-  return (
-    <div className="stack-s">
-      <Field id={id} label={label} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" maxLength={24} hint="Escribe al menos 2 letras del alias. Las cuentas bloqueadas no aparecen." />
-      {err && <p className="form-error" role="alert">{err}</p>}
-      {hits.length > 0 && (
-        <ul className="list" aria-label="Cuentas encontradas">
-          {hits.map((u) => (
-            <li key={u.id} className="row-between">
-              <span>{u.alias}</span>
-              <button type="button" className="btn btn-secondary btn-small" onClick={() => { onPick(u); setQ(''); setHits([]); }}>Elegir</button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
 
@@ -243,6 +210,7 @@ function SheetImportPanel({ onImported }: { onImported: () => void }) {
     <section className="panel stack" aria-labelledby="adm-sheets">
       <h2 id="adm-sheets">Importar la hoja antigua (CSV)</h2>
       <p className="small">Exporta cada pestaña con Archivo › Descargar › CSV y súbela aquí. Primero verás una vista previa con recuentos y errores; importar dos veces el mismo archivo no duplica nada. Lo importado no se publica ni se asigna a nadie: eso se hace abajo, persona a persona.</p>
+      <CsvHelp />
       <div className="form-grid">
         <div className="field">
           <label htmlFor="sheet-kind">Pestaña</label>
@@ -276,68 +244,7 @@ function SheetImportPanel({ onImported }: { onImported: () => void }) {
   );
 }
 
-function LegacyCommentsPanel({ rev }: { rev: number }) {
-  const toast = useToast();
-  const r = useResource(() => get<{ comments: LegacyComment[]; note: string }>('/api/admin/legacy/comments'), [rev]);
-  const [target, setTarget] = useState<{ c: LegacyComment; user: UserHit | null; publish: boolean } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [picking, setPicking] = useState<string | null>(null);
-
-  const confirm = async () => {
-    if (!target) return;
-    setBusy(true); setError(null);
-    try {
-      await post(`/api/admin/legacy/comments/${target.c.id}/reconcile`, { userId: target.user?.id ?? null, publish: target.publish });
-      toast.show(target.user ? 'Comentario asignado.' : 'Asignación retirada.');
-      setTarget(null); setPicking(null);
-      void r.reload();
-    } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
-  };
-
-  return (
-    <section className="panel stack" aria-labelledby="adm-legacy-c">
-      <h2 id="adm-legacy-c">Comentarios de la hoja antigua</h2>
-      {r.data && <p className="small">{r.data.note}</p>}
-      {r.loading && !r.data && <Loading />}
-      {r.error && !r.data && <ErrorState message={r.error} onRetry={r.reload} />}
-      {r.data && (r.data.comments.length === 0 ? <Empty title="No hay comentarios heredados" /> : (
-        <ul className="card-list" aria-label="Comentarios heredados">
-          {r.data.comments.map((c) => (
-            <li key={c.id} className="card">
-              <p className="small muted">Firmado como «{c.legacy_author_name ?? 'sin nombre'}»{c.legacy_resort_id && ` · ${c.legacy_resort_id}`}{c.created_at_text && ` · ${c.created_at_text}`}</p>
-              <p className="comment-body">{c.body}</p>
-              <p className="small">{c.reconciled_alias ? `Asignado a ${c.reconciled_alias}` : 'Sin asignar'} · {c.published ? 'publicado' : 'no publicado'}</p>
-              <div className="row-wrap">
-                <button type="button" className="btn btn-secondary btn-small" onClick={() => setPicking(picking === c.id ? null : c.id)} aria-expanded={picking === c.id}>Asignar a una cuenta</button>
-                {c.reconciled_user_id && (
-                  <button type="button" className="btn btn-link btn-small" onClick={() => setTarget({ c, user: null, publish: false })}>Quitar asignación</button>
-                )}
-              </div>
-              {picking === c.id && <UserPicker id={`lc-${c.id}`} label="Alias de la cuenta" onPick={(u) => setTarget({ c, user: u, publish: false })} />}
-            </li>
-          ))}
-        </ul>
-      ))}
-      <ConfirmDialog open={target != null} busy={busy} error={error}
-        title={target?.user ? `¿Asignar a ${target.user.alias}?` : '¿Quitar la asignación?'}
-        confirmLabel={target?.user ? 'Asignar' : 'Quitar'}
-        body={<>
-          <p><strong>{IDENTITY_WARNING}</strong></p>
-          {target && <p>Firmado en la hoja como «{target.c.legacy_author_name ?? 'sin nombre'}».</p>}
-          {target?.user && (
-            <label className="check">
-              <input type="checkbox" checked={target.publish} onChange={(e) => setTarget({ ...target, publish: e.target.checked })} />
-              <span>Publicar el comentario en la página de la estación</span>
-            </label>
-          )}
-        </>}
-        onConfirm={() => void confirm()} onClose={() => { setTarget(null); setError(null); }} />
-    </section>
-  );
-}
-
-function LegacyAvailabilityPanel({ rev }: { rev: number }) {
+function LegacyAvailabilityPanel({ rev, onChanged }: { rev: number; onChanged: () => void }) {
   const toast = useToast();
   const r = useResource(() => get<{ people: LegacyPerson[]; note: string }>('/api/admin/legacy/availability'), [rev]);
   const [target, setTarget] = useState<{ p: LegacyPerson; user: UserHit | null } | null>(null);
@@ -352,14 +259,14 @@ function LegacyAvailabilityPanel({ rev }: { rev: number }) {
       const res = await post<{ days: number }>('/api/admin/legacy/availability/reconcile', { person: target.p.person, userId: target.user?.id ?? null });
       toast.show(target.user ? `${plural(res.days, 'día asignado', 'días asignados')}.` : 'Asignación retirada.');
       setTarget(null); setPicking(null);
-      void r.reload();
+      onChanged();
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
 
   return (
     <section className="panel stack" aria-labelledby="adm-legacy-a">
       <h2 id="adm-legacy-a">Disponibilidad de la hoja antigua</h2>
-      {r.data && <p className="small">{r.data.note} Asignar no copia nada al calendario nuevo: la persona solo lo verá como referencia.</p>}
+      {r.data && <p className="small">{r.data.note} Asignar no copia nada al calendario nuevo: la persona lo consulta en Calendario › Hoja antigua y solo puede incorporar días que aún no han pasado.</p>}
       {r.loading && !r.data && <Loading />}
       {r.error && !r.data && <ErrorState message={r.error} onRetry={r.reload} />}
       {r.data && (r.data.people.length === 0 ? <Empty title="No hay disponibilidad heredada" /> : (

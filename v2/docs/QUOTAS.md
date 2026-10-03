@@ -13,13 +13,13 @@ Fecha: 01/10/2026 (tabla de sentencias regenerada ese día). Rama `rebuild/v2`. 
 | CPU por petición del Worker | 10 ms | Ver «CPU» más abajo. |
 | Filas leídas / escritas al día | 5 M / 100.000 | Uso previsto para 10–20 personas muy por debajo. |
 
-No se recomienda ni se necesita el plan de pago: **las 109 rutas del Worker** quedan en 19 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
+No se recomienda ni se necesita el plan de pago: **las 113 rutas del Worker** quedan en 19 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
 
 ## Sentencias medidas por ruta
 
 Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test.ts` (el resto), contra D1 local (workerd). Se cuentan todas las sentencias de la petición: autenticación, límites de uso, lecturas, escrituras y cada sentencia de un batch. Los tests fallan si alguna pasa de 40.
 
-**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 01/10/2026: «Rutas definidas: 109 · medidas: 109»). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
+**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 03/10/2026: «Rutas definidas: 113 · medidas: 113»). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
 
 | Ruta | Sentencias (máx.) | Volumen |
 |---|---|---|
@@ -30,7 +30,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /trips/:id/budget` | 11 | 150 artículos, 30 productos × 10 fechas |
 | `GET /trips/:id/cost-comparison` | 11 | 20 candidaturas |
 | `PUT /trips/:id/expenses/:eid` | 11 | 8 beneficiarios |
-| `GET /public/areas/:id` | 9 | — |
+| `GET /public/areas/:id` | 10 | — (incluye las rutas desde cada origen) |
 | `POST /trips/:id/scenarios` | 9 | — |
 | `POST /receipts/confirm` | 8 | 10 líneas asociadas |
 | `POST /trips/:id/invitations` | 8 | — |
@@ -63,6 +63,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /prices/import/confirm` | 5 | 500 filas |
 | `POST /trips/:id/settlements` | 5 | 40 gastos × 8 |
 | `POST /trips` | 5 | — |
+| `POST /admin/legacy/identities/link` | 5 | 150 días + 500 comentarios de un nombre |
 | `DELETE /comments/:cid` | 4 | — |
 | `DELETE /trips/:id/candidates/:cid` | 4 | 20 candidaturas × 8 votos |
 | `DELETE /trips/:id/scenarios/:sid` | 4 | 4 escenarios |
@@ -107,6 +108,8 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /trips/invitations/:invId/decline` | 3 | — |
 | `PUT /availability/me` | 3 | 150 días |
 | `PUT /offers/:oid/save` | 3 | — |
+| `GET /admin/legacy/summary` | 3 | 500 comentarios, 8 personas × 150 días + 20 × 250 |
+| `POST /admin/legacy/comments/publish` | 3 | 500 comentarios elegidos (máximo por petición) |
 | `DELETE /friends/:userId` | 2 | 38 amigos |
 | `DELETE /friends/blocks/:userId` | 2 | — |
 | `DELETE /offers/:oid/save` | 2 | — |
@@ -134,6 +137,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /ingest/snow-sources` | 1 | 33 fuentes |
 | `GET /me` | 1 | — |
 | `GET /public/sources` | 1 | 52 fuentes |
+| `GET /public/tips` | 1 | — |
 | `GET /health` | 0 | — |
 | `GET /public/capabilities` | 0 | — |
 

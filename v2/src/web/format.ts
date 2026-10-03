@@ -59,6 +59,14 @@ export const AVAILABILITY_LABEL: Record<string, string> = {
   available: 'disponible', unavailable: 'no disponible', unknown: 'disponibilidad desconocida', not_observed: 'no observada en la última búsqueda (no significa agotada)',
 };
 export const SOURCE_STATUS_LABEL: Record<string, string> = { verified: 'verificada', unverified: 'sin verificar', broken: 'rota', unsupported: 'no soportada', disabled: 'desactivada' };
+export const PROVIDER_LABEL: Record<string, string> = { esquiades: 'Esquiades', estiber: 'Estiber', official: 'web oficial', pirineu365: 'Pirineu 365', manual: 'cotización manual' };
+export const SNOW_QUALITY_LABEL: Record<string, string> = { ok: 'correcto', total_mismatch: 'los km totales no coinciden con los declarados', suspicious: 'dato sospechoso (más abiertos que totales o incoherente con su estado)' };
+export const SOURCE_FIELD_LABEL: Record<string, string> = {
+  op_status: 'estado de apertura', open_km: 'km abiertos', total_km: 'km totales', open_runs: 'pistas abiertas', total_runs: 'pistas totales',
+  open_lifts: 'remontes abiertos', total_lifts: 'remontes totales', depth_min_cm: 'espesor mínimo', depth_max_cm: 'espesor máximo', source_date: 'fecha del parte', offer_cards: 'tarjetas de ofertas', price: 'precio',
+};
+export const SOURCE_METHOD_LABEL: Record<string, string> = { html: 'lectura de la página', playwright: 'navegador automático', manual: 'a mano' };
+export const SOURCE_KIND_LABEL: Record<string, string> = { snow: 'nieve', offers: 'ofertas', prices: 'precios', lodging: 'alojamiento' };
 export const RUN_STATUS_LABEL: Record<string, string> = { ok: 'correcta', empty: 'sin datos', error: 'error', blocked: 'bloqueada', unsupported: 'no soportada' };
 export const OP_STATUS_LABEL: Record<string, string> = { open: 'abierta', partial: 'parcial', closed_confirmed: 'cerrada', out_of_season: 'fuera de temporada', unknown: 'estado desconocido' };
 export const kmText = (v: number | null | undefined) => (v == null ? 'sin dato' : `${v.toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`);

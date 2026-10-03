@@ -18,6 +18,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { mapAvailability, mapComments, mapShopping, type SheetKind } from '../src/core/sheets.ts';
+import { normName } from '../src/core/legacy.ts';
 
 const args = process.argv.slice(2);
 const opt = (n: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1] : undefined);
@@ -37,9 +38,11 @@ const content = readFileSync(path.resolve(file), 'utf8');
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const q = (v: unknown) => (v === null || v === undefined ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 
-const catalog = JSON.parse(readFileSync(path.join(V2, 'data/catalog.json'), 'utf8')) as { areas: { legacy_id: string | null }[] };
-const legacyIds = new Set(catalog.areas.map((a) => a.legacy_id).filter(Boolean) as string[]);
-const mapped = kind === 'comments' ? mapComments(content, legacyIds) : kind === 'availability' ? mapAvailability(content) : mapShopping(content);
+const catalog = JSON.parse(readFileSync(path.join(V2, 'data/catalog.json'), 'utf8')) as { areas: { id: string; name: string; legacy_id: string | null }[] };
+// Mismo criterio que la importación web (social.ts): identificador legacy o de área, o el nombre de la estación.
+const legacyIds = new Set(catalog.areas.flatMap((a) => [a.id, ...(a.legacy_id ? [a.legacy_id] : [])]));
+const byName = new Map(catalog.areas.flatMap((a) => [[normName(a.name), a.legacy_id ?? a.id], [normName(a.id), a.legacy_id ?? a.id]] as [string, string][]));
+const mapped = kind === 'comments' ? mapComments(content, legacyIds, byName) : kind === 'availability' ? mapAvailability(content) : mapShopping(content);
 
 const report = {
   kind, file: path.basename(file), sha256: sha(content), bytes: Buffer.byteLength(content), headers: mapped.headers,
