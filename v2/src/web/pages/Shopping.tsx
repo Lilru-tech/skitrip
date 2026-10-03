@@ -8,6 +8,7 @@ import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
 import { euros, humanDates, numDate, parseEuros, PRICE_ORIGIN_LABEL } from '../format';
 import { BasketPanel, CriterionEditor, LegacyImport } from './ShoppingExtras';
+import { AddFromGeneral, GeneralLists } from './ShoppingLists';
 import { useProfile } from '../session';
 import { useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
@@ -15,9 +16,9 @@ import type { Trip, TripDetail } from '../types';
 import { parseFormat, unitPrice, type NetUnit } from '../../core/parsers/unit-price';
 import { todayMadrid } from '../../core/dates';
 
-interface Product { id: string; name: string; brand: string | null; format: string | null; netQty: number | null; netUnit: NetUnit | null; ean: string | null; replacedBy?: string | null }
+export interface Product { id: string; name: string; brand: string | null; format: string | null; netQty: number | null; netUnit: NetUnit | null; ean: string | null; replacedBy?: string | null }
 interface Item {
-  id: string; name: string; qty: number; note: string | null; bought: boolean; assigneeId: string | null; assigneeAlias: string | null; legacyName: string | null; legacyItemId?: string | null; version: number;
+  id: string; name: string; qty: number; note: string | null; bought: boolean; assigneeId: string | null; assigneeAlias: string | null; legacyName: string | null; legacyItemId?: string | null; fromGeneralList?: boolean; version: number;
   product: Product | null; price: { amountCents: number; observedOn: string; priceType?: string; source?: string; unitPrice: { perKgOrL_cents: number | null; perUnit_cents: number | null; label: string } | null } | null;
 }
 interface ListResponse {
@@ -33,17 +34,34 @@ const upText = (u: { perKgOrL_cents: number | null; perUnit_cents: number | null
 export function ShoppingPage() {
   usePageTitle('Compra');
   const { query } = useLocation();
-  const trips = useResource(() => get<{ trips: Trip[] }>('/api/trips'), []);
-  const tripId = query.get('viaje') ?? trips.data?.trips[0]?.id ?? null;
+  // Vista: listas generales (sin viaje, por defecto) o lista de un viaje. Un enlace con ?viaje= abre la del viaje.
+  const view = query.get('viaje') || query.get('vista') === 'viaje' ? 'viaje' : 'general';
 
   return (
     <div className="page page-wide">
       <h1>Compra</h1>
       <p className="notice notice-warn"><strong>No hay precios automáticos de Mercadona:</strong> la cadena no ha autorizado su uso. Los precios los introducís vosotros (a mano, por CSV o pegando un ticket). Por defecto se registran como «Mercadona online, CP 43007».</p>
+      <nav className="trip-tabs" aria-label="Tipo de lista">
+        <Link to="/compra?vista=general" className="trip-tab" aria-current={view === 'general' ? 'page' : undefined}>Mis listas generales</Link>
+        <Link to="/compra?vista=viaje" className="trip-tab" aria-current={view === 'viaje' ? 'page' : undefined}>Listas de viaje</Link>
+      </nav>
+      {view === 'general' ? <GeneralLists /> : <TripLists />}
+      <ProductsPanel />
+      <CsvImport />
+    </div>
+  );
+}
+
+function TripLists() {
+  const { query } = useLocation();
+  const trips = useResource(() => get<{ trips: Trip[] }>('/api/trips'), []);
+  const tripId = query.get('viaje') ?? trips.data?.trips[0]?.id ?? null;
+  return (
+    <>
       {trips.loading && !trips.data && <Loading />}
       {trips.error && !trips.data && <ErrorState message={trips.error} onRetry={trips.reload} />}
       {trips.data && (trips.data.trips.length === 0 ? (
-        <Empty title="Necesitas un viaje"><p>La lista de la compra pertenece a un viaje. <Link to="/viajes">Crea uno</Link> primero.</p></Empty>
+        <Empty title="Necesitas un viaje"><p>La lista de un viaje pertenece a ese viaje. <Link to="/viajes">Crea uno</Link>; mientras tanto puedes preparar <Link to="/compra?vista=general">tu lista general</Link>.</p></Empty>
       ) : (
         <>
           <div className="field field-inline">
@@ -55,9 +73,7 @@ export function ShoppingPage() {
           {tripId && <TripShopping key={tripId} tripId={tripId} />}
         </>
       ))}
-      <ProductsPanel />
-      <CsvImport />
-    </div>
+    </>
   );
 }
 
@@ -147,7 +163,10 @@ function TripShopping({ tripId }: { tripId: string }) {
     <>
       <section className="panel stack" aria-labelledby="sl-h">
         <div className="toolbar"><h2 id="sl-h">Lista de la compra <span className="count">{items.length}</span></h2>
-          {detail.data && detail.data.trip.role !== 'member' && <LegacyImport tripId={tripId} onDone={() => void list.reload()} />}</div>
+          <div className="cluster-s">
+            <AddFromGeneral tripId={tripId} onDone={() => void list.reload()} />
+            {detail.data && detail.data.trip.role !== 'member' && <LegacyImport tripId={tripId} onDone={() => void list.reload()} />}
+          </div></div>
         <form className="form-row form-row-end" onSubmit={add} noValidate>
           <Field label="Artículo" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder="Por ejemplo: leche" />
           <Field label="Cantidad" type="number" min={1} max={999} value={qty} onChange={(e) => setQty(e.target.value)} />
@@ -162,6 +181,7 @@ function TripShopping({ tripId }: { tripId: string }) {
                   <input id={`b-${it.id}`} type="checkbox" checked={it.bought} disabled={busy !== null} onChange={() => void toggle(it)} />
                   <label htmlFor={`b-${it.id}`}><span className="shop-name">{it.name}</span> × {it.qty}{it.bought && <span className="visually-hidden"> (comprado)</span>}</label>
                   {it.legacyItemId && <span className="tag legacy-tag">de la hoja antigua</span>}
+                  {it.fromGeneralList && <span className="tag tag-quiet">de una lista general</span>}
                 </div>
                 <p className="small muted">
                   {it.product ? <>Producto: {it.product.name}{it.product.format && ` · ${it.product.format}`}</> : 'Sin producto exacto'}
@@ -317,7 +337,7 @@ function ProductsPanel() {
   );
 }
 
-function ProductPrices({ product, onClose }: { product: Product; onClose: () => void }) {
+export function ProductPrices({ product, onClose }: { product: Product; onClose: () => void }) {
   const toast = useToast();
   const r = useResource(() => get<{ product: Product; series: Record<string, PriceRow[]>; replacedBy: { id: string; name: string; format: string | null }[]; note: string }>(`/api/products/${product.id}/prices`), [product.id]);
   const [form, setForm] = useState({ amount: '', priceType: 'shelf', promoNote: '', storeLabel: 'Mercadona online', postalCode: '43007', channel: 'online', observedOn: todayMadrid(), visibility: 'shared_trips' });
