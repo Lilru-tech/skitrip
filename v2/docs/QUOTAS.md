@@ -44,7 +44,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /trips/:id/transfer` | 7 | — |
 | `POST /trips/invitations/accept-link` | 7 | 8 miembros |
 | `GET /admin/health` | 6 | capturas, fuentes y áreas del catálogo |
-| `GET /availability/trip/:id` | 6 | 8 miembros × 150 días |
+| `GET /availability/trip/:id` | 5 | 8 miembros × 150 días |
 | `GET /public/catalog` | 6 | 24 áreas |
 | `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
@@ -249,6 +249,30 @@ Con el mismo código y los mismos datos, la misma ruta varía de una ráfaga a o
 - **Disponibilidad del viaje (16 personas)**: no está resuelta. Las 30 peticiones las atendió un único isolate ya usado (n = 6 a 36, ninguno nuevo) y aun así el p50 fue 10 ms y 14 de 30 pasaron de 10 ms. Las primeras peticiones lentas de cada ráfaga (19 y 13 ms) no son arranques en frío. Antes de este cambio, el mismo escenario dio p50 6, 10 y 5 ms por ráfaga, y en los sondeos completos de la mañana, 10 y 6 ms. Con un mismo isolate el coste es estable dentro de la medición y cambia entre mediciones (también el tiempo real: ~230 ms antes frente a ~480 ms ahora), lo que apunta a la máquina o ubicación que atiende la medición más que al número de peticiones; con estas muestras no se puede confirmar. La ruta queda en torno al límite de 10 ms con 16 personas y 150 días: es el siguiente candidato a optimizar.
 - **Vigilancia** después del cambio (38738977781): 0 fallos, 0 degradaciones, 0 errores de los mecanismos. Filas leídas en 24 h: 2.809.528. Es la ventana acumulada y todavía incluye todas las lecturas anteriores al cambio (los sondeos del día con las consultas sin índice); la bajada se verá en las vigilancias de los próximos días.
 
+### Disponibilidad del viaje con 16 personas (15/10/2026, tarde)
+
+**Qué consumía CPU, medido antes de cambiar nada.** Producción no da un perfil por función, así que la ruta se perfila en local con la misma carga que «v2 · medir CPU» (2 cuentas, 14 miembros sintéticos, 150 días cada uno, viaje de 16): `tools/bench/trip-cpu.mts` ejecuta el Worker real en Node sobre un D1 mínimo con SQLite y las migraciones reales (`tools/bench/d1-node.ts`). Con `MEMO=1` las lecturas repetidas devuelven el resultado guardado, de modo que lo que se mide es el trabajo del Worker y no el de SQLite (que en Cloudflare corre en D1, fuera de la CPU del Worker). Perfil de V8 (`node --cpu-prof`, 3.000 peticiones), tiempo propio del Worker:
+
+- Leer los días de cada persona: `JSON.parse` de los 16 objetos de ~150 claves que devuelve D1 (`json_group_object`) y después una búsqueda por texto por persona y día. Era la parte mayor.
+- Generar las 150 fechas del rango (`eachDay`): cada día pasaba por `split`, `Date` y `toISOString`.
+- El resto (recuento diario, intervalos, montar la respuesta) es menor. La respuesta (~57 KB) ya se montaba reenviando el JSON de D1 sin volver a serializarlo.
+- Viajes a D1: 6 sentencias (usuario, pertenencia, miembros, permisos, días, propuestas), cada una con su ida y vuelta.
+
+**Cambios.**
+- `codesFromDayObject` (`core/calendar.ts`) lee el texto de `json_group_object` directamente a un código por día: la posición sale de la propia fecha y no se crea ningún objeto. Si el texto no tiene exactamente la forma esperada (claves fuera de orden, una fecha que no existe, espacios…), devuelve null y la ruta hace el cálculo de siempre con `JSON.parse`. Los días se siguen reenviando tal cual en la respuesta.
+- `eachDay` calcula día, mes y año con enteros (misma lista: comparada con el avance día a día con `addDays` entre 1999 y 2100).
+- Miembros y propuestas en un solo batch; la pertenencia se decide con esa misma lista de miembros. Quien no es miembro recibe el mismo 404, también con un rango no válido, como antes. 5 sentencias en lugar de 6.
+- No se reducen personas, fechas ni intervalos: mismo rango, mismo límite de 30 intervalos y la misma regla de permisos (`visibleAvailabilityOwners`).
+
+**Equivalencia y permisos en local.**
+- Respuesta idéntica byte a byte antes/después con la carga de 16 personas, normalizando solo los identificadores aleatorios, en cuatro variantes de noches y mínimo (una con 30 intervalos).
+- `test/worker/trip-availability.test.ts`: oculto (no comparte o bloqueado) frente a sin indicar (comparte sin días), permiso por viaje sin amistad, bloqueo, día guardado que no es una fecha real, días fuera del rango, 404 para quien no es miembro y 422 para un rango no válido. Recuento e intervalos comparados con el cálculo anterior. La misma prueba pasa con el código anterior (con 6 sentencias).
+- `test/core/calendar-codes.test.ts`: 400 calendarios pseudoaleatorios contra `JSON.parse` y las formas raras que deben devolver null.
+
+**Indicador local** (Node 22, `MEMO=1`, 2.000 peticiones, 5 ejecuciones de cada versión): peticiones repetidas p50 1,36–1,61 → 0,80–1,01 ms y p90 2,05–2,23 → 1,24–2,11 ms. La primera petición de cada proceso (7–10 ms antes, 7–14 ms después) incluye compilar el código y no muestra un cambio claro.
+
+**Lo que no explica el perfil local.** En Node el trabajo del Worker para esta ruta es de ~1,5 ms, y en producción la misma ruta da 6–10 ms con un isolate ya usado. Esa diferencia no aparece en el perfil local: el binding de D1, el entorno de ejecución de Cloudflare y la forma de medir la CPU allí no se pueden perfilar desde aquí. No se atribuye a la infraestructura sin evidencia: la medición acotada después de publicar dirá cuánto baja.
+
 ### Medido en producción el 15/10/2026 (grupo de 16 personas)
 
 La vigilancia del 14/10 (run 38581604252) vio 33 peticiones en 24 h, ninguna cortada, p50 7,3 ms y p99 20,8 ms. Con tan pocas peticiones eso no demuestra una regresión ni que se cumpla el límite, así que se midió por ruta con una carga de grupo:
@@ -348,6 +372,6 @@ Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los r
 
 ## Qué queda pendiente en Free
 
-- Disponibilidad del viaje con 16 personas: p50 5–10 ms según la medición, sin cortes. Investigar qué parte de la ruta (lectura de 16 × 150 días, resumen, JSON) crece con la máquina antes de cambiar nada.
+- Disponibilidad del viaje con 16 personas: optimizada el 15/10/2026 por la tarde (ver su apartado). Pendiente de confirmar en producción con la medición acotada.
 - Comprobar en las vigilancias de los próximos días que la ventana de 24 h de filas leídas baja tras la migración 0015.
 - Seguir el p99 diario en la vigilancia: con pocas peticiones al día, un solo arranque en frío lo sube por encima de 10 ms.

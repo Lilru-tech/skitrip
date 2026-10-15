@@ -25,9 +25,22 @@ export function daysBetween(a: string, b: string): number {
 }
 
 /** Lista inclusiva de fechas entre a y b. */
+const PAD2 = Array.from({ length: 32 }, (_, i) => String(i).padStart(2, '0'));
+const monthDays = (y: number, m: number) => (m === 2 ? (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28) : m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
 export function eachDay(a: string, b: string): string[] {
+  // Un solo análisis de cada extremo y luego día, mes y año como enteros: antes cada día pasaba por split/map, Date y
+  // toISOString (con 150 días por petición de calendario se notaba en la CPU). Mismo resultado: dates.test.ts.
   const out: string[] = [];
-  for (let d = a; d <= b; d = addDays(d, 1)) out.push(d);
+  const n = daysBetween(a, b);
+  if (!(n >= 0)) return out;
+  let [y, m, d] = a.split('-').map(Number);
+  const md = () => monthDays(y, m);
+  let last = md();
+  let ys = String(y).padStart(4, '0');
+  for (let i = 0; i <= n; i++) {
+    out.push(`${ys}-${PAD2[m]}-${PAD2[d]}`);
+    if (++d > last) { d = 1; if (++m > 12) { m = 1; y++; ys = String(y).padStart(4, '0'); } last = md(); }
+  }
   return out;
 }
 
