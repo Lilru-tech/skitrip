@@ -271,6 +271,22 @@ Con el mismo código y los mismos datos, la misma ruta varía de una ráfaga a o
 
 **Indicador local** (Node 22, `MEMO=1`, 2.000 peticiones, 5 ejecuciones de cada versión): peticiones repetidas p50 1,36–1,61 → 0,80–1,01 ms y p90 2,05–2,23 → 1,24–2,11 ms. La primera petición de cada proceso (7–10 ms antes, 7–14 ms después) incluye compilar el código y no muestra un cambio claro.
 
+**Medido en producción después de publicar** (PR #14, v2-release 38745169649; sondeo acotado 38746509017, mismo escenario y mismas muestras que 38738050166: 3 ráfagas de 8 al catálogo y 3 de 10 al viaje, 16 personas × 150 días). CPU de `wrangler tail` en ms:
+
+| Ráfaga | Viaje antes (38738050166): 1.ª · resto p50 / máx · >10 ms | Viaje después (38746509017) | Isolate de la 1.ª (después) |
+|---|---|---|---|
+| 1 | 19 · 10 / 14 · 5 de 10 | 8 · 3 / 6 · 0 de 8 | n = 36 |
+| 2 | 7 · 10 / 13 · 4 de 10 | 6 · 3 / 8 · 0 de 10 | n = 46 |
+| 3 | 13 · 9 / 12 · 5 de 10 | 3 · 3 / 5 · 0 de 10 | n = 56 |
+
+- Viaje: p50 10 → 3 ms; por encima de 10 ms, 14 de 30 → 0 de 28 (el tail perdió 2 eventos de la primera ráfaga; la analítica contó las 10 + 10 + 11 peticiones, con p50 4,4 / 3,5 / 3,4 y p99 8,5 / 8,6 / 5,5 ms). Máximo 8 ms. Las 30 en un mismo isolate ya usado, como antes. Tiempo real p50 ~165 ms (antes ~480 ms), con una ida y vuelta a D1 menos.
+- Catálogo, sin cambios en esta PR: p50 2 ms, 0 de 24 por encima de 10 ms; la primera petición de un isolate nuevo (n = 1) 9 ms.
+- Resultados `ok` en las 59 peticiones del tail; ningún corte.
+- Limpieza: 16 cuentas del manifiesto, perfiles 17 → 1, administradores 1, restos de la prueba 0.
+- Es una sola medición. Con el código anterior el mismo escenario dio p50 entre 5 y 10 ms según la ejecución; el 3 de ahora queda por debajo de la mejor de ellas, pero el margen real se confirmará con las siguientes mediciones.
+
+**D1 en la misma ejecución** (`wrangler d1 insights`, 24 h hasta las 13:53 UTC): 2.411.573 filas en las 100 consultas listadas. Es la ventana acumulada y sigue dominada por consultas que ya no existen o que antes recorrían tablas enteras (la última nieve legacy del catálogo con la forma anterior, 643.200; las series de la ficha de estación antes del índice, 506.166 y 395.226; escenarios sin índice, 258.576) y por los sondeos del día. La lectura de días del calendario (267.167 filas en 141 ejecuciones, ~1.900 por ejecución) es la lectura necesaria de 16 × 150 días y no cambia con esta PR. La bajada se comprobará en las vigilancias programadas del 16/10 (todavía con los sondeos del 15/10) y del 17/10 (primera ventana sin ellos).
+
 **Lo que no explica el perfil local.** En Node el trabajo del Worker para esta ruta es de ~1,5 ms, y en producción la misma ruta da 6–10 ms con un isolate ya usado. Esa diferencia no aparece en el perfil local: el binding de D1, el entorno de ejecución de Cloudflare y la forma de medir la CPU allí no se pueden perfilar desde aquí. No se atribuye a la infraestructura sin evidencia: la medición acotada después de publicar dirá cuánto baja.
 
 ### Medido en producción el 15/10/2026 (grupo de 16 personas)
@@ -372,6 +388,6 @@ Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los r
 
 ## Qué queda pendiente en Free
 
-- Disponibilidad del viaje con 16 personas: optimizada el 15/10/2026 por la tarde (ver su apartado). Pendiente de confirmar en producción con la medición acotada.
+- Disponibilidad del viaje con 16 personas: p50 10 → 3 ms y 0 de 28 por encima de 10 ms en una medición acotada (38746509017). Confirmar con las siguientes mediciones.
 - Comprobar en las vigilancias de los próximos días que la ventana de 24 h de filas leídas baja tras la migración 0015.
 - Seguir el p99 diario en la vigilancia: con pocas peticiones al día, un solo arranque en frío lo sube por encima de 10 ms.
