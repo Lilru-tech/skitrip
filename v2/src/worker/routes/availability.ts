@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { recordLookup, summarize, type DayStatus, type PersonDays } from '../../core/calendar';
+import { codesFromDayObject, recordLookup, summarize, type DayStatus, type PersonDays } from '../../core/calendar';
 import { daysBetween, eachDay, isValidDate, weekdayMon0 } from '../../core/dates';
 import type { AppEnv } from '../env';
 import { requireTripMember, visibleAvailabilityOwners } from '../access';
@@ -15,16 +15,17 @@ const zRange = z.object({ from: zDate, to: zDate }).refine((r) => r.to >= r.from
 /**
  * Días de cada persona: una fila por persona con sus días ya en JSON (json_group_object), no una fila por día. Con un
  * grupo de 16 y 150 días eran 2.400 filas que el Worker convertía en objetos y luego volvía a serializar; ahora el
- * JSON de D1 se analiza una vez para contar y se reenvía tal cual en la respuesta (`raw`).
+ * JSON de D1 se reenvía tal cual en la respuesta (`raw`) y, para contar, se lee sin construir objetos
+ * (codesFromDayObject en buildResponse).
  */
-type Days = { raw: string; obj: Record<string, DayStatus> };
+type Days = { raw: string };
 async function loadDays(db: D1Database, userIds: string[], from: string, to: string): Promise<Map<string, Days>> {
-  const out = new Map<string, Days>(userIds.map((id) => [id, { raw: '{}', obj: {} }]));
+  const out = new Map<string, Days>(userIds.map((id) => [id, { raw: '{}' }]));
   if (!userIds.length) return out;
   const { results } = await db.prepare(`SELECT user_id, json_group_object(day, status) AS days FROM (
       SELECT user_id, day, status FROM availability WHERE day BETWEEN ?1 AND ?2 AND user_id IN (SELECT value FROM json_each(?3)) ORDER BY user_id, day
     ) GROUP BY user_id`).bind(from, to, JSON.stringify(userIds)).all<{ user_id: string; days: string }>();
-  for (const r of results) out.set(r.user_id, { raw: r.days, obj: JSON.parse(r.days) });
+  for (const r of results) out.set(r.user_id, { raw: r.days });
   return out;
 }
 
@@ -32,7 +33,7 @@ availabilityRoutes.get('/me', async (c) => {
   const me = c.get('user').id;
   const { from, to } = parseQuery(c, zRange);
   const days = await loadDays(c.env.DB, [me], from, to);
-  return c.json({ days: days.get(me)!.obj });
+  return c.json({ days: JSON.parse(days.get(me)!.raw) as Record<string, DayStatus> });
 });
 
 // Mismo criterio que z.object({ day: zDate, status: enum|null }) (sin claves extra que importen), con una sola
@@ -151,6 +152,8 @@ availabilityRoutes.get('/common', async (c) => {
  * Quien no comparte no puede confirmarse ni descartarse: se informa en `requirement.notSharing`, nunca se cuenta como libre.
  */
 const JSON_TYPE = { 'Content-Type': 'application/json; charset=UTF-8' };
+/** Persona compartida cuyos días van ya en `codes`: summarize no consulta el objeto. */
+const NO_LOOKUP = { get: () => undefined };
 
 /**
  * Respuesta de la vista común como texto JSON: los días de cada persona se insertan tal como vienen de D1 (JSON
@@ -159,8 +162,14 @@ const JSON_TYPE = { 'Content-Type': 'application/json; charset=UTF-8' };
 function buildResponse(people: Person[], q: { from: string; to: string; nights: number; min?: number }, extra: object, aliasBy?: Map<string, string>, tail: object = {}): string {
   const sharing = people.filter((p) => p.d !== null).length;
   const need = q.min ?? sharing;
-  const lookups: PersonDays[] = people.map((p) => ({ id: p.id, days: p.d ? recordLookup(p.d.obj) : null }));
-  const { daily, windows } = summarize(lookups, { from: q.from, to: q.to, nights: q.nights, minPeople: need, limit: 30 });
+  const days = eachDay(q.from, q.to);
+  const lookups: PersonDays[] = people.map((p) => {
+    if (!p.d) return { id: p.id, days: null };
+    const codes = codesFromDayObject(p.d.raw, days);
+    // Forma inesperada del texto de D1: mismo cálculo de siempre con el objeto analizado.
+    return codes ? { id: p.id, days: NO_LOOKUP, codes } : { id: p.id, days: recordLookup(JSON.parse(p.d.raw)) };
+  });
+  const { daily, windows } = summarize(lookups, { from: q.from, to: q.to, nights: q.nights, minPeople: need, limit: 30 }, days);
   const peopleJson = people.map((p) => {
     const head = JSON.stringify({ id: p.id, ...(aliasBy ? { alias: aliasBy.get(p.id) ?? null } : {}), shared: p.d !== null });
     return `${head.slice(0, -1)},"days":${p.d ? p.d.raw : 'null'}}`;
@@ -178,16 +187,20 @@ function buildResponse(people: Person[], q: { from: string; to: string; nights: 
 availabilityRoutes.get('/trip/:tripId', async (c) => {
   const me = c.get('user').id;
   const tripId = c.req.param('tripId');
-  await requireTripMember(c.env.DB, tripId, me);
+  // Miembros y propuestas en un solo viaje a D1. La pertenencia se decide con la misma lista de miembros (antes, una
+  // consulta aparte con requireTripMember): quien no es miembro recibe el mismo 404 y no se usa nada de lo leído.
+  const [{ results: members }, { results: proposals }] = await c.env.DB.batch([
+    c.env.DB.prepare(`SELECT u.id, u.alias FROM trip_members m JOIN users u ON u.id = m.user_id WHERE m.trip_id = ?1 ORDER BY m.joined_at`).bind(tripId),
+    c.env.DB.prepare(
+      `SELECT p.id, p.start_date, p.end_date, p.proposed_by, u.alias AS proposed_by_alias,
+              (SELECT json_group_array(json_object('userId', v.user_id, 'value', v.value)) FROM date_votes v WHERE v.proposal_id = p.id) AS votes
+       FROM date_proposals p JOIN users u ON u.id = p.proposed_by WHERE p.trip_id = ?1 ORDER BY p.start_date`,
+    ).bind(tripId),
+  ]) as [D1Result<{ id: string; alias: string }>, D1Result<{ votes: string }>];
+  if (!members.some((m) => m.id === me)) throw notFound('Viaje');
   const q = parseQuery(c, zCommon);
   if (q.to < q.from || daysBetween(q.from, q.to) > MAX_RANGE_DAYS) throw new ApiError(422, 'validation', 'Rango no válido.');
-  const { results: members } = await c.env.DB.prepare(`SELECT u.id, u.alias FROM trip_members m JOIN users u ON u.id = m.user_id WHERE m.trip_id = ?1 ORDER BY m.joined_at`).bind(tripId).all<{ id: string; alias: string }>();
   const people = await commonView(c.env.DB, me, members.map((m) => m.id), q.from, q.to, undefined);
-  const { results: proposals } = await c.env.DB.prepare(
-    `SELECT p.id, p.start_date, p.end_date, p.proposed_by, u.alias AS proposed_by_alias,
-            (SELECT json_group_array(json_object('userId', v.user_id, 'value', v.value)) FROM date_votes v WHERE v.proposal_id = p.id) AS votes
-     FROM date_proposals p JOIN users u ON u.id = p.proposed_by WHERE p.trip_id = ?1 ORDER BY p.start_date`,
-  ).bind(tripId).all<{ votes: string }>();
   return c.body(buildResponse(people, q, { members }, undefined, { proposals: proposals.map((p) => ({ ...p, votes: JSON.parse(p.votes) })) }), 200, JSON_TYPE);
 });
 
