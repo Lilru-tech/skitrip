@@ -2,7 +2,7 @@
 // Funciones puras: validan y normalizan filas; el script tools/import-sheets.ts genera el SQL.
 // Solo alimentan tablas legacy_*: nada se publica ni se asigna a una cuenta sin una acción administrativa.
 import { csvRecords } from './csv';
-import { isValidDate } from './dates';
+import { isValidDate, madridDate } from './dates';
 import { GENERAL_SCOPE, isGeneralScope, normName } from './legacy';
 
 export type SheetKind = 'comments' | 'availability' | 'shopping';
@@ -30,7 +30,7 @@ export function sheetDate(raw: string): { date: string | null; shifted: boolean 
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
     const t = Date.parse(s);
     if (Number.isNaN(t)) return { date: null, shifted: false };
-    const d = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(t);
+    const d = madridDate(t);
     return { date: d, shifted: d !== s.slice(0, 10) };
   }
   return { date: null, shifted: false };

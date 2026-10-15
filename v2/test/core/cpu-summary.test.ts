@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normPath, parseTail } from '../../tools/cpu-summary';
+import { isolateSummary, normPath, parseTail, probeInfo } from '../../tools/cpu-summary';
 
 describe('resumen de CPU', () => {
   it('lee la salida de wrangler tail con objetos en varias líneas y texto ajeno', () => {
@@ -7,5 +7,14 @@ describe('resumen de CPU', () => {
     const ev = parseTail(text);
     expect(ev.map((e) => e.outcome)).toEqual(['ok', 'exceededCpu']);
     expect(normPath(ev[0].event.request.url)).toBe('/api/trips/:id');
+  });
+
+  it('lee la línea de diagnóstico del isolate y distingue isolate nuevo de uno ya usado', () => {
+    const ev = (isolate: string, n: number) => ({ logs: [{ message: ['otra cosa'] }, { message: [JSON.stringify({ probe: 1, isolate, n, ageMs: n * 10 })] }] });
+    expect(probeInfo(ev('ab12', 3))).toEqual({ isolate: 'ab12', n: 3, ageMs: 30 });
+    expect(probeInfo({ logs: [{ message: ['{"probe": "x"}'] }] })).toBeNull();
+    expect(isolateSummary([ev('a', 1), ev('a', 2), ev('b', 1)])).toBe('nuevo · 2 · 2');
+    expect(isolateSummary([ev('a', 41), ev('a', 42)])).toBe('n=41 · 1 · 0');
+    expect(isolateSummary([{}])).toBe('—');
   });
 });

@@ -141,7 +141,8 @@ export interface BudgetResult {
 
 const costStatus = (i: BudgetInput, k: DestinationCost): ComponentStatus => (i.estimatedCosts?.includes(k) ? 'estimated' : 'known');
 const src = (i: BudgetInput, k: DestinationCost) => (i.costSources?.[k] ? ` ${i.costSources[k]}` : '');
-const eur = (c: number) => (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+const EUR = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }); // creado una vez: toLocaleString crea uno por llamada
+const eur = (c: number) => EUR.format(c / 100);
 
 export function computeBudget(i: BudgetInput): BudgetResult {
   const c: BudgetComponent[] = [];

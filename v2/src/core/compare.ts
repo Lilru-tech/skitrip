@@ -49,7 +49,8 @@ export function snowForRanking(s: SnowCandidate | null, nowMs: number): { openKm
   return { openKm: s.openKm, excluded: null };
 }
 
-const kmEs = (v: number) => `${v.toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`;
+const KM_ES = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }); // creado una vez: toLocaleString crea uno por llamada
+const kmEs = (v: number) => `${KM_ES.format(v)} km`;
 
 /**
  * Texto del estado de nieve para mostrar (no puntúa: eso es snowForRanking, que no cambia). Una estación cerrada o
