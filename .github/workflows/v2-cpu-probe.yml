@@ -6,7 +6,10 @@
 #      en el tiempo, con dos cuentas de prueba prod-check-<ejecución>-{p,q} y miembros sintéticos en D1 hasta un grupo
 #      de 16 personas (tools/cpu-group-sql.ts). Opcionalmente, también los recolectores de nieve y ofertas (ingesta
 #      real, la misma que hacen sus workflows).
-#   3) Tabla por ruta: CPU de cada petición (tail) y percentiles por ventana (analítica).
+#   3) Tabla por ruta: CPU de cada petición (tail), isolate que la atendió y percentiles por ventana (analítica).
+#      Alcance «acotada»: solo el catálogo público y la disponibilidad del viaje (16 personas), en tres ráfagas
+#      separadas cada una, para comparar la primera petición con las repetidas sin repetir el sondeo completo.
+#   También: las consultas de D1 que más filas leyeron en 24 h (wrangler d1 insights, literales ocultos).
 #   4) Limpieza de D1 de las cuentas de prueba (pase o falle) y borrado del registro del tail del disco del runner.
 #
 # El registro del tail puede contener cabeceras: no se imprime ni se sube; solo se imprimen cifras por ruta.
@@ -14,8 +17,13 @@ name: v2 · medir CPU
 on:
   workflow_dispatch:
     inputs:
+      alcance:
+        description: 'completa: todas las rutas · acotada: catálogo y disponibilidad del viaje en tres ráfagas'
+        type: choice
+        options: [completa, acotada]
+        default: completa
       collectors:
-        description: 'Medir también la ingesta real de los recolectores (nieve y ofertas)'
+        description: 'Medir también la ingesta real de los recolectores (nieve y ofertas; solo con alcance completa)'
         type: boolean
         default: true
 permissions:
@@ -40,6 +48,8 @@ jobs:
       SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL }}
       SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
       RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      PROBE_SCOPE: ${{ inputs.alcance }}
+      WITH_COLLECTORS: ${{ inputs.collectors && inputs.alcance != 'acotada' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,7 +68,7 @@ jobs:
           cache: npm
           cache-dependency-path: v2/package-lock.json
       - run: npm ci
-      - if: inputs.collectors
+      - if: env.WITH_COLLECTORS == 'true'
         run: npx playwright install --with-deps chromium
       - name: Configuración de wrangler con la D1 real (solo en el disco del runner)
         run: |
@@ -68,6 +78,8 @@ jobs:
           cp wrangler.deploy.jsonc wrangler.jsonc
       - name: Minutos con más CPU (72 h, antes de medir)
         run: npx tsx tools/cpu-summary.ts history 72 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Consultas de D1 con más filas leídas (24 h, antes de medir)
+        run: npx tsx tools/d1-insights.ts 1d 12 | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Medición con wrangler tail abierto
         run: |
           npx wrangler tail skitrip --format json > "$TAIL_LOG" 2> "$RUNNER_TEMP/tail.err" &
@@ -75,7 +87,7 @@ jobs:
           sleep 20
           status=0
           npx tsx tools/cpu-probe.ts || status=$?
-          if [ "${{ inputs.collectors }}" = "true" ]; then
+          if [ "$WITH_COLLECTORS" = "true" ]; then
             npx tsx tools/collectors/snow.ts > "$RUNNER_TEMP/snow.log" 2>&1 || echo "::warning::El recolector de nieve terminó con error"
             npx tsx tools/collectors/offers.ts > "$RUNNER_TEMP/offers.log" 2>&1 || echo "::warning::El recolector de ofertas terminó con error"
             tail -n 5 "$RUNNER_TEMP/snow.log" "$RUNNER_TEMP/offers.log"

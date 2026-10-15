@@ -32,13 +32,19 @@ catalogRoutes.get('/catalog', async (c) => {
     db.prepare('SELECT parent_id, child_id, relation FROM area_links'),
     db.prepare('SELECT area_id, access_name, road_km, duration_min, toll_cents, source, checked_on, validated, notes FROM routes WHERE origin_id = ?1').bind(origin),
     db.prepare('SELECT id, name, lat, lon FROM origins ORDER BY name'),
-    // Última observación de cada fuente en cada área, con su prioridad; la elección por área es determinista (pickSnow).
-    db.prepare(`SELECT * FROM (SELECT s.*, src.priority, ROW_NUMBER() OVER (PARTITION BY s.area_id, s.source_id ORDER BY s.observed_at DESC, s.id) AS rn
-                FROM snow_observations s JOIN sources src ON src.id = s.source_id) WHERE rn = 1`),
+    // Última observación de cada fuente en su ámbito, con su prioridad; la elección por área es determinista (pickSnow).
+    // La ingesta solo acepta observaciones en el ámbito de su fuente, así que cada par fuente-área es una fila de
+    // sources: una búsqueda por índice por fuente en lugar de recorrer todo el histórico (que crece cada captura).
+    db.prepare(`SELECT s.*, src.priority FROM sources src
+                JOIN snow_observations s ON s.id = (SELECT o.id FROM snow_observations o WHERE o.source_id = src.id AND o.area_id = src.scope_area_id
+                                                    ORDER BY o.observed_at DESC, o.id LIMIT 1)
+                WHERE src.kind = 'snow'`),
     // Última observación legacy por ámbito, marcada como legacy.
-    db.prepare(`SELECT l.scope_area_id AS area_id, l.obs_date, l.open_km, l.total_km, l.anomalies FROM legacy_snow_observations l
-                JOIN (SELECT scope_area_id, MAX(obs_date) AS m FROM legacy_snow_observations WHERE scope_area_id IS NOT NULL GROUP BY scope_area_id) x
-                  ON x.scope_area_id = l.scope_area_id AND x.m = l.obs_date
+    // Por área activa con el índice legacy_snow_scope (migración 0015): un MAX y su fila, sin recorrer la serie.
+    // CROSS JOIN fija el orden (SQLite): primero las ~24 áreas y luego una búsqueda por índice en cada una.
+    db.prepare(`WITH last AS MATERIALIZED (SELECT a.id, (SELECT MAX(x.obs_date) FROM legacy_snow_observations x WHERE x.scope_area_id = a.id) AS m FROM areas a WHERE a.active = 1)
+                SELECT l.scope_area_id AS area_id, l.obs_date, l.open_km, l.total_km, l.anomalies FROM last
+                CROSS JOIN legacy_snow_observations l ON l.scope_area_id = last.id AND l.obs_date = last.m
                 GROUP BY l.scope_area_id`),
   ]);
   const routeBy = new Map((routes.results as any[]).map((r) => [r.area_id, r]));

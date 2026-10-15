@@ -16,19 +16,33 @@ import { shoppingListRoutes } from './routes/shopping-lists';
 import { expenseRoutes } from './routes/expenses';
 import { socialRoutes } from './routes/social';
 import { purgeRateLimits } from './ratelimit';
-import { countingDb, QUERY_BUDGET } from './d1budget';
+import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
 
 const app = new Hono<AppEnv>();
 
 // Cuenta cada sentencia D1 de la invocación y corta antes del límite de D1 Free (ver d1budget.ts).
 app.use('/api/*', async (c, next) => {
-  const counter = { n: 0, max: QUERY_BUDGET };
+  const counter: Counter = { n: 0, max: QUERY_BUDGET };
   c.env = { ...c.env, DB: countingDb(c.env.DB, counter) };
   try {
     await next();
   } finally {
-    if (c.env.AUTH_MODE === 'emulator') c.res.headers.set('X-D1-Statements', String(counter.n));
+    if (c.env.AUTH_MODE === 'emulator') {
+      c.res.headers.set('X-D1-Statements', String(counter.n));
+      c.res.headers.set('X-D1-Rows-Read', String(counter.rowsRead ?? 0));
+    }
   }
+});
+
+// Diagnóstico de la medición de CPU (tools/cpu-probe.ts): con la cabecera X-SkiTrip-Probe, una línea en el registro
+// del Worker (solo la ve `wrangler tail`) dice qué isolate atendió la petición y cuántas llevaba. Así una primera
+// petición lenta se puede atribuir, o no, a un isolate recién creado con datos y no por suposición.
+let isolate: { id: string; n: number; born: number } | null = null;
+app.use('/api/*', async (c, next) => {
+  isolate ??= { id: crypto.randomUUID().slice(0, 8), n: 0, born: Date.now() };
+  isolate.n++;
+  if (c.req.header('X-SkiTrip-Probe') === '1') console.log(JSON.stringify({ probe: 1, isolate: isolate.id, n: isolate.n, ageMs: Date.now() - isolate.born }));
+  await next();
 });
 
 // Cabeceras de seguridad y sin caché para todas las respuestas de la API.

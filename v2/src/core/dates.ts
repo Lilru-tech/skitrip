@@ -36,9 +36,22 @@ export function weekdayMon0(s: string): number {
   return (new Date(toUTC(s)).getUTCDay() + 6) % 7;
 }
 
-/** Hoy en Europe/Madrid como fecha de calendario. */
+// Crear un Intl.DateTimeFormat con zona horaria cuesta del orden de 0,1–0,5 ms de CPU (resolver la zona en ICU);
+// formatear con uno ya creado, microsegundos. El catálogo público lo llamaba cientos de veces por petición (varias por
+// cada observación de nieve con fecha de parte), así que se crea una vez por isolate y se recuerda el último resultado.
+let madridFmt: Intl.DateTimeFormat | null = null;
+let lastToday: { ms: number; day: string } | null = null;
+
+/** Fecha de calendario en Europe/Madrid de un instante (formato AAAA-MM-DD). */
+export function madridDate(ms: number): string {
+  madridFmt ??= new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
+  return madridFmt.format(new Date(ms));
+}
+
+/** Hoy en Europe/Madrid como fecha de calendario. Calculado en cada llamada con su instante: nunca queda fijo. */
 export function todayMadrid(nowMs = Date.now()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(nowMs));
+  if (lastToday?.ms !== nowMs) lastToday = { ms: nowMs, day: madridDate(nowMs) };
+  return lastToday.day;
 }
 
 /**

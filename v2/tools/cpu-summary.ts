@@ -44,18 +44,38 @@ export function parseTail(text: string): any[] {
   return out;
 }
 
+/** Línea de diagnóstico del Worker (X-SkiTrip-Probe): qué isolate atendió la petición y cuántas llevaba. */
+export function probeInfo(e: any): { isolate: string; n: number; ageMs: number } | null {
+  for (const l of e?.logs ?? []) for (const m of l?.message ?? []) {
+    if (typeof m !== 'string' || !m.includes('"probe"')) continue;
+    try { const j = JSON.parse(m); if (j.probe === 1 && typeof j.isolate === 'string' && typeof j.n === 'number') return { isolate: j.isolate, n: j.n, ageMs: Number(j.ageMs) || 0 }; } catch { /* otra línea */ }
+  }
+  return null;
+}
+
+/** Resumen de isolates de una ventana: la 1.ª petición (n.º dentro de su isolate), isolates distintos y nuevos (n = 1). */
+export function isolateSummary(evs: any[]): string {
+  const info = evs.map(probeInfo).filter((x): x is NonNullable<ReturnType<typeof probeInfo>> => !!x);
+  if (!info.length) return '—';
+  const fresh = info.filter((i) => i.n === 1).length;
+  return `${info[0].n === 1 ? 'nuevo' : `n=${info[0].n}`} · ${new Set(info.map((i) => i.isolate)).size} · ${fresh}`;
+}
+
 async function probe(windowsFile: string, tailFile?: string) {
   const windows: { label: string; method: string; path: string; n: number; start: string; end: string; statuses: number[] }[] = JSON.parse(readFileSync(windowsFile, 'utf8'));
   const events = tailFile && existsSync(tailFile) ? parseTail(readFileSync(tailFile, 'utf8')).filter((e) => e?.event?.request?.url) : [];
   const withCpu = events.filter((e) => typeof e.cpuTime === 'number');
   console.log(`Eventos de wrangler tail: ${events.length} (con cpuTime: ${withCpu.length})`);
   // «1.ª» es la primera petición de la ventana (tras 3 s sin tráfico, a menudo con el isolate frío); «resto», las repetidas.
-  console.log('\n| Grupo | Ruta | n | HTTP | CPU tail 1.ª · resto p50 / máx (ms) | >10 ms | Real tail p50 (ms) | CPU analítica p50 / p99 / p99.9 (ms) | Estados |');
-  console.log('|---|---|---|---|---|---|---|---|---|');
+  // «Isolate»: si la 1.ª petición cayó en un isolate nuevo (n = 1) o en uno que ya llevaba n peticiones, cuántos
+  // isolates distintos atendieron la ventana y cuántos eran nuevos. Sin esta columna, «isolate frío» es una suposición.
+  console.log('\n| Grupo | Ruta | n | HTTP | CPU tail 1.ª · resto p50 / máx (ms) | >10 ms | Real tail p50 (ms) | Isolate: 1.ª · distintos · nuevos | CPU analítica p50 / p99 / p99.9 (ms) | Estados |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|');
   for (const w of windows) {
     const t0 = Date.parse(w.start) - 500, t1 = Date.parse(w.end) + 1500;
     const evs = events.filter((e) => e.eventTimestamp >= t0 && e.eventTimestamp <= t1 && e.event.request.method === w.method && normPath(e.event.request.url) === normPath(`https://x${w.path.split('?')[0]}`));
-    const cpu = [...evs].sort((a, b) => a.eventTimestamp - b.eventTimestamp).map((e) => e.cpuTime).filter((x) => typeof x === 'number');
+    const sorted = [...evs].sort((a, b) => a.eventTimestamp - b.eventTimestamp);
+    const cpu = sorted.map((e) => e.cpuTime).filter((x) => typeof x === 'number');
     const rest = cpu.slice(1);
     const wall = evs.map((e) => e.wallTime).filter((x) => typeof x === 'number');
     let an = '—', st = '—';
@@ -70,7 +90,7 @@ async function probe(windowsFile: string, tailFile?: string) {
     }
     const http = [...new Set(w.statuses)].join('/');
     const tailCpu = cpu.length ? `${cpu[0]} · ${rest.length ? `${pct(rest, 50)} / ${Math.max(...rest)}` : '—'}` : '—';
-    console.log(`| ${w.label} | ${w.method} ${w.path.split('?')[0]} | ${w.n} | ${http} | ${tailCpu} | ${cpu.length ? `${cpu.filter((x) => x > 10).length}/${cpu.length}` : '—'} | ${wall.length ? pct(wall, 50) : '—'} | ${an} | ${st} |`);
+    console.log(`| ${w.label} | ${w.method} ${w.path.split('?')[0]} | ${w.n} | ${http} | ${tailCpu} | ${cpu.length ? `${cpu.filter((x) => x > 10).length}/${cpu.length}` : '—'} | ${wall.length ? pct(wall, 50) : '—'} | ${isolateSummary(sorted)} | ${an} | ${st} |`);
   }
   // Peticiones del tail fuera de las ventanas (p. ej. recolectores lanzados durante la medición).
   if (withCpu.length) {
