@@ -18,11 +18,14 @@ interface Health {
   maxProfiles: number;
   rows: Record<string, number>;
   quotas: { note: string };
+  watch: { key: string; label: string; kind: string; state: 'ok' | 'aislado' | 'degradado' | 'fallo'; streak_days: number; first_seen: string | null; last_day: string; last_value: string | null; issue_number: number | null }[];
 }
 interface LegacyPerson { person: string; days: number; first_day: string; last_day: string; unmapped: number; reconciled_user_id: string | null; reconciled_alias: string | null }
 
 const PIPELINE_LABEL: Record<string, string> = { snow: 'Nieve', offers: 'Ofertas', prices: 'Precios' };
 const RUN_LABEL: Record<string, string> = { ...RUN_STATUS_LABEL, running: 'en curso', partial: 'parcial' };
+const WATCH_LABEL: Record<string, string> = { ok: 'Correcto', aislado: 'Aviso aislado', degradado: 'Degradación repetida', fallo: 'Fallo' };
+const WATCH_KIND: Record<string, string> = { check: 'comprobación', regression: 'funcionaba antes', pending: 'pendiente', absence: 'pendiente de invierno' };
 
 export function AdminPage() {
   usePageTitle('Administración');
@@ -79,6 +82,29 @@ function HealthPanel() {
             </tbody>
           </table>
         </div>
+      </section>
+      <section className="panel stack" aria-labelledby="adm-watch">
+        <h2 id="adm-watch">Vigilancia diaria</h2>
+        {h.watch.length === 0 ? <p className="muted">La vigilancia diaria aún no ha guardado ningún estado.</p> : (<>
+          <p>Último día vigilado: {h.watch[0].last_day} · {plural(h.watch.filter((w) => w.state === 'fallo').length, 'fallo', 'fallos')} · {plural(h.watch.filter((w) => w.state === 'degradado').length, 'degradación repetida', 'degradaciones repetidas')} · {plural(h.watch.filter((w) => w.state === 'aislado').length, 'aviso aislado', 'avisos aislados')}</p>
+          <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de vigilancia">
+            <table className="data-table compact">
+              <caption className="visually-hidden">Estado de cada comprobación de la vigilancia diaria</caption>
+              <thead><tr><th scope="col">Comprobación</th><th scope="col">Estado</th><th scope="col">Valor</th><th scope="col">Desde</th><th scope="col">Aviso</th></tr></thead>
+              <tbody>
+                {h.watch.map((w) => (
+                  <tr key={w.key}>
+                    <th scope="row">{w.label} <span className="muted">({WATCH_KIND[w.kind] ?? w.kind})</span></th>
+                    <td>{WATCH_LABEL[w.state] ?? w.state}{w.streak_days ? ` · ${plural(w.streak_days, 'día', 'días')}` : ''}</td>
+                    <td>{w.last_value ?? '—'}</td>
+                    <td>{w.first_seen ?? '—'}</td>
+                    <td>{w.issue_number ? <a href={`https://github.com/Lilru-tech/skitrip/issues/${w.issue_number}`} target="_blank" rel="noreferrer">#{w.issue_number}</a> : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>)}
       </section>
       <section className="panel stack" aria-labelledby="adm-runs">
         <h2 id="adm-runs">Últimas capturas</h2>

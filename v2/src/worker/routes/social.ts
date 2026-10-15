@@ -118,7 +118,7 @@ admin.use('*', async (c, next) => {
 admin.get('/health', async (c) => {
   const db = c.env.DB;
   const nowMs = Date.now();
-  const [runs, health, coverage, users, sizes] = await db.batch([
+  const [runs, health, coverage, users, sizes, watch] = await db.batch([
     db.prepare(`SELECT * FROM capture_runs ORDER BY started_at DESC LIMIT 30`),
     db.prepare(`SELECT s.id, s.area_id, s.kind, s.provider, s.status, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.last_error, h.consecutive_fail
                 FROM sources s LEFT JOIN source_health h ON h.source_id = s.id ORDER BY s.kind, s.area_id`),
@@ -127,10 +127,13 @@ admin.get('/health', async (c) => {
     db.prepare(`SELECT (SELECT COUNT(*) FROM snow_observations) AS snow, (SELECT COUNT(*) FROM offer_observations) AS offers, (SELECT COUNT(*) FROM price_observations) AS prices,
                        (SELECT COUNT(*) FROM legacy_hotel_observations) AS legacy_hotel, (SELECT COUNT(*) FROM legacy_snow_observations) AS legacy_snow,
                        (SELECT COUNT(*) FROM search_scenarios WHERE active = 1) AS active_scenarios`),
+    // Estado de la vigilancia diaria (tools/watch-policy.ts): primero lo que falla o se degrada.
+    db.prepare(`SELECT key, label, kind, state, streak_days, first_seen, last_day, last_value, issue_number FROM watch_findings
+                ORDER BY CASE state WHEN 'fallo' THEN 0 WHEN 'degradado' THEN 1 WHEN 'aislado' THEN 2 ELSE 3 END, key`),
   ]);
   const snowStaleMs = 30 * 3600_000;
   return c.json({
-    runs: runs.results, sources: health.results,
+    runs: runs.results, sources: health.results, watch: watch.results,
     coverage: (coverage.results as any[]).map((r) => ({ areaId: r.id, lastSnow: r.last_snow, snowFreshness: r.last_snow == null ? 'never' : nowMs - r.last_snow <= snowStaleMs ? 'fresh' : 'stale' })),
     users: (users.results as any[])[0], maxProfiles: Number(c.env.MAX_PROFILES) || 50, rows: (sizes.results as any[])[0],
     quotas: { note: 'Workers Free: 100.000 peticiones/día y 10 ms de CPU por petición. D1 Free: 5 M filas leídas y 100.000 escritas al día, 500 MB por base. Al llegar al límite, las peticiones fallan: no se factura.' },
