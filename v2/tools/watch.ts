@@ -4,14 +4,16 @@
 //
 // Cada comprobación sale como OK, AVISO o FALLO con lo que hay que hacer. La política de tools/watch-policy.ts guarda el
 // estado por días en D1 (watch_findings, visible en Administración): aviso aislado, degradación repetida (abre un único
-// aviso de GitHub con la etiqueta «vigilancia», que se cierra al recuperarse) o fallo real (el proceso sale con 1, el
-// workflow queda en rojo y GitHub avisa por correo a quien lo tenga activado). Nada privado en el registro: recuentos,
+// aviso de GitHub con la etiqueta «vigilancia», que se cierra al recuperarse) o fallo real. Sale con 1 (workflow en
+// rojo; GitHub avisa por correo a quien lo tenga activado) con un fallo real o si falla un mecanismo de la vigilancia
+// (leer o guardar el estado, gestionar avisos): tools/watch-run.ts. Nada privado en el registro: recuentos,
 // identificadores de fuentes y estados.
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { graphql } from './cpu-summary';
-import { classifySource, issueAction, issueMarker, nextState, type Finding, type Kind, type SourceRow } from './watch-policy';
+import { classifySource, type Finding, type Kind, type SourceRow } from './watch-policy';
+import { runWatch, type FindingStore, type IssueTracker } from './watch-run';
 
 const V2 = path.resolve(import.meta.dirname, '..');
 const API = (process.env.PROD_API ?? '').replace(/\/$/, '');
@@ -98,65 +100,45 @@ try {
     failing.length ? 'Revisar si la web cambió de formato o bloquea; ver «v2 · comprobar fuentes online».' : '');
 } catch (e) { add('FALLO', 'Consultas a D1', String((e as Error).message).slice(0, 120), 'No se pudo consultar D1.'); }
 
-// Política por días (tools/watch-policy.ts) y avisos de GitHub sin duplicados.
+// Política por días con estado en D1 y avisos de GitHub (tools/watch-run.ts). En Actions los tres mecanismos son
+// obligatorios: si fallan, la ejecución queda en rojo. Fuera de Actions es una ejecución local: ni estado ni avisos.
 const day = now.toISOString().slice(0, 10);
-let prev = new Map<string, Finding>();
-let persisted = false;
-try { prev = new Map((d1('SELECT * FROM watch_findings') as Finding[]).map((f) => [f.key, f])); persisted = true; }
-catch { add('AVISO', 'Estado de la vigilancia', 'no se pudo leer watch_findings', 'Comprobar que la migración 0014 está aplicada.'); }
-const findings = rows.map((r) => ({ row: r, f: nextState(prev.get(r.key), { key: r.key, label: r.what, kind: r.kind, level: r.level, value: r.value }, day) }));
-
+const inActions = process.env.GITHUB_ACTIONS === 'true';
 const GH = process.env.GITHUB_TOKEN, REPO = process.env.GITHUB_REPOSITORY, RUN = process.env.GITHUB_RUN_ID;
 async function gh(method: string, url: string, body?: unknown) {
   const r = await fetch(`https://api.github.com/repos/${REPO}${url}`, { method, headers: { Authorization: `Bearer ${GH}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-  if (!r.ok) throw new Error(`GitHub ${method} ${url}: HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`GitHub ${method} ${url.split('?')[0]}: HTTP ${r.status}`);
   return r.status === 204 ? null : r.json();
 }
-const notes: string[] = [];
-if (GH && REPO) {
-  try {
-    const open = new Map<string, number>();
-    for (const i of (await gh('GET', '/issues?labels=vigilancia&state=open&per_page=100')) as { number: number; body: string | null }[]) {
-      const m = /<!-- watch:(.+?) -->/.exec(i.body ?? '');
-      if (m) open.set(m[1], i.number);
-    }
-    const runUrl = RUN ? `https://github.com/${REPO}/actions/runs/${RUN}` : '';
-    for (const { row, f } of findings) {
-      const openNo = open.get(f.key) ?? null;
-      const act = issueAction(f, openNo);
-      if (act === 'open') {
-        if (!(await fetch(`https://api.github.com/repos/${REPO}/labels/vigilancia`, { headers: { Authorization: `Bearer ${GH}` } })).ok)
-          await gh('POST', '/labels', { name: 'vigilancia', color: 'd93f0b', description: 'Degradación persistente o fallo detectado por «v2 · vigilar»' }).catch(() => undefined);
-        const i = await gh('POST', '/issues', { title: `Vigilancia: ${f.label} ${f.state === 'fallo' ? 'falla' : 'degradada'}`, labels: ['vigilancia'],
-          body: `${issueMarker(f.key)}\n**${f.state === 'fallo' ? 'Fallo real' : `Degradación: ${f.streak_days} días seguidos`}** desde ${f.first_seen}.\n\n- Valor: ${row.value}\n- Qué hacer: ${row.action || '—'}\n- Ejecución: ${runUrl}\n\nEste aviso se abre una vez y se cierra solo cuando la comprobación vuelve a OK (sin comentarios diarios).` }) as { number: number };
-        f.issue_number = i.number; notes.push(`abierto aviso #${i.number} (${f.key})`);
-      } else if (act === 'close') {
-        await gh('POST', `/issues/${openNo}/comments`, { body: `Recuperado el ${day}: ${row.value}. ${runUrl}` });
-        await gh('PATCH', `/issues/${openNo}`, { state: 'closed', state_reason: 'completed' });
-        f.issue_number = null; notes.push(`cerrado aviso #${openNo} (${f.key})`);
-      } else f.issue_number = openNo;
-    }
-  } catch (e) { notes.push(`avisos de GitHub no actualizados: ${(e as Error).message}`); }
-} else notes.push('sin GITHUB_TOKEN: avisos de GitHub no gestionados (ejecución local)');
-
-if (persisted) {
-  try {
+const store: FindingStore = {
+  read: async () => d1('SELECT key, label, kind, state, streak_days, first_seen, last_day, last_value, issue_number FROM watch_findings') as Finding[],
+  write: async (findings, today) => {
     const t = Date.now();
-    const sql = findings.map(({ f }) => `INSERT INTO watch_findings (key,label,kind,state,streak_days,first_seen,last_day,last_value,issue_number,updated_at) VALUES (${[f.key, f.label, f.kind, f.state, f.streak_days, f.first_seen, f.last_day, f.last_value, f.issue_number, t].map(q).join(',')})
+    const sql = findings.map((f) => `INSERT INTO watch_findings (key,label,kind,state,streak_days,first_seen,last_day,last_value,issue_number,updated_at) VALUES (${[f.key, f.label, f.kind, f.state, f.streak_days, f.first_seen, f.last_day, f.last_value, f.issue_number, t].map(q).join(',')})
 ON CONFLICT(key) DO UPDATE SET label=excluded.label, kind=excluded.kind, state=excluded.state, streak_days=excluded.streak_days, first_seen=excluded.first_seen, last_day=excluded.last_day, last_value=excluded.last_value, issue_number=excluded.issue_number, updated_at=excluded.updated_at;`);
-    const keys = findings.map(({ f }) => q(f.key)).join(',');
-    sql.push(`DELETE FROM watch_findings WHERE key NOT IN (${keys});`); // fuentes que dejaron de ser prioritarias
+    // Solo se borran filas sin observar en 14 días (fuentes que dejaron de ser prioritarias): una consulta que falla
+    // hoy no borra las rachas de las fuentes que no pudo evaluar.
+    sql.push(`DELETE FROM watch_findings WHERE last_day < ${q(new Date(Date.parse(today) - 14 * 864e5).toISOString().slice(0, 10))};`);
     const file = path.join(V2, 'watch-findings.sql');
     writeFileSync(file, sql.join('\n'));
-    execFileSync('npx', ['wrangler', 'd1', 'execute', 'skitrip', '--remote', '--file', file], { cwd: V2, stdio: ['ignore', 'ignore', 'ignore'] });
-  } catch (e) { notes.push(`estado no guardado en D1: ${(e as Error).message.slice(0, 120)}`); }
-}
+    execFileSync('npx', ['wrangler', 'd1', 'execute', 'skitrip', '--remote', '--file', file], { cwd: V2, stdio: ['ignore', 'ignore', 'pipe'] });
+  },
+};
+const issues: IssueTracker | null = GH && REPO ? {
+  listOpen: async () => (await gh('GET', '/issues?labels=vigilancia&state=open&per_page=100')) as { number: number; body: string | null }[],
+  ensureLabel: async () => {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/labels/vigilancia`, { headers: { Authorization: `Bearer ${GH}`, Accept: 'application/vnd.github+json' } });
+    if (r.status === 404) await gh('POST', '/labels', { name: 'vigilancia', color: 'd93f0b', description: 'Degradación persistente o fallo detectado por «v2 · vigilar»' });
+    else if (!r.ok) throw new Error(`GitHub GET /labels/vigilancia: HTTP ${r.status}`);
+  },
+  open: async (title, body) => ((await gh('POST', '/issues', { title, body, labels: ['vigilancia'] })) as { number: number }).number,
+  close: async (n, comment) => {
+    await gh('POST', `/issues/${n}/comments`, { body: comment });
+    await gh('PATCH', `/issues/${n}`, { state: 'closed', state_reason: 'completed' });
+  },
+} : null;
 
-const STATE_LABEL = { ok: 'OK', aislado: 'aviso aislado', degradado: 'DEGRADADO', fallo: 'FALLO' } as const;
-console.log(`Vigilancia de producción · ${now.toISOString()}\n`);
-console.log('| Estado | Comprobación | Valor | Días | Qué hacer |\n|---|---|---|---|---|');
-for (const { row: r, f } of findings) console.log(`| ${STATE_LABEL[f.state]} | ${r.what} | ${r.value} | ${f.streak_days || ''} | ${r.action} |`);
-for (const { f } of findings) if (f.state === 'degradado') console.log(`::warning::Degradación persistente: ${f.label} (${f.streak_days} días)`);
-const n = (st: string) => findings.filter(({ f }) => f.state === st).length;
-console.log(`\n${n('fallo')} fallo(s), ${n('degradado')} degradación(es), ${n('aislado')} aviso(s) aislado(s).${notes.length ? `\n\n${notes.join(' · ')}` : ''}`);
-if (n('fallo')) process.exit(1);
+const res = await runWatch(rows, day, inActions ? { kind: 'actions', runUrl: RUN ? `https://github.com/${REPO}/actions/runs/${RUN}` : '' } : { kind: 'local' }, inActions ? store : null, inActions ? issues : null);
+console.log(`Vigilancia de producción · ${now.toISOString()}${inActions ? '' : ' · EJECUCIÓN LOCAL'}\n`);
+for (const l of res.lines) console.log(l);
+process.exit(res.exitCode);

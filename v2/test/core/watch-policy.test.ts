@@ -21,6 +21,34 @@ describe('política de la vigilancia: aislado, degradado y fallo', () => {
     expect(run([['2026-10-12', 'AVISO'], ['2026-10-13', 'AVISO']], 'regression').map((f) => f.state)).toEqual(['aislado', 'degradado']);
     expect(run([['2026-10-12', 'AVISO'], ['2026-10-13', 'AVISO']], 'pending').map((f) => f.state)).toEqual(['aislado', 'aislado']);
   });
+  it('días con huecos (01, 08 y 15/10) no son consecutivos: cada observación empieza una racha nueva', () => {
+    const r = run([['2026-10-01', 'AVISO'], ['2026-10-08', 'AVISO'], ['2026-10-15', 'AVISO']]);
+    expect(r.map((f) => [f.state, f.streak_days, f.first_seen])).toEqual([['aislado', 1, '2026-10-01'], ['aislado', 1, '2026-10-08'], ['aislado', 1, '2026-10-15']]);
+  });
+  it('un solo día sin observación corta la racha (no cuenta como degradado ni como recuperado)', () => {
+    const r = run([['2026-10-12', 'AVISO'], ['2026-10-13', 'AVISO'], ['2026-10-15', 'AVISO'], ['2026-10-16', 'AVISO'], ['2026-10-17', 'AVISO']]);
+    expect(r.map((f) => [f.state, f.streak_days])).toEqual([['aislado', 1], ['aislado', 2], ['aislado', 1], ['aislado', 2], ['degradado', 3]]);
+    expect(r[4].first_seen).toBe('2026-10-15');
+  });
+  it('un hueco no cierra un aviso abierto: solo una observación OK lo hace', () => {
+    let f = run([['2026-10-12', 'AVISO'], ['2026-10-13', 'AVISO']], 'regression')[1];
+    expect(f.state).toBe('degradado');
+    f = { ...f, issue_number: 7 };
+    const afterGap = nextState(f, { key: 'k', label: 'K', kind: 'regression', level: 'AVISO', value: 'x' }, '2026-10-20');
+    expect(afterGap).toMatchObject({ state: 'aislado', streak_days: 1, issue_number: 7 });
+    expect(issueAction(afterGap, 7)).toBeNull();
+    const ok = nextState(afterGap, { key: 'k', label: 'K', kind: 'regression', level: 'OK', value: 'ok' }, '2026-10-21');
+    expect(issueAction(ok, 7)).toBe('close');
+  });
+  it('recuperación observada: OK reinicia; un aviso al día siguiente vuelve a empezar en 1', () => {
+    const r = run([['2026-10-13', 'AVISO'], ['2026-10-14', 'AVISO'], ['2026-10-15', 'OK'], ['2026-10-16', 'AVISO']]);
+    expect(r.map((f) => [f.state, f.streak_days])).toEqual([['aislado', 1], ['aislado', 2], ['ok', 0], ['aislado', 1]]);
+  });
+  it('mismo día repetido: ni suma ni reinicia; un estado con fecha futura es incoherente', () => {
+    const r = run([['2026-10-14', 'AVISO'], ['2026-10-15', 'AVISO'], ['2026-10-15', 'AVISO'], ['2026-10-15', 'AVISO']]);
+    expect(r.map((f) => f.streak_days)).toEqual([1, 2, 2, 2]);
+    expect(() => nextState(r[3], { key: 'k', label: 'K', kind: 'check', level: 'AVISO', value: 'x' }, '2026-10-14')).toThrow(/posterior/);
+  });
   it('un FALLO es fallo desde el primer día', () => {
     expect(run([['2026-10-15', 'FALLO']])[0].state).toBe('fallo');
   });

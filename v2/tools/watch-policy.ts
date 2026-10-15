@@ -1,11 +1,15 @@
 // Política de la vigilancia diaria, pura y probada (test/core/watch-policy.test.ts). Tres niveles:
 //  · aislado: un AVISO que aparece un día. Se muestra, no avisa.
-//  · degradado: el mismo AVISO en días distintos seguidos (2 para una fuente que funcionaba y dejó de hacerlo, 3 para
+//  · degradado: el mismo AVISO en días naturales consecutivos observados (2 para una fuente que funcionaba y dejó de hacerlo, 3 para
 //    el resto). Se abre UN aviso (issue) en GitHub con la etiqueta «vigilancia»; no se comenta a diario.
 //  · fallo: un FALLO real (API caída, cortes por CPU, captura sin éxito fuera de plazo…). El workflow queda en rojo y
 //    también abre el aviso.
+// Consecutivo = días naturales seguidos con observación (la vigilancia es diaria). Un día sin observación (el workflow
+// no corrió) no cuenta como degradación ni como recuperación: tras un hueco la racha vuelve a empezar en 1 y un aviso
+// de GitHub abierto sigue abierto; solo una observación OK lo cierra.
 // Al volver a OK el aviso se cierra con un único comentario. Una ausencia legítima (fuera de temporada, sin parte
 // publicado) es OK y queda pendiente de invierno, no degradación.
+import { daysBetween } from '../src/core/dates';
 import { LEGITIMATE_ABSENCE } from '../src/core/snow-outcome';
 
 export type Level = 'OK' | 'AVISO' | 'FALLO';
@@ -19,9 +23,11 @@ export const DEGRADE_AFTER: Record<Kind, number> = { regression: 2, pending: 3, 
 export function nextState(prev: Finding | undefined, obs: { key: string; label: string; kind: Kind; level: Level; value: string }, day: string): Finding {
   const base = { key: obs.key, label: obs.label, kind: obs.kind, last_day: day, last_value: obs.value, issue_number: prev?.issue_number ?? null };
   if (obs.level === 'OK') return { ...base, state: 'ok', streak_days: 0, first_seen: null };
-  const sameDay = prev && prev.state !== 'ok' && prev.last_day === day;
-  const streak = prev && prev.state !== 'ok' ? prev.streak_days + (sameDay ? 0 : 1) : 1;
-  const first = prev && prev.state !== 'ok' ? prev.first_seen ?? day : day;
+  const gap = prev && prev.state !== 'ok' ? daysBetween(prev.last_day, day) : null; // días desde la última observación sin OK
+  if (gap !== null && gap < 0) throw new Error(`watch_findings: ${obs.key} tiene un último día (${prev!.last_day}) posterior a ${day}`);
+  // Mismo día: la racha no cambia; día siguiente: +1; hueco o sin racha previa: empieza en 1.
+  const streak = gap === 0 ? prev!.streak_days : gap === 1 ? prev!.streak_days + 1 : 1;
+  const first = gap === 0 || gap === 1 ? prev!.first_seen ?? day : day;
   const state: State = obs.level === 'FALLO' ? 'fallo' : streak >= DEGRADE_AFTER[obs.kind] ? 'degradado' : 'aislado';
   return { ...base, state, streak_days: streak, first_seen: first };
 }
