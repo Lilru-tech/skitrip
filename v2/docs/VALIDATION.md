@@ -16,6 +16,8 @@ Recorrido local con tres cuentas sintéticas del emulador (Ana organiza; Bea es 
 
 Sin problemas relevantes en registro, amistad, crear viaje e invitar, comparar estaciones, copiar la lista general al viaje y repartir gastos.
 
+**Vincular la hoja antigua a la propia cuenta.** Los selectores de Administración (nombres, comentarios y disponibilidad de la hoja) usaban el buscador de amigos, que excluye a quien busca: el administrador no encontraba su propio alias. Ahora usan `GET /api/admin/users/search` (solo administración; cuentas activas, la propia incluida y marcada «(tú)»; solo id y alias). El selector muestra «Buscando…», «Ninguna cuenta activa con ese alias» o el error, y no deja resultados de la consulta anterior. Vincular sigue pidiendo confirmación, no publica comentarios ni copia días al calendario, conserva los originales y deja auditoría; una cuenta bloqueada no es destino válido. El buscador de amigos y el bloqueo no cambian. Pruebas: `test/worker/admin-user-search.test.ts` y `test/e2e/admin-self-link.spec.ts`.
+
 ## Estado al 15/10/2026 (corrección tras revisar la fase 2)
 
 Cuatro tipos de comprobación, separados. Una captura de octubre **no** valida el formato de invierno.

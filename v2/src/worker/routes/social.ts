@@ -10,6 +10,7 @@ import { sha256Hex } from '../crypto';
 import { mapAvailability, mapComments, mapShopping } from '../../core/sheets';
 import { normName } from '../../core/legacy';
 import { todayMadrid } from '../../core/dates';
+import { normalizeAlias } from '../../core/alias';
 
 // Comentarios (públicos por estación o privados de viaje), avisos internos y administración.
 export const socialRoutes = new Hono<AppEnv>();
@@ -149,6 +150,23 @@ admin.get('/users', async (c) => {
   return c.json({ users: results });
 });
 
+/**
+ * Cuentas activas por alias para vincular datos de la hoja antigua. A diferencia del buscador de amigos, incluye la
+ * propia cuenta (un administrador puede ser una de las personas de la hoja). Solo id y alias, nunca correos.
+ */
+admin.get('/users/search', async (c) => {
+  const me = c.get('user').id;
+  const { q } = parseQuery(c, z.object({ q: z.string().min(2).max(24) }));
+  const norm = normalizeAlias(q.trim()).replace(/[%_\\]/g, (m) => `\\${m}`);
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, alias FROM users WHERE alias_norm LIKE ?1 ESCAPE '\\' AND status = 'active' ORDER BY id <> ?2, alias_norm LIMIT 10`,
+  ).bind(`${norm}%`, me).all<{ id: string; alias: string }>();
+  return c.json({ users: results.map((u) => ({ id: u.id, alias: u.alias, isMe: u.id === me })) });
+});
+
+/** Destino válido para vincular datos antiguos: una cuenta activa (la propia incluida). */
+const activeUser = (db: D1Database, id: string) => db.prepare(`SELECT 1 FROM users WHERE id = ?1 AND status = 'active'`).bind(id).first();
+
 admin.post('/users/:uid/:action{block|unblock}', async (c) => {
   const me = c.get('user');
   const uid = c.req.param('uid');
@@ -185,7 +203,7 @@ admin.get('/legacy/comments', async (c) => {
 admin.post('/legacy/comments/:lid/reconcile', async (c) => {
   const me = c.get('user');
   const { userId, publish } = await parseBody(c, z.object({ userId: zId.nullable(), publish: z.boolean().default(false) }));
-  if (userId && !(await c.env.DB.prepare('SELECT 1 FROM users WHERE id = ?1').bind(userId).first())) throw notFound('Usuario');
+  if (userId && !(await activeUser(c.env.DB, userId))) throw notFound('Usuario');
   const r = await c.env.DB.prepare('UPDATE legacy_comments SET reconciled_user_id = ?1, reconciled_by = ?2, reconciled_at = ?3, published = ?4 WHERE id = ?5')
     .bind(userId, me.id, now(), publish ? 1 : 0, c.req.param('lid')).run();
   if (!r.meta.changes) throw notFound('Comentario legacy');
@@ -256,7 +274,7 @@ admin.post('/legacy/identities/link', async (c) => {
   const me = c.get('user');
   const { name, userId } = await parseBody(c, z.object({ name: z.string().min(1).max(120), userId: zId.nullable() }));
   const db = c.env.DB;
-  if (userId && !(await db.prepare('SELECT 1 FROM users WHERE id = ?1').bind(userId).first())) throw notFound('Usuario');
+  if (userId && !(await activeUser(db, userId))) throw notFound('Usuario');
   const [av, cm] = await db.batch([
     db.prepare('UPDATE legacy_availability SET reconciled_user_id = ?1 WHERE legacy_person_name = ?2').bind(userId, name),
     db.prepare('UPDATE legacy_comments SET reconciled_user_id = ?1, reconciled_by = ?2, reconciled_at = ?3 WHERE legacy_author_name = ?4').bind(userId, me.id, now(), name),
@@ -281,7 +299,7 @@ admin.get('/legacy/availability', async (c) => {
 admin.post('/legacy/availability/reconcile', async (c) => {
   const me = c.get('user');
   const { person, userId } = await parseBody(c, z.object({ person: z.string().min(1).max(120), userId: zId.nullable() }));
-  if (userId && !(await c.env.DB.prepare('SELECT 1 FROM users WHERE id = ?1').bind(userId).first())) throw notFound('Usuario');
+  if (userId && !(await activeUser(c.env.DB, userId))) throw notFound('Usuario');
   const r = await c.env.DB.prepare('UPDATE legacy_availability SET reconciled_user_id = ?1 WHERE legacy_person_name = ?2').bind(userId, person).run();
   if (!r.meta.changes) throw notFound('Persona legacy');
   await audit(c.env.DB, me.id, 'legacy_availability.reconcile', 'legacy_person', person, { userId, days: r.meta.changes });

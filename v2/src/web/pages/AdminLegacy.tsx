@@ -7,7 +7,7 @@ import { errorMessage, get, post } from '../api';
 import { ConfirmDialog } from '../components/Dialog';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { IDENTITY_WARNING, UserPicker, type UserHit } from '../components/UserPicker';
+import { IDENTITY_WARNING, UserPicker, userLabel, type UserHit } from '../components/UserPicker';
 import type { LegacySummary } from '../components/GettingStarted';
 import { numDate, plural } from '../format';
 import { useResource } from '../hooks';
@@ -90,7 +90,7 @@ function IdentitiesPanel({ s, onChanged }: { s: LegacySummary; onChanged: () => 
     setBusy(true); setError(null);
     try {
       const r = await post<{ days: number; comments: number }>('/api/admin/legacy/identities/link', { name: target.n.name, userId: target.user?.id ?? null });
-      toast.show(target.user ? `«${target.n.name}» vinculado a ${target.user.alias}: ${plural(r.days, 'día', 'días')} y ${plural(r.comments, 'comentario', 'comentarios')}.` : `«${target.n.name}» desvinculado.`);
+      toast.show(target.user ? `«${target.n.name}» vinculado a ${userLabel(target.user)}: ${plural(r.days, 'día', 'días')} y ${plural(r.comments, 'comentario', 'comentarios')}.` : `«${target.n.name}» desvinculado.`);
       setTarget(null); setPicking(null);
       onChanged();
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
@@ -110,13 +110,13 @@ function IdentitiesPanel({ s, onChanged }: { s: LegacySummary; onChanged: () => 
                   {n.state === 'unlinked' ? 'Vincular a una cuenta' : 'Cambiar cuenta'}<span className="visually-hidden"> para «{n.name}»</span></button>
                 {n.state !== 'unlinked' && <button type="button" className="btn btn-link btn-small" onClick={() => setTarget({ n, user: null })}>Desvincular<span className="visually-hidden"> «{n.name}»</span></button>}
               </div>
-              {picking === n.name && <UserPicker id={`ln-${i}`} label={`Cuenta para «${n.name}»`} onPick={(u) => setTarget({ n, user: u })} />}
+              {picking === n.name && <UserPicker id={`ln-${i}`} scope="admin" label={`Cuenta para «${n.name}»`} onPick={(u) => setTarget({ n, user: u })} />}
             </li>
           ))}
         </ul>
       )}
       <ConfirmDialog open={target != null} busy={busy} error={error}
-        title={target?.user ? `¿Vincular «${target.n.name}» a ${target.user.alias}?` : `¿Desvincular «${target?.n.name ?? ''}»?`}
+        title={target?.user ? `¿Vincular «${target.n.name}» a ${userLabel(target.user)}?` : `¿Desvincular «${target?.n.name ?? ''}»?`}
         confirmLabel={target?.user ? 'Vincular' : 'Desvincular'}
         body={<>
           {target?.user && <p><strong>{IDENTITY_WARNING}</strong></p>}
@@ -205,7 +205,7 @@ export function LegacyCommentsReview({ rev, onChanged }: { rev: number; onChange
                         <button type="button" className="btn btn-secondary btn-small" onClick={() => setPicking(picking === c.id ? null : c.id)} aria-expanded={picking === c.id}>Asignar a una cuenta</button>
                         {c.reconciled_user_id && <button type="button" className="btn btn-link btn-small" onClick={() => setTarget({ c, user: null, publish: false })}>Quitar asignación</button>}
                       </div>
-                      {picking === c.id && <UserPicker id={`lc-${c.id}`} label="Alias de la cuenta" onPick={(u) => setTarget({ c, user: u, publish: !!c.published })} />}
+                      {picking === c.id && <UserPicker id={`lc-${c.id}`} scope="admin" label="Alias de la cuenta" onPick={(u) => setTarget({ c, user: u, publish: !!c.published })} />}
                     </div>
                   </div>
                 </li>
@@ -224,7 +224,7 @@ export function LegacyCommentsReview({ rev, onChanged }: { rev: number; onChange
         </> : <p>Dejarán de verse en la web. Se conservan y puedes volver a publicarlos.</p>}
         onConfirm={() => void publishChosen()} onClose={() => { setBulk(null); setError(null); }} />
       <ConfirmDialog open={target != null} busy={busy} error={error}
-        title={target?.user ? `¿Asignar a ${target.user.alias}?` : '¿Quitar la asignación?'}
+        title={target?.user ? `¿Asignar a ${userLabel(target.user)}?` : '¿Quitar la asignación?'}
         confirmLabel={target?.user ? 'Asignar' : 'Quitar'}
         body={<>
           <p><strong>{IDENTITY_WARNING}</strong></p>

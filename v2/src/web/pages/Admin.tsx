@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage, get, post } from '../api';
 import { ConfirmDialog } from '../components/Dialog';
-import { IDENTITY_WARNING, UserPicker, type UserHit } from '../components/UserPicker';
+import { IDENTITY_WARNING, UserPicker, userLabel, type UserHit } from '../components/UserPicker';
 import { CsvHelp, LegacyCommentsReview, LegacyOverview } from './AdminLegacy';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
@@ -307,16 +307,16 @@ function LegacyAvailabilityPanel({ rev, onChanged }: { rev: number; onChanged: (
                   <button type="button" className="btn btn-secondary btn-small" onClick={() => setPicking(picking === key ? null : key)} aria-expanded={picking === key}>Asignar a una cuenta</button>
                   {p.reconciled_user_id && <button type="button" className="btn btn-link btn-small" onClick={() => setTarget({ p, user: null })}>Quitar asignación</button>}
                 </div>
-                {picking === key && <UserPicker id={`la-${i}`} label="Alias de la cuenta" onPick={(u) => setTarget({ p, user: u })} />}
+                {picking === key && <UserPicker id={`la-${i}`} scope="admin" label="Alias de la cuenta" onPick={(u) => setTarget({ p, user: u })} />}
               </li>
             );
           })}
         </ul>
       ))}
       <ConfirmDialog open={target != null} busy={busy} error={error}
-        title={target?.user ? `¿Asignar «${target.p.person}» a ${target.user.alias}?` : '¿Quitar la asignación?'}
+        title={target?.user ? `¿Asignar «${target.p.person}» a ${userLabel(target.user)}?` : '¿Quitar la asignación?'}
         confirmLabel={target?.user ? 'Asignar' : 'Quitar'}
-        body={<><p><strong>{IDENTITY_WARNING}</strong></p>{target && <p>Afecta a {plural(target.p.days, 'día', 'días')} de la hoja.</p>}</>}
+        body={<><p><strong>{IDENTITY_WARNING}</strong></p>{target && <p>Afecta a {plural(target.p.days, 'día', 'días')} de la hoja. No se copia nada a su calendario ni cambia ninguna fecha.</p>}</>}
         onConfirm={() => void confirm()} onClose={() => { setTarget(null); setError(null); }} />
     </section>
   );
