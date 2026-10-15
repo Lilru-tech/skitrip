@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 import { useBusy, useResource } from '../hooks';
 import { Link, usePageTitle } from '../router';
 import type { FriendsResponse, PublicUser } from '../types';
+import { announceNotificationsChanged, useNotificationsPulse } from '../notifications-live';
 
 type Confirm = { kind: 'remove' | 'block'; user: PublicUser } | null;
 
@@ -14,6 +15,8 @@ export function FriendsPage() {
   const toast = useToast();
   const { data, error, loading, reload } = useResource(() => get<FriendsResponse>('/api/friends'), []);
   const { busy, run } = useBusy();
+  // Una solicitud nueva (o cancelada) desde otra sesión aparece sin recargar la página.
+  useNotificationsPulse(() => { void reload(); });
   const [q, setQ] = useState('');
   const [results, setResults] = useState<PublicUser[] | null>(null);
   const [searchErr, setSearchErr] = useState<string | null>(null);
@@ -45,6 +48,7 @@ export function FriendsPage() {
       await run(key, fn);
       toast.show(ok);
       await reload();
+      announceNotificationsChanged();
     } catch (e) {
       toast.show(errorMessage(e), 'error');
     }

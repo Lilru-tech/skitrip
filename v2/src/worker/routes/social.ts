@@ -67,11 +67,49 @@ socialRoutes.delete('/comments/:cid', async (c) => {
 
 // ---------- Avisos internos ----------
 
+// Solicitudes e invitaciones: el estado vigente se lee de su tabla en la misma consulta (claves primarias), nunca del
+// aviso. Así un aviso de algo ya aceptado, rechazado, cancelado, revocado o caducado no ofrece acciones.
+type NoticeRow = {
+  id: string; kind: string; payload: string; created_at: number; read_at: number | null;
+  fr_status: string | null; fr_alias: string | null; ti_status: string | null; ti_expires: number | null; trip_id: string | null; trip_name: string | null; inviter_alias: string | null;
+};
+function noticeState(n: NoticeRow, t: number): string | undefined {
+  if (n.kind === 'friend_request') return n.fr_status ?? 'gone';
+  if (n.kind === 'trip_invitation') return n.ti_status === 'pending' && (n.ti_expires ?? 0) <= t ? 'expired' : n.ti_status ?? 'gone';
+  return undefined;
+}
+
 socialRoutes.get('/notifications', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT id, kind, payload, created_at, read_at FROM notifications WHERE user_id = ?1 ORDER BY created_at DESC LIMIT 50',
-  ).bind(c.get('user').id).all<any>();
-  return c.json({ notifications: results.map((n) => ({ ...n, payload: JSON.parse(n.payload) })), unread: results.filter((n) => !n.read_at).length });
+    `SELECT n.id, n.kind, n.payload, n.created_at, n.read_at,
+            fr.status AS fr_status, fu.alias AS fr_alias,
+            ti.status AS ti_status, ti.expires_at AS ti_expires, tr.id AS trip_id, tr.name AS trip_name, iu.alias AS inviter_alias
+     FROM notifications n
+     LEFT JOIN friend_requests fr ON n.kind = 'friend_request' AND fr.id = json_extract(n.payload, '$.requestId') AND fr.to_user = n.user_id
+     LEFT JOIN users fu ON fu.id = fr.from_user
+     LEFT JOIN trip_invitations ti ON n.kind = 'trip_invitation' AND ti.id = json_extract(n.payload, '$.invitationId') AND ti.invitee_id = n.user_id
+     LEFT JOIN trips tr ON tr.id = ti.trip_id
+     LEFT JOIN users iu ON iu.id = ti.inviter_id
+     WHERE n.user_id = ?1 ORDER BY n.created_at DESC LIMIT 50`,
+  ).bind(c.get('user').id).all<NoticeRow>();
+  const t = now();
+  const notifications = results.map((n) => {
+    const state = noticeState(n, t);
+    const base = { id: n.id, kind: n.kind, payload: JSON.parse(n.payload), created_at: n.created_at, read_at: n.read_at };
+    if (n.kind === 'friend_request') return { ...base, state, fromAlias: n.fr_alias };
+    if (n.kind === 'trip_invitation') return { ...base, state, tripId: n.trip_id, tripName: n.trip_name, inviterAlias: n.inviter_alias, expiresAt: n.ti_expires };
+    return base;
+  });
+  return c.json({ notifications, unread: results.filter((n) => !n.read_at).length });
+});
+
+/**
+ * Recuento ligero para la campana (se consulta cada minuto con la pestaña visible, al volver a ella y tras acciones).
+ * Una consulta sobre el índice notifications_user (user_id, read_at, created_at): solo lee las filas sin leer.
+ */
+socialRoutes.get('/notifications/unread', async (c) => {
+  const r = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ?1 AND read_at IS NULL').bind(c.get('user').id).first<{ n: number }>();
+  return c.json({ unread: r?.n ?? 0 });
 });
 
 socialRoutes.post('/notifications/read', async (c) => {
