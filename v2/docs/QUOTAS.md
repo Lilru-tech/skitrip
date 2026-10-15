@@ -237,7 +237,17 @@ Las cuatro primeras, el 81 %, recorrían tablas enteras en cada petición. Casi 
 | 2 | 31 · 17 / 27 | 8 de 8 | 21 · 10 / 14 | 5 de 10 |
 | 3 | 25 · 21 / 29 | 8 de 8 | 10 · 5 / 7 | 0 de 10 |
 
-Con el mismo código y los mismos datos, la misma ruta varía de una ráfaga a otra hasta el doble, también en las peticiones repetidas. Por eso la medición ahora anota qué isolate atendió cada petición (cabecera `X-SkiTrip-Probe` del sondeo; una línea en el registro del Worker que solo ve `wrangler tail`): una primera petición lenta solo se atribuye a un isolate nuevo si su número de petición es 1. Los resultados después de publicar se añaden cuando se mida.
+Con el mismo código y los mismos datos, la misma ruta varía de una ráfaga a otra hasta el doble, también en las peticiones repetidas. Por eso la medición ahora anota qué isolate atendió cada petición (cabecera `X-SkiTrip-Probe` del sondeo; una línea en el registro del Worker que solo ve `wrangler tail`): una primera petición lenta solo se atribuye a un isolate nuevo si su número de petición es 1. Después de publicar (PR #12, release 38736977323), sondeo 38738050166, mismo escenario (66 peticiones):
+
+| Ráfaga | Catálogo: 1.ª · resto p50 / máx (ms) | >10 ms | Isolate de la 1.ª | Viaje (16): 1.ª · resto p50 / máx (ms) | >10 ms | Isolate de la 1.ª |
+|---|---|---|---|---|---|---|
+| 1 | 11 · 2 / 3 | 1 de 8 | nuevo (n = 1) | 19 · 10 / 14 | 5 de 10 | n = 6 |
+| 2 | 2 · 2 / 3 | 0 de 8 | n = 9 | 7 · 10 / 13 | 4 de 10 | n = 16 |
+| 3 | 3 · 2 / 2 | 0 de 8 | n = 17 | 13 · 9 / 12 | 5 de 10 | n = 26 |
+
+- **Catálogo**: p50 de 17 a 2 ms con 24 peticiones en cada medición; por encima de 10 ms, de 17 a 1. Esa una es la primera petición de un isolate recién creado (n = 1, 11 ms): ahí sí hay evidencia de arranque en frío.
+- **Disponibilidad del viaje (16 personas)**: no está resuelta. Las 30 peticiones las atendió un único isolate ya usado (n = 6 a 36, ninguno nuevo) y aun así el p50 fue 10 ms y 14 de 30 pasaron de 10 ms. Las primeras peticiones lentas de cada ráfaga (19 y 13 ms) no son arranques en frío. Antes de este cambio, el mismo escenario dio p50 6, 10 y 5 ms por ráfaga, y en los sondeos completos de la mañana, 10 y 6 ms. Con un mismo isolate el coste es estable dentro de la medición y cambia entre mediciones (también el tiempo real: ~230 ms antes frente a ~480 ms ahora), lo que apunta a la máquina o ubicación que atiende la medición más que al número de peticiones; con estas muestras no se puede confirmar. La ruta queda en torno al límite de 10 ms con 16 personas y 150 días: es el siguiente candidato a optimizar.
+- **Vigilancia** después del cambio (38738977781): 0 fallos, 0 degradaciones, 0 errores de los mecanismos. Filas leídas en 24 h: 2.809.528. Es la ventana acumulada y todavía incluye todas las lecturas anteriores al cambio (los sondeos del día con las consultas sin índice); la bajada se verá en las vigilancias de los próximos días.
 
 ### Medido en producción el 15/10/2026 (grupo de 16 personas)
 
@@ -338,5 +348,6 @@ Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los r
 
 ## Qué queda pendiente en Free
 
-- Medir el catálogo y la disponibilidad del viaje después de publicar la migración 0015 y el formateador único, con la medición acotada (isolate por petición), y comprobar que la ventana de 24 h de filas leídas baja en la vigilancia.
+- Disponibilidad del viaje con 16 personas: p50 5–10 ms según la medición, sin cortes. Investigar qué parte de la ruta (lectura de 16 × 150 días, resumen, JSON) crece con la máquina antes de cambiar nada.
+- Comprobar en las vigilancias de los próximos días que la ventana de 24 h de filas leídas baja tras la migración 0015.
 - Seguir el p99 diario en la vigilancia: con pocas peticiones al día, un solo arranque en frío lo sube por encima de 10 ms.

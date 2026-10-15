@@ -15,6 +15,8 @@ Cuatro tipos de comprobación, separados. Una captura de octubre **no** valida e
 | Fuentes online, publicado | v2-online-check 38712651823 | ✔ FGC 5 de 5 (fuera de temporada confirmado), Esquiades 18 de 18, ofertas 17 con datos + 2 fuera de temporada, nieve oficial con datos salvo Port del Comte |
 | CPU después | v2-cpu-probe 38713197532 y 38714990287 | 258 y 261 peticiones, 0 cortadas; ver `QUOTAS.md` (antes/después y lo que sigue por encima de 10 ms) |
 | Vigilancia con estado | v2-watch 38714993409 | ✔ 0 fallos, 0 degradaciones, 7 avisos aislados, 0 errores de los mecanismos; estado guardado en `watch_findings` |
+| Catálogo y lecturas (PR #12) | v2-cpu-probe acotado 38732558754 (antes) y 38738050166 (después), release 38736977323 | catálogo p50 17 → 2 ms (24 peticiones cada vez); viaje con 16 personas sin resolver (p50 ~10 ms); filas por carga del catálogo 30.090 → 358 en local. Ver `QUOTAS.md` |
+| Ofertas de Baqueira y Port del Comte | captura programada v2-offers 38737663168 y vigilancia 38738977781 | ✔ 17 páginas con ofertas y 2 «sin ofertas confirmado»: Baqueira y Port del Comte vuelven a «fuera de temporada (pendiente de invierno)», sin precios |
 | Invierno | primera apertura de las estaciones | pendiente: los casos de invierno de los tests son sintéticos y están marcados así |
 
 ### Nieve: qué falló y qué se corrigió
