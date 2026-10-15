@@ -10,7 +10,7 @@
 import { createHash } from 'node:crypto';
 import { pageFixture } from '../src/core/parsers/fixture.ts';
 import { visibleText } from '../src/core/page-outcome.ts';
-import { allowedByRobots, BlockedError, withBrowser } from './collectors/lib.ts';
+import { BlockedError, robotsCheck, withBrowser } from './collectors/lib.ts';
 
 const args = process.argv.slice(2);
 const fixtures = args.includes('--fixtures');
@@ -20,7 +20,9 @@ if (!urls.length) { console.error('Indica una o más URL https'); process.exit(2
 await withBrowser(async (load, refused, requested) => {
   for (const url of urls) {
     console.log(`\n===== SONDEO ${url}`);
-    if (!(await allowedByRobots(url))) { console.log('robots.txt: NO permitida (no se carga)'); continue; }
+    const robots = await robotsCheck(url);
+    if (robots.verdict === 'denied') { console.log('robots.txt: NO permitida (no se carga)'); continue; }
+    if (robots.verdict === 'unavailable') { console.log(`${robots.detail}: no se carga`); continue; }
     try {
       const html = await load(url);
       const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1].trim() ?? '';

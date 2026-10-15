@@ -16,7 +16,7 @@ import { dedupeCards, forfaitMatchesArea, parseOfferCardsHtml, type OfferCard, t
 import { chunkBy } from '../../src/core/chunk.ts';
 import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, EMPTY_REASON_STATUS, type EmptyReason } from '../../src/core/page-outcome.ts';
 import { cardToOffer } from './offer-payload.ts';
-import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
+import { apiGet, apiPost, BlockedError, requireConfig, robotsCheck, runId, withBrowser, withRetry } from './lib.ts';
 
 type Source = { id: string; area_id: string; scope_area_id: string; provider: string; url: string; adapter: string };
 type Scenario = { id: string; provider_id: string; area_id: string; check_in: string; check_out: string; adults: number; source_url: string | null };
@@ -62,7 +62,9 @@ async function processSource(load: ((url: string) => Promise<string>) | null, s:
   if (!ad) return done('unsupported', [], `sin adaptador ${s.adapter}`);
   if (useFixtures && !fixtures[ad.provider]) return done('unsupported', [], 'sin fixture para este proveedor');
   try {
-    if (!useFixtures && !(await allowedByRobots(s.url))) return done('unsupported', [], 'robots.txt no lo permite');
+    const robots = useFixtures ? null : await robotsCheck(s.url);
+    if (robots?.verdict === 'denied') return done('unsupported', [], 'robots.txt no lo permite');
+    if (robots?.verdict === 'unavailable') return done('error', [], `${robots.detail}: no se carga la página`);
     const html = useFixtures ? readFileSync(fixtures[ad.provider]!, 'utf8') : await withRetry(() => load!(s.url));
     const priced = dedupeCards(parseOfferCardsHtml(html, ad.provider)).filter((c) => c.amount);
     // Destino: si la tarjeta nombra la estación del forfait y no es la de la fuente, no se guarda (otra estación).

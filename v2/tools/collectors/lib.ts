@@ -1,7 +1,7 @@
 // Utilidades comunes de los recolectores (se ejecutan en GitHub Actions, nunca en el Worker).
 import { setTimeout as sleep } from 'node:timers/promises';
 import { detectBlock } from '../../src/core/blocked.ts';
-import { parseRobots, robotsAllows, type RobotsRule } from '../../src/core/robots.ts';
+import { robotsFromResponse, robotsVerdict, type RobotsState, type RobotsVerdict } from '../../src/core/robots.ts';
 
 export const API = (process.env.SKITRIP_API_URL ?? '').replace(/\/$/, '');
 export const TOKEN = process.env.SKITRIP_INGEST_TOKEN ?? '';
@@ -31,24 +31,37 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-/** robots.txt (RFC 9309, src/core/robots.ts). Sin robots (4xx): todo permitido. Error del servidor o de red: nada permitido. */
-const robotsCache = new Map<string, Promise<RobotsRule[] | 'deny-all'>>();
+/**
+ * robots.txt (RFC 9309, src/core/robots.ts). Sin robots (4xx): todo permitido. Error del servidor o de red: un
+ * reintento a los 3 s y, si sigue, «no disponible»: no se carga nada de ese origen, pero la fuente cuenta como fallo de
+ * transporte (antes quedaba «no soportada», y un fallo pasajero ocultaba la caída de una fuente que funcionaba).
+ */
+const robotsCache = new Map<string, Promise<RobotsState>>();
 function robotsFor(origin: string) {
   if (!robotsCache.has(origin)) {
     robotsCache.set(origin, (async () => {
-      try {
-        const r = await fetch(`${origin}/robots.txt`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10_000) });
-        if (r.ok) return parseRobots(await r.text());
-        return r.status >= 400 && r.status < 500 ? [] : 'deny-all';
-      } catch { return 'deny-all'; }
+      let state: RobotsState = { kind: 'unavailable', detail: 'robots.txt no disponible' };
+      for (let i = 0; i < 2; i++) {
+        if (i) await sleep(3000);
+        try {
+          const r = await fetch(`${origin}/robots.txt`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10_000) });
+          state = robotsFromResponse(r.status, r.ok ? await r.text() : '');
+        } catch (e) { state = robotsFromResponse(null, '', (e as Error).name === 'TimeoutError' ? 'sin respuesta en 10 s' : (e as Error).message.slice(0, 80)); }
+        if (state.kind === 'rules') break;
+      }
+      return state;
     })());
   }
   return robotsCache.get(origin)!;
 }
-export async function allowedByRobots(url: string): Promise<boolean> {
+
+export async function robotsCheck(url: string): Promise<RobotsVerdict> {
   const u = new URL(url);
-  const rules = await robotsFor(u.origin);
-  return rules !== 'deny-all' && robotsAllows(rules, u.pathname + u.search);
+  return robotsVerdict(await robotsFor(u.origin), u.pathname + u.search);
+}
+/** Para las peticiones que hace una página al renderizarse: solo se cargan si robots.txt las permite. */
+export async function allowedByRobots(url: string): Promise<boolean> {
+  return (await robotsCheck(url)).verdict === 'allowed';
 }
 
 export class BlockedError extends Error {}

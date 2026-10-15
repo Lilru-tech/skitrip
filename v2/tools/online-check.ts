@@ -22,7 +22,7 @@ import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, type EmptyReason } from '.
 import { OFFICIAL_ADAPTERS } from '../src/core/parsers/official-snow.ts';
 import { aggregatorSnowOutcome, LEGITIMATE_ABSENCE, officialSnowOutcome, SNOW_REASON_LABEL, snowFailure, type SnowOutcome, type SnowReason } from '../src/core/snow-outcome.ts';
 import { esquiadesAdapter } from '../src/core/parsers/snow.ts';
-import { allowedByRobots, BlockedError, withBrowser } from './collectors/lib.ts';
+import { BlockedError, robotsCheck, withBrowser } from './collectors/lib.ts';
 
 type Src = { id: string; kind: string; url: string; adapter: string | null; status: string; aliases?: string[] | null; area?: string };
 const args = process.argv.slice(2);
@@ -111,7 +111,9 @@ await withBrowser(async (load, refused) => {
   for (const s of sources) {
     const at = new Date().toISOString();
     try {
-      if (!(await allowedByRobots(s.url))) { log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'robots' }); continue; }
+      const robots = await robotsCheck(s.url);
+      if (robots.verdict === 'denied') { log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'robots' }); continue; }
+      if (robots.verdict === 'unavailable') { log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'error', error: `${robots.detail}: no se carga la página` }); continue; }
       const html = await load(s.url);
       if (saveDir) writeFileSync(`${saveDir}/${s.id}.html`, html);
       if (fixturesDir) writeFixture(s, html, at);

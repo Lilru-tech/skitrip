@@ -11,7 +11,7 @@ import { esquiadesAdapter, type StatusRow } from '../../src/core/parsers/snow.ts
 import { aggregatorSnowOutcome, officialSnowOutcome, snowFailure, type SnowReason } from '../../src/core/snow-outcome.ts';
 import { chunkBy } from '../../src/core/chunk.ts';
 import { OFFICIAL_ADAPTERS } from '../../src/core/parsers/official-snow.ts';
-import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
+import { apiGet, apiPost, BlockedError, requireConfig, robotsCheck, runId, withBrowser, withRetry } from './lib.ts';
 
 type Source = { id: string; area_id: string; scope_area_id: string; provider: string; url: string; adapter: string; match_aliases: string | null; area_name: string };
 const args = process.argv.slice(2);
@@ -42,7 +42,9 @@ async function processGroup(load: ((url: string) => Promise<string>) | null, key
   if (!official && !adapter) { group.forEach((s) => mark(s, { status: 'unsupported', reason: null, error: `sin adaptador ${adapterId}` })); return; }
   let html: string;
   try {
-    if (!fixture && !(await allowedByRobots(url))) { group.forEach((s) => mark(s, { status: 'unsupported', reason: null, error: 'robots.txt no lo permite' })); return; }
+    const robots = fixture ? null : await robotsCheck(url);
+    if (robots?.verdict === 'denied') { group.forEach((s) => mark(s, { status: 'unsupported', reason: null, error: 'robots.txt no lo permite' })); return; }
+    if (robots?.verdict === 'unavailable') { group.forEach((s) => mark(s, { status: 'error', reason: 'transport', error: `${robots.detail}: no se carga la página` })); return; }
     html = fixture ? readFileSync(fixture, 'utf8') : await withRetry(() => load!(url));
   } catch (e) {
     const o = snowFailure(e, e instanceof BlockedError);
