@@ -312,6 +312,7 @@ describe('auditoría de consultas: resto de rutas', () => {
     const A = (method: string, path: string, body?: unknown) => api(adm.token, method, `/api/admin${path}`, body);
     await m('GET /admin/health', 'capturas, fuentes y áreas del catálogo', A('GET', '/health'));
     await m('GET /admin/users', `${SEEDED_FRIENDS + 17} cuentas`, A('GET', '/users'));
+    await m('GET /admin/users/search', `${SEEDED_FRIENDS + 17} cuentas, 10 como máximo`, A('GET', '/users/search?q=us'));
     await m('POST /admin/users/:uid/block', '—', A('POST', `/users/${victim.id}/block`));
     await m('POST /admin/users/:uid/unblock', '—', A('POST', `/users/${victim.id}/unblock`));
     await m('POST /admin/comments/:cid/hide', '—', A('POST', `/comments/${comments[1]}/hide`, { hidden: true, reason: 'prueba' }));

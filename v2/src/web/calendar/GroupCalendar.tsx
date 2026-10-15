@@ -127,16 +127,23 @@ export function Unanswered({ data, alias, from, to }: { data: CommonResponse; al
       {none.length === 0 && partial.length === 0 && hidden.length === 0 && <p>Todas las personas elegidas han marcado todos los días.</p>}
       {none.length > 0 && <p><strong>No han marcado ningún día:</strong> {none.map((r) => alias(r.id)).join(', ')}</p>}
       {partial.length > 0 && <p><strong>Con días sin indicar:</strong> {partial.map((r) => `${alias(r.id)} (${r.unknown})`).join(', ')}</p>}
-      {hidden.length > 0 && <p><strong>No comparten su calendario contigo:</strong> {hidden.map((p) => alias(p.id)).join(', ')}</p>}
+      {hidden.length > 0 && (
+        <p><strong>No comparten su calendario contigo:</strong> {hidden.map((p) => alias(p.id)).join(', ')}.{' '}
+          <span className="muted">No es lo mismo que «sin indicar»: puede que tengan días marcados, pero no los ves hasta que lo compartan contigo o con un viaje común.</span></p>
+      )}
     </div>
   );
 }
 
-export function WindowsList({ windows, alias, action, emptyHint }: { windows: CandidateWindow[]; alias: (id: string) => string; action?: (w: CandidateWindow) => ReactNode; emptyHint?: ReactNode }) {
+export function WindowsList({ windows, alias, action, emptyHint, nights }: { windows: CandidateWindow[]; alias: (id: string) => string; action?: (w: CandidateWindow) => ReactNode; emptyHint?: ReactNode; nights?: number }) {
   if (!windows.length) {
     return (
       <div className="state state-empty">
         <p className="state-title">No hay ventanas que encajen</p>
+        {nights != null && nights > 0 && (
+          // Quien marca libre vie–sáb no encaja en vie→dom con 2 noches: el día de salida también cuenta.
+          <p>Cada persona tiene que estar libre (o «quizá») todos los días, llegada y salida incluidas: {plural(nights, 'noche', 'noches')} {nights + 1 === 1 ? 'es' : 'son'} {plural(nights + 1, 'día', 'días')}.</p>
+        )}
         <p>Prueba con menos noches, un mínimo de personas más bajo o pide al grupo que marque sus días.</p>
         {emptyHint}
       </div>
@@ -184,7 +191,7 @@ export function WindowsList({ windows, alias, action, emptyHint }: { windows: Ca
 export function RequirementNote({ data }: { data: CommonResponse }) {
   const r = data.requirement;
   if (!r) return null;
-  const who = r.mode === 'min' ? `Se buscan ventanas con al menos ${r.need} ${r.need === 1 ? 'persona disponible' : 'personas disponibles'}.` : `Se buscan ventanas en las que encajen las ${r.need} ${r.need === 1 ? 'persona que comparte' : 'personas que comparten'}.`;
+  const who = r.mode === 'min' ? `Se buscan ventanas con al menos ${r.need} ${r.need === 1 ? 'persona disponible' : 'personas disponibles'}.` : r.need === 1 ? 'Se buscan ventanas en las que encaje la persona que comparte.' : `Se buscan ventanas en las que encajen las ${r.need} personas que comparten.`;
   return (
     <p className="requirement-note">
       <strong>{r.sharing} de {r.total} {r.total === 1 ? 'persona comparte' : 'personas comparten'}</strong>

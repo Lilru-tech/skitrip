@@ -137,7 +137,7 @@ function CommonView({ from, to }: { from: string; to: string }) {
           <section className="stack" aria-labelledby="win-h">
             <h2 id="win-h">Ventanas candidatas <span className="muted small">(llegada → salida, {filters.nights} noches)</span></h2>
             <RequirementNote data={data} />
-            <WindowsList windows={data.windows} alias={alias} />
+            <WindowsList windows={data.windows} alias={alias} nights={filters.nights} />
           </section>
           <section className="panel stack" aria-labelledby="ans-h">
             <h2 id="ans-h">Quién falta por responder</h2>
@@ -197,6 +197,7 @@ function SharingSettings() {
           <input id="share-friends" type="checkbox" checked={!!friends} onChange={(e) => setFriends(e.target.checked)} />
           <label htmlFor="share-friends">Todas mis amistades</label>
         </div>
+        <p className="small muted">Los miembros de un viaje que no son amistades tuyas no la ven con esta opción: marca también ese viaje abajo.</p>
         <fieldset className="stack-s">
           <legend>Miembros de estos viajes</legend>
           {trips.data!.trips.length === 0 ? <p className="muted">No tienes viajes todavía. Cuando <Link to="/viajes">crees uno</Link> o te unas, podrás compartirla solo con sus miembros.</p> : trips.data!.trips.map((t) => (

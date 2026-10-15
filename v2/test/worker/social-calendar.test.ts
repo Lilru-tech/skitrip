@@ -178,3 +178,16 @@ describe('calendario compartido', () => {
     expect((await api(o.token, 'POST', `/api/availability/trip/${trip.id}/proposals`, { start: '2026-12-30', end: '2026-12-31' })).status).toBe(201);
   });
 });
+
+describe('vista común sin nadie elegido', () => {
+  // Una cuenta nueva (sin amistades) o quien desmarca a todas abre «Vista común»: el cliente no envía `ids` (vacío) y
+  // antes la API respondía 422 «Parámetros no válidos». Ahora devuelve la vista solo con quien consulta.
+  it('sin ids responde con la propia disponibilidad, no con un error', async () => {
+    const a = await signup();
+    await api(a.token, 'PUT', '/api/availability/me', { set: [{ day: '2026-12-11', status: 'free' }] });
+    const r = await api(a.token, 'GET', '/api/availability/common?from=2026-12-01&to=2026-12-31&nights=2');
+    expect(r.status).toBe(200);
+    expect(r.json.people.map((p: any) => p.id)).toEqual([a.id]);
+    expect(r.json.requirement).toMatchObject({ total: 1, sharing: 1 });
+  });
+});

@@ -7,7 +7,7 @@ import { dayShort, plural } from '../format';
 import { useResource } from '../hooks';
 import { Link, usePageTitle } from '../router';
 import { useProfile } from '../session';
-import type { CandidateWindow, Proposal, SharesResponse, TripCalendarResponse, TripDetail } from '../types';
+import type { CandidateWindow, FriendsResponse, Proposal, SharesResponse, TripCalendarResponse, TripDetail } from '../types';
 import { daysBetween, seasons, type Selection } from '../calendar/dates';
 import { GroupCalendar, RequirementNote, Unanswered, WindowsList } from '../calendar/GroupCalendar';
 import { FiltersForm, type GroupFilters } from '../calendar/Filters';
@@ -21,6 +21,7 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
   const toast = useToast();
   const detail = useResource(() => get<TripDetail>(`/api/trips/${tripId}`), [tripId]);
   const shares = useResource(() => get<SharesResponse>('/api/availability/shares'), []);
+  const friends = useResource(() => get<FriendsResponse>('/api/friends'), []);
   usePageTitle(detail.data ? `Calendario · ${detail.data.trip.name}` : 'Calendario del viaje');
 
   const all = useMemo(seasons, []);
@@ -62,7 +63,16 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
   if (detail.loading && !detail.data) return <div className="page"><Loading /></div>;
   if (detail.error && !detail.data) return <div className="page"><h1>Calendario del viaje</h1><ErrorState message={detail.error} onRetry={detail.reload} /></div>;
   const trip = detail.data!.trip;
-  const sharingHere = shares.data ? shares.data.friends || shares.data.trips.some((t) => t.id === tripId) : null;
+  // Quién del viaje no ve mi disponibilidad. Compartir «con todas mis amistades» no llega a los miembros que no son
+  // amistades: antes el aviso se ocultaba igualmente y esa persona veía «no comparte» sin que nadie lo supiera.
+  const others = detail.data!.members.filter((m) => m.id !== me.id);
+  const sharing = shares.data && friends.data ? (() => {
+    if (shares.data.trips.some((t) => t.id === tripId)) return { kind: 'ok' as const, outside: [] };
+    if (!shares.data.friends) return { kind: 'none' as const, outside: others };
+    const mine = new Set(friends.data.friends.map((f) => f.id));
+    const outside = others.filter((m) => !mine.has(m.id));
+    return { kind: outside.length ? 'friendsOnly' as const : 'ok' as const, outside };
+  })() : null;
 
   const shareWithTrip = async () => {
     if (!shares.data) return;
@@ -70,7 +80,7 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
     try {
       await put('/api/availability/shares', { friends: shares.data.friends, tripIds: [...new Set([...shares.data.trips.map((t) => t.id as string), tripId])] });
       toast.show('Ahora los miembros de este viaje pueden ver tu disponibilidad.');
-      await Promise.all([shares.reload(), load()]);
+      await Promise.all([shares.reload(), friends.reload(), load()]);
     } catch (e) {
       toast.show(errorMessage(e), 'error');
     } finally {
@@ -158,13 +168,15 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
 
       <TripTabs tripId={tripId} current="calendario" />
 
-      {sharingHere === false && (
-        <div className="notice notice-info cluster">
-          <p>Los miembros de este viaje solo ven tu disponibilidad si la compartes (con este viaje o con todas tus amistades).</p>
+      {sharing && sharing.kind !== 'ok' && (
+        <section className="notice notice-info cluster" aria-label="Quién ve tu disponibilidad en este viaje">
+          {sharing.kind === 'none'
+            ? <p>Los miembros de este viaje no ven tu disponibilidad: no la compartes con este viaje ni con tus amistades. Para ellos sales como «no comparte», no como «sin indicar».</p>
+            : <p>Compartes tu disponibilidad con tus amistades, pero {sharing.outside.map((m) => m.alias).join(', ')} {sharing.outside.length === 1 ? 'no es amistad tuya y no ve tu disponibilidad' : 'no son amistades tuyas y no ven tu disponibilidad'}: te {sharing.outside.length === 1 ? 've' : 'ven'} como «no comparte».</p>}
           <button type="button" className="btn btn-primary btn-small" onClick={() => void shareWithTrip()} disabled={busy !== null}>
             {busy === 'share' ? 'Compartiendo…' : 'Compartir con este viaje'}
           </button>
-        </div>
+        </section>
       )}
 
       <section className="panel stack" aria-labelledby="filters-h">
@@ -180,7 +192,7 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
           <section className="stack" aria-labelledby="w-h">
             <h2 id="w-h">Ventanas candidatas <span className="muted small">(llegada → salida, {filters?.nights} noches)</span></h2>
             <RequirementNote data={data} />
-            <WindowsList windows={data.windows} alias={alias} action={windowAction} />
+            <WindowsList windows={data.windows} alias={alias} action={windowAction} nights={filters?.nights} />
           </section>
 
           <section className="panel stack" aria-labelledby="p-h">

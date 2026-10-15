@@ -126,6 +126,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /admin/legacy/availability` | 2 | 8 personas × 150 días |
 | `GET /admin/legacy/comments` | 2 | 500 comentarios legacy |
 | `GET /admin/users` | 2 | 47 cuentas |
+| `GET /admin/users/search` | 2 | 10 cuentas como máximo |
 | `GET /availability/me` | 2 | 150 días |
 | `GET /availability/shares` | 2 | 1 viaje + amigos |
 | `GET /availability/visible` | 2 | 8 miembros × 150 días |

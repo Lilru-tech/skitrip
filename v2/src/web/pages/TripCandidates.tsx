@@ -65,8 +65,10 @@ function Candidates({ tripId, detail }: { tripId: string; detail: TripDetail }) 
   const role = detail.trip.role;
   // Desde la ficha de una estación («Apuntar cotización»): abre el formulario con la estación elegida, una sola vez.
   const quoteArea = useLocation().query.get('cotizar');
+  const [quoteMode, setQuoteMode] = useState(false);
   useEffect(() => {
     if (!quoteArea) return;
+    setQuoteMode(true);
     setForm(candidateFormFor(detail, { areaId: quoteArea, priceKind: 'user_quote' }));
     setQuery('cotizar', null);
   }, [quoteArea, detail]);
@@ -103,8 +105,8 @@ function Candidates({ tripId, detail }: { tripId: string; detail: TripDetail }) 
   return (
     <div className="stack">
       <div className="toolbar">
-        <p className="notice notice-info"><strong>Votar no es reservar.</strong> {r.data!.note}</p>
-        <button type="button" className="btn btn-primary" onClick={() => setForm(candidateFormFor(detail))}>Nueva candidatura</button>
+        <p className="notice notice-info">{r.data!.note}</p>
+        <button type="button" className="btn btn-primary" onClick={() => { setQuoteMode(false); setForm(candidateFormFor(detail)); }}>Nueva candidatura</button>
       </div>
       {list.length === 0 ? <Empty title="Aún no hay candidaturas"><p>Añade un alojamiento o paquete para que el grupo vote.</p></Empty> : (
         <ul className="card-list" aria-label="Candidaturas">
@@ -144,7 +146,7 @@ function Candidates({ tripId, detail }: { tripId: string; detail: TripDetail }) 
         </ul>
       )}
 
-      <CandidateDialog tripId={tripId} initial={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); void r.reload(); }} />
+      <CandidateDialog tripId={tripId} initial={form} title={quoteMode ? 'Apuntar cotización' : undefined} onClose={() => setForm(null)} onSaved={() => { setForm(null); void r.reload(); }} />
       <ConfirmDialog open={deleting !== null} title={`¿Eliminar «${deleting?.title ?? ''}»?`} body={<p>Se borran también sus votos.</p>} confirmLabel="Eliminar" danger busy={busy === 'del'}
         onConfirm={() => void doDelete()} onClose={() => setDeleting(null)} />
     </div>
@@ -176,6 +178,11 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
     if (!kids) { setFormErr('Edades de menores: números de 0 a 17 separados por comas.'); return; }
     if (form.checkIn && form.checkOut && form.checkOut <= form.checkIn) { setFormErr('La salida debe ser posterior a la entrada.'); return; }
     if (form.priceKind === 'manual_estimate' && amount == null) { setFormErr('Una estimación manual necesita un importe.'); return; }
+    // Sin fechas, un importe no es una cotización exacta (p. ej. el «desde» de la ficha copiado tal cual).
+    if (form.priceKind === 'user_quote' && amount != null && (!form.checkIn || !form.checkOut)) {
+      setFormErr('Una cotización es para unas fechas concretas: indica la entrada y la salida para las que te la dieron, o márcala como estimación manual.');
+      return;
+    }
     const own = { forfait: parseEuros(form.ownForfait), rental: parseEuros(form.ownRental), tolls: parseEuros(form.ownTolls), parking: parseEuros(form.ownParking) };
     if (Object.values(own).some((v) => Number.isNaN(v))) { setFormErr('Costes propios: importe no válido.'); return; }
     setBusy('create'); setFormErr(null);
@@ -188,7 +195,7 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
         forfaitDays: form.forfaitIncluded === 'yes' ? n(form.forfaitDays) : null, conditions: form.conditions || null, pendingNotes: form.pendingNotes || null,
         forfaitCentsPerDay: own.forfait, rentalCentsPerDay: own.rental, tollsCentsPerCar: own.tolls, parkingCentsPerCar: own.parking, costsNote: form.costsNote.trim() || null,
       });
-      toast.show(form.priceKind === 'manual_estimate' && amount != null ? 'Estimación manual añadida.' : 'Candidatura añadida.');
+      toast.show(amount == null ? 'Candidatura añadida.' : form.priceKind === 'manual_estimate' ? 'Estimación manual añadida.' : 'Cotización añadida.');
       onSaved();
     } catch (e) { setFormErr(errorMessage(e)); } finally { setBusy(null); }
   };
@@ -202,6 +209,7 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
       </>}>
       {form && (
         <form id="cand-form" className="form-grid" onSubmit={(e) => { e.preventDefault(); void create(); }} noValidate>
+          <p className="span-2 notice notice-info small">Una cotización es el precio que te da el proveedor para unas fechas y personas concretas (las condiciones van más abajo). Los precios «desde» de la ficha son orientativos: si solo tienes ese, márcalo como estimación manual.</p>
           <Field className="span-2" label="Título" value={form.title} maxLength={160} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Por ejemplo: Apartamento en Soldeu" />
           <SelectField label="Modalidad" value={form.modality} onChange={(e) => setForm({ ...form, modality: e.target.value, forfaitIncluded: e.target.value === 'lodging_forfait' ? 'yes' : 'no' })}>
             <option value="lodging">Solo alojamiento</option><option value="lodging_forfait">Alojamiento + forfait</option>

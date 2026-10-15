@@ -1,5 +1,23 @@
 # Validación
 
+## Claridad del recorrido de un grupo nuevo (15/10/2026)
+
+Recorrido local con tres cuentas sintéticas del emulador (Ana organiza; Bea es amiga de Ana; Carla es amiga de Ana pero no de Bea) a 360 px, 390 px y 1280 px: registro, amistad, compartir y marcar días, vista común, crear viaje e invitar, calendario del viaje, ficha de estación, cotización, lista general copiada al viaje y gasto repartido. Sin producción ni datos reales. Problemas reproducidos y corregidos (pruebas en `test/e2e/group-clarity.spec.ts` y `test/worker/social-calendar.test.ts`):
+
+| Recorrido | Problema | Ahora |
+|---|---|---|
+| Vista común, cuenta nueva | «Parámetros no válidos» y «Reintentar» (la API exigía `ids` y el cliente lo omite vacío) | Vista de una misma con la orientación para añadir amigos |
+| Compartir disponibilidad | Compartir «con todas mis amistades» no llega a los miembros del viaje que no son amistades, y el aviso del viaje se ocultaba igualmente | El calendario del viaje nombra a quién no la ve y ofrece «Compartir con este viaje»; Compartir lo explica |
+| Oculta frente a sin indicar | «No comparten su calendario contigo» sin más | Añade que no es lo mismo que «sin indicar» |
+| Encontrar fechas | Sin ventanas y sin explicar que la salida también cuenta (libre vie–sáb no encaja en vie→dom) | El estado vacío dice que N noches son N+1 días |
+| Cotización | «Apuntar cotización» abría «Nueva candidatura» y aceptaba como cotización exacta un importe sin fechas (p. ej. el «desde» copiado) | Título «Apuntar cotización», aviso de que el «desde» es orientativo y fechas obligatorias para una cotización (si no, estimación manual) |
+| Formularios en móvil | El error de validación quedaba bajo el pliegue y parecía que «Añadir» no hacía nada | El diálogo se desplaza hasta el error |
+| Candidaturas | «Votar no es reservar.» repetido | Una sola vez |
+
+Sin problemas relevantes en registro, amistad, crear viaje e invitar, comparar estaciones, copiar la lista general al viaje y repartir gastos.
+
+**Vincular la hoja antigua a la propia cuenta.** Los selectores de Administración (nombres, comentarios y disponibilidad de la hoja) usaban el buscador de amigos, que excluye a quien busca: el administrador no encontraba su propio alias. Ahora usan `GET /api/admin/users/search` (solo administración; cuentas activas, la propia incluida y marcada «(tú)»; solo id y alias). El selector muestra «Buscando…», «Ninguna cuenta activa con ese alias» o el error, y no deja resultados de la consulta anterior. Vincular sigue pidiendo confirmación, no publica comentarios ni copia días al calendario, conserva los originales y deja auditoría; una cuenta bloqueada no es destino válido. El buscador de amigos y el bloqueo no cambian. Pruebas: `test/worker/admin-user-search.test.ts` y `test/e2e/admin-self-link.spec.ts`.
+
 ## Estado al 15/10/2026 (corrección tras revisar la fase 2)
 
 Cuatro tipos de comprobación, separados. Una captura de octubre **no** valida el formato de invierno.
