@@ -46,7 +46,9 @@ test('planificar compara todas; esquiar ahora solo recomienda abiertas confirmad
   await expect(closed).not.toHaveAttribute('open', '');
   await closed.locator('> summary').click();
   // La ficha cerrada sigue accesible para planificar.
-  await closed.getByRole('link', { name: /Épsilon Cerrada/ }).click();
+  const closedLink = closed.getByRole('link', { name: /Épsilon Cerrada/ });
+  await closedLink.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Épsilon Cerrada (sintético)' })).toBeVisible();
   await page.goBack();
   await expectNoHorizontalOverflow(page, `comparar ahora (${info.project.name})`);
