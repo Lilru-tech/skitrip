@@ -88,7 +88,7 @@ try {
       age > max ? 'La captura programada no ha funcionado: revisar el workflow en Actions.' : r && r.status !== 'ok' ? 'Revisar las fuentes con error en Admin → Estado.' : '');
   }
   // Edad y cobertura de cada fuente prioritaria (nieve oficial y páginas de ofertas), con su propia racha.
-  const prio = d1(`SELECT s.id, s.kind, s.area_id, s.status, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.consecutive_fail
+  const prio = d1(`SELECT s.id, s.kind, s.area_id, s.status, s.adapter, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.consecutive_fail
                    FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
                    WHERE s.status IN ('verified','unverified') AND ((s.kind = 'snow' AND s.priority <= 10) OR s.kind = 'offers') ORDER BY s.kind, s.id`) as (SourceRow & { kind: 'snow' | 'offers' })[];
   for (const src of prio) {

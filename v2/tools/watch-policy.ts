@@ -40,7 +40,7 @@ export function issueAction(f: Finding, openIssue: number | null): 'open' | 'clo
 }
 export const issueMarker = (key: string) => `<!-- watch:${key} -->`;
 
-export interface SourceRow { id: string; area_id: string; status: string; last_attempt_at: number | null; last_success_at: number | null; last_status: string | null; reason: string | null; consecutive_fail: number | null }
+export interface SourceRow { id: string; area_id: string; status: string; adapter?: string | null; last_attempt_at: number | null; last_success_at: number | null; last_status: string | null; reason: string | null; consecutive_fail: number | null }
 
 /**
  * Edad y cobertura de una fuente prioritaria. Distingue una fuente que funcionaba y dejó de hacerlo (regresión, como
@@ -48,6 +48,9 @@ export interface SourceRow { id: string; area_id: string; status: string; last_a
  */
 export function classifySource(s: SourceRow, nowMs: number, maxAgeMs: number): { kind: Kind; level: Level; value: string; action: string } {
   const age = (t: number) => `${((nowMs - t) / 864e5).toFixed(1)} días`;
+  // Sin adaptador (Ax solo publica un mapa; Font-Romeu): la captura no la intenta. Limitación documentada en
+  // docs/SOURCES.md, no una fuente pendiente que vaya a degradarse cada día.
+  if (s.adapter === null) return { kind: 'absence', level: 'OK', value: 'sin adaptador: no se captura (documentado)', action: '' };
   if (!s.last_attempt_at) return { kind: 'pending', level: 'AVISO', value: 'sin ningún intento', action: 'Comprobar que la fuente está en la captura.' };
   if (nowMs - s.last_attempt_at > maxAgeMs) return { kind: s.last_success_at ? 'regression' : 'pending', level: 'AVISO', value: `último intento hace ${age(s.last_attempt_at)}`, action: 'La captura programada no la ha intentado: revisar el workflow.' };
   // Sin adaptador o robots.txt lo impide: limitación documentada en docs/SOURCES.md, no una degradación diaria.
