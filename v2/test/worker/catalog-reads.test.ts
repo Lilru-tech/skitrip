@@ -45,6 +45,11 @@ beforeAll(async () => {
     stmts.push(env.DB.prepare(`INSERT INTO legacy_snow_observations (file_id, legacy_resort_id, obs_date, open_km, total_km, scope_area_id) VALUES ('f-snow', ?1, ?2, ?3, 50, ?4)`)
       .bind(`legacy-${area}`, new Date(Date.UTC(2010, 0, 1) + Math.floor(i / 19) * 864e5).toISOString().slice(0, 10), i % 40, area));
   }
+  for (let i = 0; i < 4480; i++) {
+    const area = areas[i % 19];
+    stmts.push(env.DB.prepare(`INSERT INTO legacy_hotel_observations (file_id, obs_date, ts, legacy_resort_id, provider, sample_count, samples_json, scope_area_id) VALUES ('f-snow', ?1, ?2, ?3, 'booking', 1, '[]', ?4)`)
+      .bind(new Date(Date.UTC(2020, 0, 1) + i * 36e5).toISOString().slice(0, 10), new Date(Date.UTC(2020, 0, 1) + i * 36e5).toISOString(), `legacy-${area}`, area));
+  }
   for (let i = 0; i < stmts.length; i += 400) await env.DB.batch(stmts.slice(i, i + 400));
   await seedSnow(20);
 });
@@ -93,11 +98,19 @@ describe('catálogo público: filas leídas de D1', () => {
     expect(after.rows - before).toBeLessThan(100);
   });
 
-  it('ficha de estación: la serie legacy se lee por índice (antes, la tabla entera)', async () => {
+  it('ficha de estación: las series legacy de nieve y de hotel se leen por índice (antes, las dos tablas enteras)', async () => {
     const r = await get(`/api/public/areas/${areas[0]}`);
     expect(r.status).toBe(200);
     expect(r.rows).toBeLessThan(1_000);
+    expect(r.json.legacy.hotel).toHaveLength(120);
+    expect(r.json.legacy.hotel[0].obs_date >= r.json.legacy.hotel[119].obs_date).toBe(true);
     expect(r.json.legacy.snow).toHaveLength(120);
     expect(r.json.legacy.snow[0].obs_date > r.json.legacy.snow[119].obs_date).toBe(true);
+  });
+
+  it('escenarios de un viaje: las observaciones se buscan por escenario con índice, no recorriendo todas', async () => {
+    const plan = (await env.DB.prepare(`EXPLAIN QUERY PLAN SELECT ob.amount_cents FROM offer_observations ob JOIN offers o ON o.id = ob.offer_id
+      WHERE ob.scenario_id IN (SELECT value FROM json_each(?1)) AND ob.observed_at >= ?2 ORDER BY ob.observed_at LIMIT 5000`).bind('["s1"]', 0).all<any>()).results.map((r) => r.detail).join(' | ');
+    expect(plan).toContain('USING INDEX offer_obs_scenario');
   });
 });

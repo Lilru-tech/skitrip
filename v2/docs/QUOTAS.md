@@ -191,13 +191,53 @@ Antes de las revisiones la ingesta hacía 54 consultas por POST, marcar avisos u
 
 - **Analítica de Workers (GraphQL, `workersInvocationsAdaptive`)**: percentiles de CPU (p50, p99, p99.9) y peticiones por estado (`success`, `exceededCpu`, `exceededResources`…), sin la ruta. Necesita el permiso «Account Analytics: Read» del token.
 - **`wrangler tail --format json`**: CPU por petición con la URL. Las rutas se agrupan sin IDs (`tools/cpu-summary.ts`).
-- **«v2 · medir CPU»** (`v2-cpu-probe.yml`, manual): abre el tail y lanza `tools/cpu-probe.ts`. Hace grupos de peticiones separados 3 s por las rutas públicas, de ingesta y autenticadas con dos cuentas de prueba (`prod-check-<ejecución>-p/q`, que borra al final por ID exacto) y, opcionalmente, los recolectores de nieve y ofertas. Luego cruza cada ventana con la analítica.
+- **«v2 · medir CPU»** (`v2-cpu-probe.yml`, manual): abre el tail y lanza `tools/cpu-probe.ts`. Hace grupos de peticiones separados 3 s por las rutas públicas, de ingesta y autenticadas con dos cuentas de prueba (`prod-check-<ejecución>-p/q`, que borra al final por ID exacto) y, opcionalmente, los recolectores de nieve y ofertas. Luego cruza cada ventana con la analítica. Con alcance «acotada» solo mide el catálogo y la disponibilidad del viaje en tres ráfagas, y anota el isolate de cada petición. Antes de medir imprime las consultas de D1 con más filas leídas en 24 h (`tools/d1-insights.ts`, con los literales sustituidos por «?» porque el registro es público).
 - **«v2 · vigilancia»** (`v2-watch.yml`, diaria a las 09:23 UTC): salud de la API, peticiones, errores, cortes por CPU y p99 de 24 h, tamaño y filas de D1, perfiles (y restos de pruebas), antigüedad de las capturas, edad y cobertura de cada fuente prioritaria (nieve oficial y páginas de ofertas) y el resto de fuentes con 3 o más fallos seguidos. Está separada de la copia y restauración (`v2-recovery-check.yml`). Política (`tools/watch-policy.ts`, desde el 15/10/2026), guardada por días en D1 (`watch_findings`) y visible en Administración → «Vigilancia diaria»:
   - **Aviso aislado**: un AVISO de un día. Se muestra; no avisa.
   - **Degradación repetida**: el mismo AVISO en días naturales consecutivos con observación (2 para una fuente que funcionaba y dejó de hacerlo, como La Molina el 12/10; 3 para el resto). Varias ejecuciones el mismo día cuentan como un día. Un día sin observación (el workflow no corrió) no cuenta como degradación ni como recuperación: la racha vuelve a empezar en 1 y un issue abierto sigue abierto hasta una observación OK. Abre **un** issue con la etiqueta `vigilancia`, que se cierra solo al volver a OK, sin comentarios diarios, y añade un `::warning::` a la ejecución.
   - **Fallo real** (API caída, cortes por CPU, cuotas, captura sin éxito fuera de plazo): el workflow queda en rojo (GitHub avisa por correo) y también abre el issue.
   - Fuera de temporada o «sin parte publicado» confirmado por la fuente es OK y queda como pendiente de invierno, no como degradación.
   - **Mecanismos de la vigilancia** (`tools/watch-run.ts`): en Actions, leer `watch_findings`, guardarlo y gestionar los issues son obligatorios. Si alguno falla, la ejecución sale en rojo con `::error::Vigilancia: …` aunque todas las comprobaciones estén bien. Si no se puede leer el estado, no se calcula ni se guarda ninguna racha y no se tocan los issues: se conserva el estado anterior en lugar de reiniciarlo todo como «aislado» cada día. Si falla GitHub, el estado se guarda y el issue se reintenta al día siguiente con el listado real (sin duplicados). Fuera de Actions es una **ejecución local**: no lee ni escribe estado ni toca issues, y lo dice («MODO LOCAL»). Las filas sin observar en 14 días se borran; una consulta que falla un día no borra rachas. Pruebas: `watch-policy.test.ts` (consecutivos, huecos, mismo día, recuperación) y `watch-run.test.ts` (flujo completo con D1 y GitHub simulados).
+
+### Catálogo público y lecturas de D1 (15/10/2026, tarde)
+
+**Qué consumía CPU en el catálogo.** El código del catálogo no cambió con la PR #10, pero su CPU pasó de p50 3 ms (sondeo 38704461036, antes de publicar) a p50 9–10 ms (38713197532 y 38714990287) y, en el sondeo acotado 38732558754, a p50 17 ms (24 peticiones, 17 por encima de 10 ms). Lo que cambió fueron los datos: tras la PR #10 casi todas las fuentes de nieve publican fecha de parte, y cada candidata con fecha llama a `todayMadrid()` en `pickSnow`, `snowForRanking` y la frescura. `todayMadrid()` creaba un `Intl.DateTimeFormat` con zona horaria en cada llamada, y crearlo cuesta del orden de 0,1–0,5 ms (resolver la zona en ICU); formatear con uno ya creado, microsegundos. Con 29 fuentes eran decenas de formateadores por petición, más la basura que dejan. En Node, la parte del catálogo que no es D1 baja de 22,7 ms a 0,22 ms por petición con los mismos datos (la cifra absoluta de Node no es la de Cloudflare, pero la proporción indica dónde estaba el coste).
+
+**Qué leía D1.** `wrangler d1 insights` (24 h hasta el 15/10 12:11 UTC, 1,79 M filas en las 100 consultas listadas):
+
+| Filas leídas | % | Ejecuciones | Media | Consulta |
+|---|---|---|---|---|
+| 506.166 | 28,3 | 87 | 5.818 | ficha de estación: serie legacy de nieve (sin índice por ámbito) |
+| 395.226 | 22,1 | 85 | 4.649 | ficha de estación: serie legacy de hotel (sin índice por ámbito) |
+| 294.800 | 16,5 | 11 | 26.800 | catálogo: última nieve legacy por área (la tabla entera dos veces) |
+| 258.576 | 14,4 | 24 | 10.774 | escenarios del viaje: observaciones de ofertas (sin índice por escenario) |
+| 94.794 + 82.093 | 9,9 | 42 + 59 | ~2.000 | calendario: disponibilidad de 16 personas × 150 días (lectura necesaria) |
+
+Las cuatro primeras, el 81 %, recorrían tablas enteras en cada petición. Casi todas las ejecuciones de hoy son de los sondeos de CPU y de los recorridos de producción, no de uso real.
+
+**Cambios (PR de esta corrección).**
+- `todayMadrid()` usa un formateador creado una vez por isolate y recuerda el último resultado para el mismo instante; se sigue calculando con la hora de cada petición (la fecha cambia a medianoche de Madrid, con prueba de verano, invierno y cambio de hora). Igual para km y euros (`Intl.NumberFormat`).
+- Última nieve por fuente: una búsqueda por índice por cada fuente de nieve (la ingesta solo acepta observaciones en el ámbito de su fuente) en lugar de una ventana sobre todo el histórico, que crece con cada captura.
+- Migración 0015: índices `legacy_snow_scope`, `legacy_hotel_scope` y `offer_obs_scenario`. La última nieve legacy por área se calcula área por área con el índice.
+- Mismos resultados que las consultas anteriores (`catalog-reads.test.ts` compara con ellas, incluido el desempate por id con la misma hora). Sin caché nueva: los datos siguen siendo los de D1 en cada petición.
+
+**Filas leídas por petición (local, mismos volúmenes que producción: 5.394 filas legacy de nieve, 4.480 de hotel, 29 fuentes de nieve)** con la cabecera `X-D1-Rows-Read` del modo emulador:
+
+| Ruta | Antes | Después |
+|---|---|---|
+| `GET /api/public/catalog` (20 capturas por fuente) | 30.090 | 358 |
+| `GET /api/public/catalog` (300 capturas por fuente, final de temporada) | 76.300 | < 600 (no crece con el histórico) |
+| `GET /api/public/areas/:id` | 5.902 (sin la serie de hotel) | < 1.000 con las dos series |
+
+**Medición acotada en producción** (`v2 · medir CPU` con alcance «acotada»: tres ráfagas de 8 peticiones al catálogo y tres de 10 a la disponibilidad del viaje con 16 personas, separadas ~20 s; 63 peticiones en total). Antes de publicar, sondeo 38732558754:
+
+| Ráfaga | Catálogo: 1.ª · resto p50 / máx (ms) | >10 ms | Viaje (16): 1.ª · resto p50 / máx (ms) | >10 ms |
+|---|---|---|---|---|
+| 1 | 18 · 9 / 10 | 1 de 8 | 17 · 6 / 8 | 1 de 10 |
+| 2 | 31 · 17 / 27 | 8 de 8 | 21 · 10 / 14 | 5 de 10 |
+| 3 | 25 · 21 / 29 | 8 de 8 | 10 · 5 / 7 | 0 de 10 |
+
+Con el mismo código y los mismos datos, la misma ruta varía de una ráfaga a otra hasta el doble, también en las peticiones repetidas. Por eso la medición ahora anota qué isolate atendió cada petición (cabecera `X-SkiTrip-Probe` del sondeo; una línea en el registro del Worker que solo ve `wrangler tail`): una primera petición lenta solo se atribuye a un isolate nuevo si su número de petición es 1. Los resultados después de publicar se añaden cuando se mida.
 
 ### Medido en producción el 15/10/2026 (grupo de 16 personas)
 
@@ -292,9 +332,11 @@ Importación de la hoja (5.000 filas, un SHA-256 por fila): no medida en Cloudfl
 
 ### Filas de D1
 
+El 15/10/2026, con tres sondeos de CPU completos, uno acotado, recorridos de producción, publicaciones e ingestas, la vigilancia contó 1.941.127 filas leídas en 24 h (run 38724014999, aviso aislado por encima de 1 M). Es la ventana acumulada de 24 h, no lo que lee una petición: las consultas y las filas por ruta están en «Catálogo público y lecturas de D1». Con los índices de la migración 0015, las cuatro consultas que leían el 81 % pasan a leer cientos de filas por ejecución.
+
 Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los recolectores), las filas leídas en 24 h fueron 1.097.029 de 5.000.000 (vigilancia, run 37138208453). La vigilancia avisa por encima del 20 %. Las escrituras fueron 38.259 de 100.000.
 
 ## Qué queda pendiente en Free
 
-- Volver a medir la disponibilidad del viaje (una medición después no mejoró y la otra sí) y vigilar el catálogo público (p50 9–10 ms en las dos mediciones después).
+- Medir el catálogo y la disponibilidad del viaje después de publicar la migración 0015 y el formateador único, con la medición acotada (isolate por petición), y comprobar que la ventana de 24 h de filas leídas baja en la vigilancia.
 - Seguir el p99 diario en la vigilancia: con pocas peticiones al día, un solo arranque en frío lo sube por encima de 10 ms.
