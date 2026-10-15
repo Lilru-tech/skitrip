@@ -50,3 +50,26 @@ describe('motivo de cero ofertas', () => {
     expect(r.status).toBe(422);
   });
 });
+
+describe('motivos de nieve (core/snow-outcome.ts) en la ingesta', () => {
+  const snow = async (body: unknown) => {
+    const r = await SELF.fetch('http://localhost/api/ingest/snow', { method: 'POST', headers: { Authorization: 'Bearer test-ingest-token', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: r.status, json: await r.json<any>() };
+  };
+  it('identidad ajena y formato no reconocido suman fallos; «sin parte publicado» no; los motivos se guardan', async () => {
+    let t = Date.now() - 10 * 60_000;
+    for (let i = 0; i < 2; i++) {
+      t += 60_000;
+      const r = await snow({ run: { ...run(`snow-reasons-${i}`, { failed: 3 }), pipeline: 'snow', expected: 3 }, observations: [], health: [
+        { sourceId: 'fgc-pirineu365', status: 'error', reason: 'identity_mismatch', error: 'se esperaba «La Molina» y la API devuelve «»', attemptedAt: t },
+        { sourceId: 'esquiades-status-la-molina', status: 'error', reason: 'unknown_structure', error: 'sin filas', attemptedAt: t },
+        { sourceId: 'fgc-pirineu365-boi-taull', status: 'empty', reason: 'no_report', error: 'sin parte', attemptedAt: t },
+      ] });
+      expect(r.status).toBe(200);
+      expect(r.json.runStatus).not.toBe('ok');
+    }
+    expect(await health('fgc-pirineu365')).toEqual({ last_status: 'error', reason: 'identity_mismatch', consecutive_fail: 2 });
+    expect(await health('esquiades-status-la-molina')).toEqual({ last_status: 'error', reason: 'unknown_structure', consecutive_fail: 2 });
+    expect(await health('fgc-pirineu365-boi-taull')).toEqual({ last_status: 'empty', reason: 'no_report', consecutive_fail: 0 });
+  });
+});

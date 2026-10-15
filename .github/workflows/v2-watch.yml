@@ -2,8 +2,10 @@
 # errores del Worker, cortes por CPU y percentiles, tamaño y filas de D1 frente a los límites Free, perfiles y restos
 # de pruebas, edad de las capturas de nieve y ofertas y fuentes que fallan seguidas.
 #
-# Solo lee (unas pocas consultas de recuento): no exporta ni restaura (eso es «v2 · comprobar recuperación», manual).
-# Con algún FALLO el workflow queda en rojo; la tabla con lo que hay que hacer está en el resumen de la ejecución.
+# Lee unas pocas consultas de recuento y solo escribe su propio estado (watch_findings): no exporta ni restaura (eso es
+# «v2 · comprobar recuperación», manual). Política (tools/watch-policy.ts): un aviso de un día es «aislado»; repetido en
+# días seguidos es «degradado» y abre UN aviso (issue) con la etiqueta «vigilancia», que se cierra al recuperarse; un
+# FALLO real deja el workflow en rojo. La tabla con lo que hay que hacer está en el resumen de la ejecución.
 name: v2 · vigilar
 on:
   schedule:
@@ -11,6 +13,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: write   # abrir y cerrar avisos de degradación persistente (sin comentarios diarios)
 concurrency:
   group: v2-watch
   cancel-in-progress: true
@@ -27,6 +30,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
       PROD_API: ${{ vars.VITE_API_BASE_URL }}
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:

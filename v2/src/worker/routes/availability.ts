@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { dailyCounts, findCandidateWindows, type DayStatus, type PersonDays } from '../../core/calendar';
-import { daysBetween, eachDay, weekdayMon0 } from '../../core/dates';
+import { recordLookup, summarize, type DayStatus, type PersonDays } from '../../core/calendar';
+import { daysBetween, eachDay, isValidDate, weekdayMon0 } from '../../core/dates';
 import type { AppEnv } from '../env';
 import { requireTripMember, visibleAvailabilityOwners } from '../access';
 import { ApiError, conflict, newId, notFound, now, parseBody, parseQuery } from '../http';
@@ -12,29 +12,42 @@ export const availabilityRoutes = new Hono<AppEnv>();
 const MAX_RANGE_DAYS = 366;
 const zRange = z.object({ from: zDate, to: zDate }).refine((r) => r.to >= r.from && daysBetween(r.from, r.to) <= MAX_RANGE_DAYS, 'rango no válido (máx. 366 días)');
 
-async function loadDays(db: D1Database, userIds: string[], from: string, to: string): Promise<Map<string, Map<string, DayStatus>>> {
-  const out = new Map<string, Map<string, DayStatus>>(userIds.map((id) => [id, new Map()]));
+/**
+ * Días de cada persona: una fila por persona con sus días ya en JSON (json_group_object), no una fila por día. Con un
+ * grupo de 16 y 150 días eran 2.400 filas que el Worker convertía en objetos y luego volvía a serializar; ahora el
+ * JSON de D1 se analiza una vez para contar y se reenvía tal cual en la respuesta (`raw`).
+ */
+type Days = { raw: string; obj: Record<string, DayStatus> };
+async function loadDays(db: D1Database, userIds: string[], from: string, to: string): Promise<Map<string, Days>> {
+  const out = new Map<string, Days>(userIds.map((id) => [id, { raw: '{}', obj: {} }]));
   if (!userIds.length) return out;
-  const { results } = await db.prepare(`SELECT user_id, day, status FROM availability WHERE day BETWEEN ?1 AND ?2 AND user_id IN (SELECT value FROM json_each(?3))`)
-    .bind(from, to, JSON.stringify(userIds)).all<{ user_id: string; day: string; status: DayStatus }>();
-  for (const r of results) out.get(r.user_id)!.set(r.day, r.status);
+  const { results } = await db.prepare(`SELECT user_id, json_group_object(day, status) AS days FROM (
+      SELECT user_id, day, status FROM availability WHERE day BETWEEN ?1 AND ?2 AND user_id IN (SELECT value FROM json_each(?3)) ORDER BY user_id, day
+    ) GROUP BY user_id`).bind(from, to, JSON.stringify(userIds)).all<{ user_id: string; days: string }>();
+  for (const r of results) out.set(r.user_id, { raw: r.days, obj: JSON.parse(r.days) });
   return out;
 }
-
-const toObj = (m: Map<string, DayStatus>) => Object.fromEntries(m);
 
 availabilityRoutes.get('/me', async (c) => {
   const me = c.get('user').id;
   const { from, to } = parseQuery(c, zRange);
   const days = await loadDays(c.env.DB, [me], from, to);
-  return c.json({ days: toObj(days.get(me)!) });
+  return c.json({ days: days.get(me)!.obj });
 });
+
+// Mismo criterio que z.object({ day: zDate, status: enum|null }) (sin claves extra que importen), con una sola
+// comprobación por elemento: con 150 días el esquema de objeto de zod costaba varios ms de CPU en un isolate frío.
+const DAY_STATUSES = new Set<unknown>(['free', 'busy', 'maybe', null]);
+const zDaySet = z.custom<{ day: string; status: DayStatus | null }>((v) => {
+  const o = v as { day?: unknown; status?: unknown } | null;
+  return typeof o === 'object' && o !== null && typeof o.day === 'string' && isValidDate(o.day) && DAY_STATUSES.has(o.status);
+}, 'día no válido: { day: AAAA-MM-DD, status: free | busy | maybe | null }');
 
 // Solo se edita la disponibilidad propia: el usuario sale del token, no del cuerpo.
 availabilityRoutes.put('/me', async (c) => {
   const me = c.get('user').id;
   const body = await parseBody(c, z.object({
-    set: z.array(z.object({ day: zDate, status: z.enum(['free', 'busy', 'maybe']).nullable() })).max(400).optional(),
+    set: z.array(zDaySet).max(400).optional(),
     range: z.object({
       from: zDate, to: zDate,
       status: z.enum(['free', 'busy', 'maybe']).nullable(),
@@ -111,9 +124,9 @@ async function commonView(db: D1Database, viewer: string, ids: string[], from: s
   const allowed = await visibleAvailabilityOwners(db, viewer, ids, tripId);
   const visible = ids.filter((id) => allowed.has(id));
   const days = await loadDays(db, visible, from, to);
-  const people: PersonDays[] = ids.map((id) => ({ id, days: days.get(id) ?? null }));
-  return people;
+  return ids.map((id) => ({ id, d: days.get(id) ?? null }));
 }
+type Person = Awaited<ReturnType<typeof commonView>>[number];
 
 const zCommon = z.object({
   from: zDate, to: zDate,
@@ -130,22 +143,35 @@ availabilityRoutes.get('/common', async (c) => {
   const people = await commonView(c.env.DB, me, ids, q.from, q.to);
   const { results: aliases } = await c.env.DB.prepare(`SELECT id, alias FROM users WHERE id IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(people.map((p) => p.id))).all<{ id: string; alias: string }>();
   const aliasBy = new Map(aliases.map((a) => [a.id, a.alias]));
-  return c.json(buildResponse(people, q, aliasBy));
+  return c.body(buildResponse(people, q, {}, aliasBy), 200, JSON_TYPE);
 });
 
 /**
  * Sin mínimo explícito, «todos» significa todas las personas que comparten su disponibilidad con quien consulta.
  * Quien no comparte no puede confirmarse ni descartarse: se informa en `requirement.notSharing`, nunca se cuenta como libre.
  */
-function buildResponse(people: PersonDays[], q: { from: string; to: string; nights: number; min?: number }, aliasBy?: Map<string, string>) {
-  const sharing = people.filter((p) => p.days !== null).length;
+const JSON_TYPE = { 'Content-Type': 'application/json; charset=UTF-8' };
+
+/**
+ * Respuesta de la vista común como texto JSON: los días de cada persona se insertan tal como vienen de D1 (JSON
+ * válido generado por SQLite), sin volver a serializarlos. `extra` va delante (miembros del viaje) y `tail` detrás.
+ */
+function buildResponse(people: Person[], q: { from: string; to: string; nights: number; min?: number }, extra: object, aliasBy?: Map<string, string>, tail: object = {}): string {
+  const sharing = people.filter((p) => p.d !== null).length;
   const need = q.min ?? sharing;
-  return {
-    people: people.map((p) => ({ id: p.id, ...(aliasBy ? { alias: aliasBy.get(p.id) ?? null } : {}), shared: p.days !== null, days: p.days ? toObj(p.days) : null })),
-    daily: dailyCounts(people, q.from, q.to),
+  const lookups: PersonDays[] = people.map((p) => ({ id: p.id, days: p.d ? recordLookup(p.d.obj) : null }));
+  const { daily, windows } = summarize(lookups, { from: q.from, to: q.to, nights: q.nights, minPeople: need, limit: 30 });
+  const peopleJson = people.map((p) => {
+    const head = JSON.stringify({ id: p.id, ...(aliasBy ? { alias: aliasBy.get(p.id) ?? null } : {}), shared: p.d !== null });
+    return `${head.slice(0, -1)},"days":${p.d ? p.d.raw : 'null'}}`;
+  }).join(',');
+  const rest = JSON.stringify({
+    daily,
     requirement: { mode: q.min != null ? 'min' : 'all_sharing', need, total: people.length, sharing, notSharing: people.length - sharing },
-    windows: findCandidateWindows(people, { from: q.from, to: q.to, nights: q.nights, minPeople: need, limit: 30 }),
-  };
+    windows, ...tail,
+  });
+  const pre = JSON.stringify(extra);
+  return `${pre === '{}' ? '{' : `${pre.slice(0, -1)},`}"people":[${peopleJson}],${rest.slice(1)}`;
 }
 
 /** Vista común de un viaje: miembros actuales; cada uno visible solo si lo comparte con quien consulta. */
@@ -162,7 +188,7 @@ availabilityRoutes.get('/trip/:tripId', async (c) => {
             (SELECT json_group_array(json_object('userId', v.user_id, 'value', v.value)) FROM date_votes v WHERE v.proposal_id = p.id) AS votes
      FROM date_proposals p JOIN users u ON u.id = p.proposed_by WHERE p.trip_id = ?1 ORDER BY p.start_date`,
   ).bind(tripId).all<{ votes: string }>();
-  return c.json({ members, ...buildResponse(people, q), proposals: proposals.map((p) => ({ ...p, votes: JSON.parse(p.votes) })) });
+  return c.body(buildResponse(people, q, { members }, undefined, { proposals: proposals.map((p) => ({ ...p, votes: JSON.parse(p.votes) })) }), 200, JSON_TYPE);
 });
 
 availabilityRoutes.post('/trip/:tripId/proposals', async (c) => {

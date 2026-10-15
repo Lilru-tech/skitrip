@@ -26,7 +26,8 @@ const ms = (us: number | undefined) => (us == null ? '—' : (us / 1000).toFixed
 const pct = (xs: number[], p: number) => { if (!xs.length) return undefined; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.ceil((p / 100) * s.length) - 1)]; };
 export const normPath = (url: string) => {
   const u = new URL(url);
-  return u.pathname.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '/:id').replace(/\/[A-Za-z0-9_-]{20,}/g, '/:id');
+  // `wrangler tail` sustituye los identificadores de la URL por «REDACTED».
+  return u.pathname.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '/:id').replace(/\/[A-Za-z0-9_-]{20,}/g, '/:id').replace(/\/REDACTED\b/g, '/:id');
 };
 
 /** Lee la salida de `wrangler tail --format json` (objetos JSON seguidos, con o sin saltos de línea). */
@@ -48,12 +49,14 @@ async function probe(windowsFile: string, tailFile?: string) {
   const events = tailFile && existsSync(tailFile) ? parseTail(readFileSync(tailFile, 'utf8')).filter((e) => e?.event?.request?.url) : [];
   const withCpu = events.filter((e) => typeof e.cpuTime === 'number');
   console.log(`Eventos de wrangler tail: ${events.length} (con cpuTime: ${withCpu.length})`);
-  console.log('\n| Grupo | Ruta | n | HTTP | CPU tail p50 / máx (ms) | Real tail p50 (ms) | CPU analítica p50 / p99 / p99.9 (ms) | Estados |');
-  console.log('|---|---|---|---|---|---|---|---|');
+  // «1.ª» es la primera petición de la ventana (tras 3 s sin tráfico, a menudo con el isolate frío); «resto», las repetidas.
+  console.log('\n| Grupo | Ruta | n | HTTP | CPU tail 1.ª · resto p50 / máx (ms) | >10 ms | Real tail p50 (ms) | CPU analítica p50 / p99 / p99.9 (ms) | Estados |');
+  console.log('|---|---|---|---|---|---|---|---|---|');
   for (const w of windows) {
     const t0 = Date.parse(w.start) - 500, t1 = Date.parse(w.end) + 1500;
     const evs = events.filter((e) => e.eventTimestamp >= t0 && e.eventTimestamp <= t1 && e.event.request.method === w.method && normPath(e.event.request.url) === normPath(`https://x${w.path.split('?')[0]}`));
-    const cpu = evs.map((e) => e.cpuTime).filter((x) => typeof x === 'number');
+    const cpu = [...evs].sort((a, b) => a.eventTimestamp - b.eventTimestamp).map((e) => e.cpuTime).filter((x) => typeof x === 'number');
+    const rest = cpu.slice(1);
     const wall = evs.map((e) => e.wallTime).filter((x) => typeof x === 'number');
     let an = '—', st = '—';
     if (TOKEN && ACCOUNT) {
@@ -66,7 +69,8 @@ async function probe(windowsFile: string, tailFile?: string) {
       } catch (e) { an = String((e as Error).message).slice(0, 60); }
     }
     const http = [...new Set(w.statuses)].join('/');
-    console.log(`| ${w.label} | ${w.method} ${w.path.split('?')[0]} | ${w.n} | ${http} | ${cpu.length ? `${pct(cpu, 50)} / ${Math.max(...cpu)}` : '—'} | ${wall.length ? pct(wall, 50) : '—'} | ${an} | ${st} |`);
+    const tailCpu = cpu.length ? `${cpu[0]} · ${rest.length ? `${pct(rest, 50)} / ${Math.max(...rest)}` : '—'}` : '—';
+    console.log(`| ${w.label} | ${w.method} ${w.path.split('?')[0]} | ${w.n} | ${http} | ${tailCpu} | ${cpu.length ? `${cpu.filter((x) => x > 10).length}/${cpu.length}` : '—'} | ${wall.length ? pct(wall, 50) : '—'} | ${an} | ${st} |`);
   }
   // Peticiones del tail fuera de las ventanas (p. ej. recolectores lanzados durante la medición).
   if (withCpu.length) {

@@ -3,8 +3,9 @@
 #   1) Minutos con más CPU de las últimas 72 h (analítica gratuita de Cloudflare; no tiene ruta, sirve para cruzar
 #      con la hora de cada actividad).
 #   2) `wrangler tail` abierto mientras tools/cpu-probe.ts lanza grupos de peticiones reales, uno por ruta y separado
-#      en el tiempo, con dos cuentas de prueba prod-check-<ejecución>-{p,q}. Opcionalmente, también los recolectores
-#      de nieve y ofertas (ingesta real, la misma que hacen sus workflows).
+#      en el tiempo, con dos cuentas de prueba prod-check-<ejecución>-{p,q} y miembros sintéticos en D1 hasta un grupo
+#      de 16 personas (tools/cpu-group-sql.ts). Opcionalmente, también los recolectores de nieve y ofertas (ingesta
+#      real, la misma que hacen sus workflows).
 #   3) Tabla por ruta: CPU de cada petición (tail) y percentiles por ventana (analítica).
 #   4) Limpieza de D1 de las cuentas de prueba (pase o falle) y borrado del registro del tail del disco del runner.
 #
@@ -96,4 +97,4 @@ jobs:
           npx tsx tools/prod-cleanup.ts "${args[@]}" --remote 2>&1 | grep -v 'Proxy environment' | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Borrar el registro del tail
         if: always()
-        run: rm -f "$TAIL_LOG" "$RUNNER_TEMP/tail.err" "$RUNNER_TEMP"/snow.log "$RUNNER_TEMP"/offers.log
+        run: rm -f "$TAIL_LOG" "$RUNNER_TEMP/tail.err" "$RUNNER_TEMP"/snow.log "$RUNNER_TEMP"/offers.log cpu-group.sql

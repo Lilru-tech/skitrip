@@ -24,13 +24,16 @@ await withBrowser(async (load, refused, requested) => {
     try {
       const html = await load(url);
       const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1].trim() ?? '';
-      const main = pageFixture(html, { sourceId: 'sondeo', url, capturedAt: new Date().toISOString(), sha256: createHash('sha256').update(html).digest('hex') }, 60_000, true);
+      const meta = { sourceId: 'sondeo', url, capturedAt: new Date().toISOString(), sha256: createHash('sha256').update(html).digest('hex') };
+      let main = pageFixture(html, meta, 60_000, true);
+      // Si la «zona principal» apenas tiene texto (pestañas, menús), el contenido está fuera de ella: se usa el cuerpo.
+      if (visibleText(main).length < 300) { console.log('Zona principal casi vacía: se usa el cuerpo completo.'); main = pageFixture(html, meta, 400_000, false); }
       console.log(`robots.txt: permitida · título: ${title.slice(0, 120)} · HTML ${html.length} bytes`);
       console.log(`XHR/fetch: ${[...new Set(requested())].slice(0, 25).join(' , ') || 'ninguna'}`);
       console.log(`Impedidas por robots.txt: ${[...new Set(refused())].slice(0, 10).join(' , ') || 'ninguna'}`);
       const links = [...new Set([...html.matchAll(/href=["'](https?:\/\/[^"'?#]+|\/[^"'?#]*)["']/gi)].map((m) => m[1]).filter((h) => /pist|nieve|neu|snow|parte|estado|estat|infonie|meteo|ouvert|enneig/i.test(h)))].slice(0, 20);
       console.log(`Enlaces de nieve/pistas: ${links.join(' , ') || 'ninguno'}`);
-      console.log(`Texto principal: ${visibleText(main).slice(0, 2500)}`);
+      console.log(`Texto principal: ${visibleText(main).slice(0, 8000)}`);
       if (fixtures) console.log(`===== FIXTURE ${new URL(url).host}${new URL(url).pathname.replace(/\W+/g, '-')} =====\n${main}\n===== FIN =====`);
     } catch (e) {
       console.log(`${e instanceof BlockedError ? 'BLOQUEADA' : 'ERROR'}: ${String((e as Error).message).slice(0, 300)}`);

@@ -18,12 +18,13 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { offerCardsFixture, pageFixture } from '../src/core/parsers/fixture.ts';
 import { cardKey, parseOfferCardsHtml, type OfferCard } from '../src/core/parsers/offers.ts';
-import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, pageMessageText, type EmptyReason } from '../src/core/page-outcome.ts';
+import { classifyEmptyOffersPage, EMPTY_REASON_LABEL, type EmptyReason } from '../src/core/page-outcome.ts';
 import { OFFICIAL_ADAPTERS } from '../src/core/parsers/official-snow.ts';
+import { aggregatorSnowOutcome, LEGITIMATE_ABSENCE, officialSnowOutcome, SNOW_REASON_LABEL, snowFailure, type SnowOutcome, type SnowReason } from '../src/core/snow-outcome.ts';
 import { esquiadesAdapter } from '../src/core/parsers/snow.ts';
 import { allowedByRobots, BlockedError, withBrowser } from './collectors/lib.ts';
 
-type Src = { id: string; kind: string; url: string; adapter: string | null; status: string };
+type Src = { id: string; kind: string; url: string; adapter: string | null; status: string; aliases?: string[] | null; area?: string };
 const args = process.argv.slice(2);
 const opt = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const saveDir = opt('--save-html');
@@ -32,9 +33,8 @@ const filter = args.find((a, i) => !a.startsWith('--') && !['--save-html', '--fi
 const catalog = JSON.parse(readFileSync(new URL('../data/catalog.json', import.meta.url), 'utf8')) as { sources: Src[] };
 const sources = catalog.sources.filter((s) => s.adapter && s.id.includes(filter));
 
-// Resultado por fuente: transporte (carga o no), extracción (filas reconocidas), «sin datos legítimo» (la página lo dice
-// con texto propio) o estructura incompatible (cargó pero no se reconoce nada). Un bloqueo o el robots.txt van aparte.
-const NO_DATA = /no hemos encontrado ning[uú]n resultado|no hay ofertas|sin resultados|no est[aá] disponible en este momento|temporada[^.]{0,40}(finalizad|terminad)/i;
+// Resultado por fuente: transporte (carga o no), extracción (filas reconocidas), «sin datos legítimo» (la fuente lo
+// confirma) o incompatible (cargó y no se reconoce, o no incluye la estación). Bloqueo y robots.txt van aparte.
 /** Texto visible (sin scripts, estilos ni plantillas), compactado. */
 const visibleText = (html: string) => html.replace(/<(script|style|template|noscript|svg)\b[\s\S]*?<\/\1\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 /** Pistas para adaptar el analizador: «€» visibles, clases con aspecto de tarjeta y el texto tras el título principal. */
@@ -67,16 +67,22 @@ function cardProfile(all: OfferCard[]) {
     conFechas: priced.filter((c) => c.checkIn).length, avisos: priced.filter((c) => c.warnings.length).length,
   };
 }
-function analyse(s: Src, html: string, refusedPaths: string[] = []): { verdict: Verdict; rows: number; sample: unknown; profile?: unknown; reason?: EmptyReason; note?: string } {
-  // Sin el mensaje fijo del buscador de Esquiades («No hemos encontrado ningún resultado…»), que no habla de la página.
-  const text = pageMessageText(html);
-  const verdict = (rows: number): Verdict => (rows > 0 ? 'extracted' : NO_DATA.test(text) ? 'no_data' : 'incompatible');
-  if (OFFICIAL_ADAPTERS[s.adapter!]) { const r = OFFICIAL_ADAPTERS[s.adapter!].parse(html); return { verdict: verdict(r ? 1 : 0), rows: r ? 1 : 0, sample: r }; }
+/** Veredicto de la comprobación a partir del resultado común de nieve (core/snow-outcome.ts), el mismo que guarda el recolector. */
+function snowVerdict<T>(o: SnowOutcome<T>, rows: number, sample: unknown) {
+  const verdict: Verdict = o.status === 'ok' ? 'extracted' : o.reason && (LEGITIMATE_ABSENCE as readonly string[]).includes(o.reason) ? 'no_data' : 'incompatible';
+  return { verdict, rows, sample, reason: o.reason ?? undefined, note: o.reason ? `${SNOW_REASON_LABEL[o.reason]}${o.error && o.status !== 'ok' ? ` · ${o.error}` : ''}` : undefined };
+}
+function analyse(s: Src, html: string, refusedPaths: string[] = []): { verdict: Verdict; rows: number; sample: unknown; profile?: unknown; reason?: EmptyReason | SnowReason; note?: string } {
+  if (OFFICIAL_ADAPTERS[s.adapter!]) {
+    let o: SnowOutcome<unknown>;
+    try { o = officialSnowOutcome(html, OFFICIAL_ADAPTERS[s.adapter!].parse); } catch (e) { o = snowFailure(e, false); }
+    return snowVerdict(o, o.data ? 1 : 0, o.data);
+  }
   if (s.adapter === 'esquiades-status') {
-    const r = esquiadesAdapter.parse(html);
-    // Sin filas: el texto que hace que cuente como «sin datos legítimo», para poder clasificarlo en el recolector.
-    const t = pageMessageText(html), m = r.length ? null : NO_DATA.exec(t);
-    return { verdict: verdict(r.length), rows: r.length, sample: r.slice(0, 3), note: m ? `aviso de la página: «…${t.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200)}…»` : undefined };
+    // Fila de ESTA estación (alias exactos), no solo «la página tiene filas»: igual que el recolector.
+    const rows = esquiadesAdapter.parse(html);
+    const o = aggregatorSnowOutcome(rows, s.aliases ?? [s.area ?? s.id]);
+    return { ...snowVerdict(o, o.data ? 1 : 0, o.data), note: `${rows.length} filas en la página${o.reason ? ` · ${SNOW_REASON_LABEL[o.reason]}${o.status !== 'ok' && o.error ? ` · ${o.error}` : ''}` : ''}` };
   }
   if (s.adapter === 'esquiades-cards' || s.adapter === 'estiber-cards') {
     const all = parseOfferCardsHtml(html, s.adapter.startsWith('esquiades') ? 'esquiades' : 'estiber');
@@ -114,7 +120,7 @@ await withBrowser(async (load, refused) => {
       const mismatch = a.verdict === 'extracted' && ['unsupported', 'broken', 'disabled'].includes(s.status) ? `el catálogo la tiene como «${s.status}» y hoy extrae: revisar el perfil antes de habilitarla` : undefined;
       log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: 'ok', ...a, ...(mismatch ? { note: [mismatch, a.note].filter(Boolean).join(' · ') } : {}) });
     } catch (e) {
-      log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: e instanceof BlockedError ? 'blocked' : 'error', error: String((e as Error).message).slice(0, 300) });
+      log.push({ id: s.id, url: s.url, catalogStatus: s.status, at, transport: e instanceof BlockedError ? 'blocked' : 'error', ...(s.kind === 'snow' ? { reason: snowFailure(e, e instanceof BlockedError).reason ?? undefined } : {}), error: String((e as Error).message).slice(0, 300) });
     }
   }
 });

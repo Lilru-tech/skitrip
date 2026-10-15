@@ -800,8 +800,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "grandvalira"
@@ -824,8 +824,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "vallnord pal arinsal",
@@ -849,8 +849,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "ordino arcalis",
@@ -873,9 +873,9 @@
     "op_status"
    ],
    "priority": 50,
-   "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Solo la fila «Alp 2500»; la fila «La Molina» es otra fuente con otro ámbito.",
+   "status": "unsupported",
+   "checked_on": "2026-10-15",
+   "limitations": "Esquiades publica La Molina y Masella por separado (captura real del 15/10/2026): no hay fila del dominio Alp 2500 y no se suman estaciones. Se usan las fuentes de La Molina (FGC) y las filas de cada estación.",
    "adapter": "esquiades-status",
    "aliases": [
     "alp 2500 la molina masella",
@@ -899,8 +899,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "la molina"
@@ -923,8 +923,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Masella no tiene fuente oficial con datos: su web solo enlaza la predicción de meteo.cat y un mapa de pistas (sondeo del 03/10/2026).",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "masella"
@@ -947,8 +947,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. La web oficial baqueira.es responde 403 a los navegadores automáticos (03/10/2026): no se elude.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "baqueira beret",
@@ -972,8 +972,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "port aine"
@@ -996,8 +996,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "espot esqui",
@@ -1021,8 +1021,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "boi taull"
@@ -1045,8 +1045,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "port del comte"
@@ -1069,8 +1069,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "vall de nuria"
@@ -1093,8 +1093,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "cerler"
@@ -1116,9 +1116,9 @@
     "op_status"
    ],
    "priority": 50,
-   "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Fila del conjunto; no se replica en Formigal ni en Panticosa.",
+   "status": "unsupported",
+   "checked_on": "2026-10-15",
+   "limitations": "Esquiades publica Formigal y Panticosa por separado (captura real del 15/10/2026): no hay fila del dominio conjunto y no se suman estaciones. Se usa la fuente oficial de Aramón.",
    "adapter": "esquiades-status",
    "aliases": [
     "formigal panticosa"
@@ -1141,10 +1141,11 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo. Esquiades publicaba la misma cifra (101 km) bajo Astún y bajo Candanchú: es el dominio conjunto. Se registra una sola vez, en el dominio.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
+    "astun y candanchu",
     "astun",
     "candanchu"
    ]
@@ -1166,8 +1167,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "valdelinares"
@@ -1190,8 +1191,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "javalambre"
@@ -1214,8 +1215,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "font romeu pyrenees 2000",
@@ -1239,8 +1240,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "les angles"
@@ -1263,8 +1264,8 @@
    ],
    "priority": 50,
    "status": "unverified",
-   "checked_on": null,
-   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Adaptador reescrito, no ejecutado online desde el entorno de desarrollo.",
+   "checked_on": "2026-10-15",
+   "limitations": "Agregador; coincidencia exacta de nombre, alias en orden de prioridad. Captura real del 15/10/2026 (estaciones cerradas): estado, km totales, pistas totales y fecha del parte. Abiertos y formato en temporada sin validar hasta la primera captura con estaciones abiertas.",
    "adapter": "esquiades-status",
    "aliases": [
     "ax 3 domaines"
@@ -1328,7 +1329,7 @@
    "scope": "la-molina",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://api.pirineu365.cat/api/v1/web/stations/15/status",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/15/report",
    "method": "json",
    "fields": [
     "open_km",
@@ -1344,8 +1345,8 @@
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-03",
-   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 15, que debe devolver el nombre «La Molina»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "checked_on": "2026-10-15",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 15/10/2026). Estación 15 por /report, que debe devolver el nombre «La Molina»: si devuelve otro o vacío, la captura falla en vez de atribuir cifras ajenas. /status dejó de dar el nombre fuera de temporada (fallo del 12/10/2026). Captura real del 15/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura con la estación abierta.",
    "adapter": "pirineu365-la-molina",
    "aliases": null
   },
@@ -1394,7 +1395,7 @@
    "scope": "vall-de-nuria",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://api.pirineu365.cat/api/v1/web/stations/16/status",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/16/report",
    "method": "json",
    "fields": [
     "open_km",
@@ -1410,8 +1411,8 @@
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-03",
-   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 16, que debe devolver el nombre «Vall de Núria»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "checked_on": "2026-10-15",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 15/10/2026). Estación 16 por /report, que debe devolver el nombre «Vall de Núria»: si devuelve otro o vacío, la captura falla en vez de atribuir cifras ajenas. Captura real del 15/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura con la estación abierta.",
    "adapter": "pirineu365-vall-de-nuria",
    "aliases": null
   },
@@ -1437,8 +1438,8 @@
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-03",
-   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 03/10/2026). Estación 18 (por /report: /status devuelve el nombre vacío fuera de temporada), que debe devolver el nombre «Espot»: si devuelve otro, la captura falla en vez de atribuir cifras ajenas. Captura real del 03/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura en temporada.",
+   "checked_on": "2026-10-15",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 15/10/2026). Estación 18 por /report, que debe devolver el nombre «Espot»: si devuelve otro o vacío, la captura falla en vez de atribuir cifras ajenas. Captura real del 15/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura con la estación abierta.",
    "adapter": "pirineu365-espot",
    "aliases": null
   },
@@ -1448,20 +1449,25 @@
    "scope": "port-aine",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
-   "method": "playwright",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/19/report",
+   "method": "json",
    "fields": [
     "open_km",
     "total_km",
     "open_runs",
     "total_runs",
-    "op_status"
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-03",
-   "limitations": "FGC/Pirineu365. La API pública (api.pirineu365.cat/api/v1/web/stations/<n>/status) tiene más estaciones (17, 19 y 20), pero el 03/10/2026 devuelven el nombre vacío y no se puede saber cuál es esta: sin adaptador hasta identificarla en temporada. Mientras tanto se usa el agregador.",
-   "adapter": null,
+   "checked_on": "2026-10-15",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 15/10/2026). Estación 19 por /report, que debe devolver el nombre «Port Ainé»: si devuelve otro o vacío, la captura falla en vez de atribuir cifras ajenas. Identificada el 15/10/2026: /status la devolvía sin nombre. Captura real del 15/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura con la estación abierta.",
+   "adapter": "pirineu365-port-aine",
    "aliases": null
   },
   {
@@ -1470,20 +1476,25 @@
    "scope": "boi-taull",
    "kind": "snow",
    "provider": "pirineu365",
-   "url": "https://pirineu365.cat/es/infonieve-pirineu/",
-   "method": "playwright",
+   "url": "https://api.pirineu365.cat/api/v1/web/stations/20/report",
+   "method": "json",
    "fields": [
     "open_km",
     "total_km",
     "open_runs",
     "total_runs",
-    "op_status"
+    "open_lifts",
+    "total_lifts",
+    "depth_min_cm",
+    "depth_max_cm",
+    "op_status",
+    "source_date"
    ],
    "priority": 10,
    "status": "unverified",
-   "checked_on": "2026-10-03",
-   "limitations": "FGC/Pirineu365. La API pública (api.pirineu365.cat/api/v1/web/stations/<n>/status) tiene más estaciones (17, 19 y 20), pero el 03/10/2026 devuelven el nombre vacío y no se puede saber cuál es esta: sin adaptador hasta identificarla en temporada. Mientras tanto se usa el agregador.",
-   "adapter": null,
+   "checked_on": "2026-10-15",
+   "limitations": "API pública de FGC que usa la web pirineu365.cat (robots.txt sin restricciones, comprobado el 15/10/2026). Estación 20 por /report, que debe devolver el nombre «Boí Taüll»: si devuelve otro o vacío, la captura falla en vez de atribuir cifras ajenas. Identificada el 15/10/2026: /status la devolvía sin nombre. Captura real del 15/10/2026 fuera de temporada (parte de verano o estación inactiva): se guarda «fuera de temporada» sin cifras. La lectura en invierno solo está probada con un caso sintético: sin validación invernal hasta la primera captura con la estación abierta.",
+   "adapter": "pirineu365-boi-taull",
    "aliases": null
   },
   {

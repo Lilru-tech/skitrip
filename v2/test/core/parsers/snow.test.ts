@@ -62,7 +62,7 @@ describe('parseEsquiadesStatusHtml', () => {
   it('parses fields of an open resort', () => {
     expect(byName('Grandvalira')[0]).toEqual({
       name: 'Grandvalira', nameNorm: 'grandvalira', region: 'Andorra', statusText: 'Abierta', opStatus: 'open',
-      openKm: 78, totalKm: 215, openRuns: 60, totalRuns: 138, flags: [],
+      openKm: 78, totalKm: 215, openRuns: 60, totalRuns: 138, flags: [], sourceDate: null, // el fixture sintético no trae fecha
     });
   });
   it('two resorts with identical figures both survive', () => {

@@ -4,10 +4,14 @@ export type DayStatus = 'free' | 'busy' | 'maybe';
 /** Estado de una persona para un intervalo completo. `unknown` = algún día sin indicar (nunca cuenta como libre). */
 export type WindowStatus = 'free' | 'maybe' | 'busy' | 'unknown' | 'hidden';
 
+/** Consulta de un día: un Map o un objeto { día: estado } (lo que devuelve D1 con json_group_object). */
+export interface DayLookup { get(day: string): DayStatus | undefined }
+export const recordLookup = (r: Record<string, DayStatus>): DayLookup => ({ get: (d) => r[d] });
+
 export interface PersonDays {
   id: string;
   /** null = no compartido con quien consulta. */
-  days: Map<string, DayStatus> | null;
+  days: DayLookup | null;
 }
 
 export interface CandidateWindow {
@@ -25,7 +29,7 @@ export interface CandidateWindow {
   meetsWithMaybe: boolean;
 }
 
-export function windowStatus(days: Map<string, DayStatus> | null, start: string, end: string): WindowStatus {
+export function windowStatus(days: DayLookup | null, start: string, end: string): WindowStatus {
   if (days === null) return 'hidden';
   let sawMaybe = false;
   let sawUnknown = false;
@@ -48,59 +52,83 @@ export interface FindOptions {
   limit?: number;
 }
 
+// Códigos por día: 0 sin indicar, 1 libre, 2 quizá, 3 ocupado. Se calculan una vez por persona y sirven para el
+// recuento diario y para los intervalos (antes cada uno recorría los días de cada persona por separado).
+const CODE: Record<DayStatus, number> = { free: 1, maybe: 2, busy: 3 };
+function dayCodes(people: PersonDays[], days: string[]): (Uint8Array | null)[] {
+  return people.map((p) => {
+    if (p.days === null) return null;
+    const c = new Uint8Array(days.length);
+    for (let i = 0; i < days.length; i++) { const s = p.days.get(days[i]); c[i] = s ? CODE[s] : 0; }
+    return c;
+  });
+}
+
 /**
  * Busca intervalos completos [llegada, salida] de `nights` noches dentro de [from, to].
  * Cada persona debe estar disponible TODOS los días del intervalo, llegada y salida incluidas.
  * Mismo resultado que aplicar `windowStatus` a cada intervalo, pero con la lista de días calculada una vez y sumas
  * acumuladas por persona: O(días × personas) en vez de recorrer cada intervalo día a día con aritmética de fechas
- * (en el Worker eso costaba ~12 ms de CPU con una sola persona y 150 días; límite de Free: 10 ms).
+ * (en el Worker eso costaba ~12 ms de CPU con una sola persona y 150 días; límite de Free: 10 ms). Solo se crean
+ * los objetos de los intervalos que llegan al mínimo (con 16 personas, crear los 148 costaba más que contarlos).
  */
 export function findCandidateWindows(people: PersonDays[], o: FindOptions): CandidateWindow[] {
-  if (o.nights < 0 || daysBetween(o.from, o.to) < o.nights) return [];
-  const need = o.minPeople ?? people.length;
+  return summarize(people, o).windows;
+}
+
+/** Recuento diario e intervalos candidatos con una sola pasada de códigos por persona. */
+export function summarize(people: PersonDays[], o: FindOptions): { daily: DailyCount[]; windows: CandidateWindow[] } {
   const days = eachDay(o.from, o.to);
+  const codes = dayCodes(people, days);
+  return { daily: dailyFromCodes(codes, days), windows: windowsFromCodes(people, codes, days, o) };
+}
+
+function windowsFromCodes(people: PersonDays[], codes: (Uint8Array | null)[], days: string[], o: FindOptions): CandidateWindow[] {
+  if (o.nights < 0 || days.length - 1 < o.nights) return [];
+  const need = o.minPeople ?? people.length;
+  if (need <= 0) return [];
   // Por persona, recuentos acumulados de días ocupados, «quizá» y sin indicar: cnt[k][i] = días de [0, i).
-  const acc = people.map((p) => {
-    if (p.days === null) return null;
+  const acc = codes.map((c) => {
+    if (c === null) return null;
     const busy = new Int32Array(days.length + 1), maybe = new Int32Array(days.length + 1), unknown = new Int32Array(days.length + 1);
     for (let i = 0; i < days.length; i++) {
-      const s = p.days.get(days[i]);
-      busy[i + 1] = busy[i] + (s === 'busy' ? 1 : 0);
-      maybe[i + 1] = maybe[i] + (s === 'maybe' ? 1 : 0);
-      unknown[i + 1] = unknown[i] + (s === undefined ? 1 : 0);
+      busy[i + 1] = busy[i] + (c[i] === 3 ? 1 : 0);
+      maybe[i + 1] = maybe[i] + (c[i] === 2 ? 1 : 0);
+      unknown[i + 1] = unknown[i] + (c[i] === 0 ? 1 : 0);
     }
     return { busy, maybe, unknown };
   });
+  // Misma precedencia que windowStatus: ocupado > sin indicar > quizá > libre.
+  const statusOf = (k: number, i: number, j: number): WindowStatus => {
+    const a = acc[k];
+    return !a ? 'hidden' : a.busy[j] - a.busy[i] ? 'busy' : a.unknown[j] - a.unknown[i] ? 'unknown' : a.maybe[j] - a.maybe[i] ? 'maybe' : 'free';
+  };
   const out: CandidateWindow[] = [];
   for (let i = 0; i + o.nights < days.length; i++) {
     const j = i + o.nights + 1; // fin exclusivo: incluye el día de salida
-    const w: CandidateWindow = { start: days[i], end: days[j - 1], nights: o.nights, free: [], maybe: [], unknown: [], busy: [], hidden: [], meetsWithFree: false, meetsWithMaybe: false };
-    people.forEach((p, k) => {
-      const a = acc[k];
-      // Misma precedencia que windowStatus: ocupado > sin indicar > quizá > libre.
-      const status: WindowStatus = !a ? 'hidden' : a.busy[j] - a.busy[i] ? 'busy' : a.unknown[j] - a.unknown[i] ? 'unknown' : a.maybe[j] - a.maybe[i] ? 'maybe' : 'free';
-      w[status].push(p.id);
-    });
-    w.meetsWithFree = w.free.length >= need && need > 0;
-    w.meetsWithMaybe = w.free.length + w.maybe.length >= need && need > 0;
-    if (w.meetsWithMaybe) out.push(w);
+    let free = 0, maybe = 0;
+    for (let k = 0; k < people.length; k++) { const st = statusOf(k, i, j); if (st === 'free') free++; else if (st === 'maybe') maybe++; }
+    if (free + maybe < need) continue;
+    const w: CandidateWindow = { start: days[i], end: days[j - 1], nights: o.nights, free: [], maybe: [], unknown: [], busy: [], hidden: [], meetsWithFree: free >= need, meetsWithMaybe: true };
+    for (let k = 0; k < people.length; k++) w[statusOf(k, i, j)].push(people[k].id);
+    out.push(w);
   }
   out.sort((a, b) => b.free.length - a.free.length || b.maybe.length - a.maybe.length || a.start.localeCompare(b.start));
   return o.limit ? out.slice(0, o.limit) : out;
 }
 
-/** Recuento por día para la vista común. */
-export function dailyCounts(people: PersonDays[], from: string, to: string) {
-  return eachDay(from, to).map((d) => {
-    const r = { day: d, free: 0, maybe: 0, busy: 0, unknown: 0, hidden: 0 };
-    for (const p of people) {
-      if (p.days === null) r.hidden++;
-      else {
-        const s = p.days.get(d);
-        if (s) r[s]++;
-        else r.unknown++;
-      }
-    }
+export interface DailyCount { day: string; free: number; maybe: number; busy: number; unknown: number; hidden: number }
+const KEY = ['unknown', 'free', 'maybe', 'busy'] as const;
+function dailyFromCodes(codes: (Uint8Array | null)[], days: string[]): DailyCount[] {
+  return days.map((day, i) => {
+    const r = { day, free: 0, maybe: 0, busy: 0, unknown: 0, hidden: 0 };
+    for (const c of codes) { if (c === null) r.hidden++; else r[KEY[c[i]]]++; }
     return r;
   });
+}
+
+/** Recuento por día para la vista común. */
+export function dailyCounts(people: PersonDays[], from: string, to: string): DailyCount[] {
+  const days = eachDay(from, to);
+  return dailyFromCodes(dayCodes(people, days), days);
 }

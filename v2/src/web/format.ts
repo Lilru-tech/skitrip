@@ -68,13 +68,20 @@ export const SOURCE_FIELD_LABEL: Record<string, string> = {
 export const SOURCE_METHOD_LABEL: Record<string, string> = { html: 'lectura de la página', json: 'API pública de la fuente', playwright: 'navegador automático', manual: 'a mano' };
 export const SOURCE_KIND_LABEL: Record<string, string> = { snow: 'nieve', offers: 'ofertas', prices: 'precios', lodging: 'alojamiento' };
 export const RUN_STATUS_LABEL: Record<string, string> = { ok: 'correcta', empty: 'sin datos', error: 'error', blocked: 'bloqueada', unsupported: 'no soportada' };
-/** Motivo de una captura sin datos (core/page-outcome.ts), en palabras. */
+/** Motivo de una captura sin datos (core/page-outcome.ts y core/snow-outcome.ts), en palabras. */
 export const HEALTH_REASON_LABEL: Record<string, string> = {
   no_offers: 'sin ofertas publicadas (la página lo dice)',
   off_season: 'fuera de temporada (la página no publica precios)',
   robots_subrequests: 'no se pueden leer: las ofertas se cargan desde una dirección que el robots.txt prohíbe',
   unknown_structure: 'formato no reconocido: hay que adaptar el lector',
+  // Nieve (core/snow-outcome.ts).
+  no_report: 'sin parte publicado (la fuente responde sin parte para esta estación)',
+  not_listed: 'la página se lee, pero no incluye esta estación',
+  identity_mismatch: 'la fuente devuelve otra estación o ninguna: no se usan sus cifras',
+  transport: 'no se pudo descargar (red o error HTTP)',
 };
+/** Ausencia que confirma la fuente: no es un fallo (core/snow-outcome.ts, LEGITIMATE_ABSENCE). */
+export const isLegitimateAbsence = (reason: string | null | undefined) => reason === 'no_offers' || reason === 'off_season' || reason === 'no_report';
 /** Último resultado de una fuente: el motivo si lo hay, si no el estado. */
 export const healthText = (status: string | null | undefined, reason?: string | null) =>
   !status ? '' : reason && HEALTH_REASON_LABEL[reason] ? HEALTH_REASON_LABEL[reason] : RUN_STATUS_LABEL[status] ?? status;

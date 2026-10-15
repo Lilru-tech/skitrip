@@ -2,11 +2,18 @@
 // capturas, con umbrales. Solo lee: una petición a /api/health, la analítica gratuita de Cloudflare y unas pocas
 // consultas de recuento a D1. No exporta ni restaura nada (eso es «v2 · comprobar recuperación»).
 //
-// Cada comprobación sale como OK, AVISO o FALLO con lo que hay que hacer. Si hay algún FALLO el proceso sale con 1
-// (el workflow queda en rojo y GitHub avisa por correo a quien lo tenga activado).
+// Cada comprobación sale como OK, AVISO o FALLO con lo que hay que hacer. La política de tools/watch-policy.ts guarda el
+// estado por días en D1 (watch_findings, visible en Administración): aviso aislado, degradación repetida (abre un único
+// aviso de GitHub con la etiqueta «vigilancia», que se cierra al recuperarse) o fallo real. Sale con 1 (workflow en
+// rojo; GitHub avisa por correo a quien lo tenga activado) con un fallo real o si falla un mecanismo de la vigilancia
+// (leer o guardar el estado, gestionar avisos): tools/watch-run.ts. Nada privado en el registro: recuentos,
+// identificadores de fuentes y estados.
 import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { graphql } from './cpu-summary';
+import { classifySource, type Finding, type Kind, type SourceRow } from './watch-policy';
+import { runWatch, type FindingStore, type IssueTracker } from './watch-run';
 
 const V2 = path.resolve(import.meta.dirname, '..');
 const API = (process.env.PROD_API ?? '').replace(/\/$/, '');
@@ -14,8 +21,9 @@ const ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const now = new Date(process.env.WATCH_NOW ?? Date.now());
 
 type Level = 'OK' | 'AVISO' | 'FALLO';
-const rows: { level: Level; what: string; value: string; action: string }[] = [];
-const add = (level: Level, what: string, value: string, action = '') => rows.push({ level, what, value, action });
+const rows: { key: string; kind: Kind; level: Level; what: string; value: string; action: string }[] = [];
+const add = (level: Level, what: string, value: string, action = '', key = `check:${what}`, kind: Kind = 'check') => rows.push({ key, kind, level, what, value, action });
+const q = (v: string | number | null) => (v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
 
 function d1(sqlText: string): any[] {
   const out = execFileSync('npx', ['wrangler', 'd1', 'execute', 'skitrip', '--remote', '--json', '--command', sqlText], { cwd: V2, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
@@ -79,14 +87,58 @@ try {
     add(age > max ? 'FALLO' : r && r.status !== 'ok' ? 'AVISO' : 'OK', name, `última buena hace ${fmtAge(age)} (máx. ${fmtAge(max)}); ${last}`,
       age > max ? 'La captura programada no ha funcionado: revisar el workflow en Actions.' : r && r.status !== 'ok' ? 'Revisar las fuentes con error en Admin → Estado.' : '');
   }
-  const failing = d1(`SELECT s.id, h.last_status, h.consecutive_fail FROM sources s JOIN source_health h ON h.source_id = s.id WHERE s.status IN ('verified','unverified') AND h.consecutive_fail >= 3 ORDER BY h.consecutive_fail DESC`);
-  add(failing.length ? 'AVISO' : 'OK', 'Fuentes con 3+ fallos seguidos', failing.length ? failing.map((f) => `${f.id} (${f.last_status} ×${f.consecutive_fail})`).join(', ') : '0',
+  // Edad y cobertura de cada fuente prioritaria (nieve oficial y páginas de ofertas), con su propia racha.
+  const prio = d1(`SELECT s.id, s.kind, s.area_id, s.status, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.consecutive_fail
+                   FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
+                   WHERE s.status IN ('verified','unverified') AND ((s.kind = 'snow' AND s.priority <= 10) OR s.kind = 'offers') ORDER BY s.kind, s.id`) as (SourceRow & { kind: 'snow' | 'offers' })[];
+  for (const src of prio) {
+    const c = classifySource(src, now.getTime(), maxAgeHours(src.kind, now) * 3600e3);
+    add(c.level, `Fuente ${src.id}`, c.value, c.action, `source:${src.id}`, c.kind);
+  }
+  const failing = d1(`SELECT s.id, h.last_status, h.consecutive_fail FROM sources s JOIN source_health h ON h.source_id = s.id WHERE s.status IN ('verified','unverified') AND h.consecutive_fail >= 3 AND NOT ((s.kind = 'snow' AND s.priority <= 10) OR s.kind = 'offers') ORDER BY h.consecutive_fail DESC`);
+  add(failing.length ? 'AVISO' : 'OK', 'Otras fuentes con 3+ fallos seguidos', failing.length ? failing.map((f) => `${f.id} (${f.last_status} ×${f.consecutive_fail})`).join(', ') : '0',
     failing.length ? 'Revisar si la web cambió de formato o bloquea; ver «v2 · comprobar fuentes online».' : '');
 } catch (e) { add('FALLO', 'Consultas a D1', String((e as Error).message).slice(0, 120), 'No se pudo consultar D1.'); }
 
-console.log(`Vigilancia de producción · ${now.toISOString()}\n`);
-console.log('| Estado | Comprobación | Valor | Qué hacer |\n|---|---|---|---|');
-for (const r of rows) console.log(`| ${r.level} | ${r.what} | ${r.value} | ${r.action} |`);
-const fails = rows.filter((r) => r.level === 'FALLO').length, warns = rows.filter((r) => r.level === 'AVISO').length;
-console.log(`\n${fails} fallo(s), ${warns} aviso(s).`);
-if (fails) process.exit(1);
+// Política por días con estado en D1 y avisos de GitHub (tools/watch-run.ts). En Actions los tres mecanismos son
+// obligatorios: si fallan, la ejecución queda en rojo. Fuera de Actions es una ejecución local: ni estado ni avisos.
+const day = now.toISOString().slice(0, 10);
+const inActions = process.env.GITHUB_ACTIONS === 'true';
+const GH = process.env.GITHUB_TOKEN, REPO = process.env.GITHUB_REPOSITORY, RUN = process.env.GITHUB_RUN_ID;
+async function gh(method: string, url: string, body?: unknown) {
+  const r = await fetch(`https://api.github.com/repos/${REPO}${url}`, { method, headers: { Authorization: `Bearer ${GH}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(`GitHub ${method} ${url.split('?')[0]}: HTTP ${r.status}`);
+  return r.status === 204 ? null : r.json();
+}
+const store: FindingStore = {
+  read: async () => d1('SELECT key, label, kind, state, streak_days, first_seen, last_day, last_value, issue_number FROM watch_findings') as Finding[],
+  write: async (findings, today) => {
+    const t = Date.now();
+    const sql = findings.map((f) => `INSERT INTO watch_findings (key,label,kind,state,streak_days,first_seen,last_day,last_value,issue_number,updated_at) VALUES (${[f.key, f.label, f.kind, f.state, f.streak_days, f.first_seen, f.last_day, f.last_value, f.issue_number, t].map(q).join(',')})
+ON CONFLICT(key) DO UPDATE SET label=excluded.label, kind=excluded.kind, state=excluded.state, streak_days=excluded.streak_days, first_seen=excluded.first_seen, last_day=excluded.last_day, last_value=excluded.last_value, issue_number=excluded.issue_number, updated_at=excluded.updated_at;`);
+    // Solo se borran filas sin observar en 14 días (fuentes que dejaron de ser prioritarias): una consulta que falla
+    // hoy no borra las rachas de las fuentes que no pudo evaluar.
+    sql.push(`DELETE FROM watch_findings WHERE last_day < ${q(new Date(Date.parse(today) - 14 * 864e5).toISOString().slice(0, 10))};`);
+    const file = path.join(V2, 'watch-findings.sql');
+    writeFileSync(file, sql.join('\n'));
+    execFileSync('npx', ['wrangler', 'd1', 'execute', 'skitrip', '--remote', '--file', file], { cwd: V2, stdio: ['ignore', 'ignore', 'pipe'] });
+  },
+};
+const issues: IssueTracker | null = GH && REPO ? {
+  listOpen: async () => (await gh('GET', '/issues?labels=vigilancia&state=open&per_page=100')) as { number: number; body: string | null }[],
+  ensureLabel: async () => {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/labels/vigilancia`, { headers: { Authorization: `Bearer ${GH}`, Accept: 'application/vnd.github+json' } });
+    if (r.status === 404) await gh('POST', '/labels', { name: 'vigilancia', color: 'd93f0b', description: 'Degradación persistente o fallo detectado por «v2 · vigilar»' });
+    else if (!r.ok) throw new Error(`GitHub GET /labels/vigilancia: HTTP ${r.status}`);
+  },
+  open: async (title, body) => ((await gh('POST', '/issues', { title, body, labels: ['vigilancia'] })) as { number: number }).number,
+  close: async (n, comment) => {
+    await gh('POST', `/issues/${n}/comments`, { body: comment });
+    await gh('PATCH', `/issues/${n}`, { state: 'closed', state_reason: 'completed' });
+  },
+} : null;
+
+const res = await runWatch(rows, day, inActions ? { kind: 'actions', runUrl: RUN ? `https://github.com/${REPO}/actions/runs/${RUN}` : '' } : { kind: 'local' }, inActions ? store : null, inActions ? issues : null);
+console.log(`Vigilancia de producción · ${now.toISOString()}${inActions ? '' : ' · EJECUCIÓN LOCAL'}\n`);
+for (const l of res.lines) console.log(l);
+process.exit(res.exitCode);

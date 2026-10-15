@@ -186,6 +186,11 @@ describe('comentarios', () => {
     expect((await api(a.token, 'GET', '/api/admin/health')).status).toBe(404);
     await env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(a.id).run();
     expect((await api(a.token, 'GET', '/api/admin/health')).status).toBe(200);
+    // Estado de la vigilancia (lo escribe «v2 · vigilar»): primero lo que falla o se degrada.
+    await env.DB.prepare(`INSERT INTO watch_findings (key,label,kind,state,streak_days,first_seen,last_day,last_value,issue_number,updated_at) VALUES
+      ('check:API','API','check','ok',0,NULL,'2026-10-15','HTTP 200',NULL,1), ('source:fgc-pirineu365','Fuente fgc-pirineu365','regression','degradado',2,'2026-10-14','2026-10-15','dejó de funcionar',7,1)`).run();
+    const watch = (await api(a.token, 'GET', '/api/admin/health')).json.watch;
+    expect(watch.map((w: any) => [w.key, w.state, w.issue_number])).toEqual([['source:fgc-pirineu365', 'degradado', 7], ['check:API', 'ok', null]]);
     const b = await signup();
     await api(a.token, 'POST', `/api/admin/users/${b.id}/block`, { reason: 'prueba' });
     const blocked = (await api(a.token, 'GET', '/api/admin/users?status=blocked')).json.users;

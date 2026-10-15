@@ -192,9 +192,47 @@ Antes de las revisiones la ingesta hacía 54 consultas por POST, marcar avisos u
 - **Analítica de Workers (GraphQL, `workersInvocationsAdaptive`)**: percentiles de CPU (p50, p99, p99.9) y peticiones por estado (`success`, `exceededCpu`, `exceededResources`…), sin la ruta. Necesita el permiso «Account Analytics: Read» del token.
 - **`wrangler tail --format json`**: CPU por petición con la URL. Las rutas se agrupan sin IDs (`tools/cpu-summary.ts`).
 - **«v2 · medir CPU»** (`v2-cpu-probe.yml`, manual): abre el tail y lanza `tools/cpu-probe.ts`. Hace grupos de peticiones separados 3 s por las rutas públicas, de ingesta y autenticadas con dos cuentas de prueba (`prod-check-<ejecución>-p/q`, que borra al final por ID exacto) y, opcionalmente, los recolectores de nieve y ofertas. Luego cruza cada ventana con la analítica.
-- **«v2 · vigilancia»** (`v2-watch.yml`, diaria a las 09:23 UTC): salud de la API, peticiones, errores, cortes por CPU y p99 de 24 h, tamaño y filas de D1, perfiles (y restos de pruebas), antigüedad de las capturas y fuentes con 3 o más fallos seguidos. Marca OK, AVISO o FALLO, y un FALLO hace fallar el workflow. Está separada de la copia y restauración (`v2-recovery-check.yml`).
+- **«v2 · vigilancia»** (`v2-watch.yml`, diaria a las 09:23 UTC): salud de la API, peticiones, errores, cortes por CPU y p99 de 24 h, tamaño y filas de D1, perfiles (y restos de pruebas), antigüedad de las capturas, edad y cobertura de cada fuente prioritaria (nieve oficial y páginas de ofertas) y el resto de fuentes con 3 o más fallos seguidos. Está separada de la copia y restauración (`v2-recovery-check.yml`). Política (`tools/watch-policy.ts`, desde el 15/10/2026), guardada por días en D1 (`watch_findings`) y visible en Administración → «Vigilancia diaria»:
+  - **Aviso aislado**: un AVISO de un día. Se muestra; no avisa.
+  - **Degradación repetida**: el mismo AVISO en días naturales consecutivos con observación (2 para una fuente que funcionaba y dejó de hacerlo, como La Molina el 12/10; 3 para el resto). Varias ejecuciones el mismo día cuentan como un día. Un día sin observación (el workflow no corrió) no cuenta como degradación ni como recuperación: la racha vuelve a empezar en 1 y un issue abierto sigue abierto hasta una observación OK. Abre **un** issue con la etiqueta `vigilancia`, que se cierra solo al volver a OK, sin comentarios diarios, y añade un `::warning::` a la ejecución.
+  - **Fallo real** (API caída, cortes por CPU, cuotas, captura sin éxito fuera de plazo): el workflow queda en rojo (GitHub avisa por correo) y también abre el issue.
+  - Fuera de temporada o «sin parte publicado» confirmado por la fuente es OK y queda como pendiente de invierno, no como degradación.
+  - **Mecanismos de la vigilancia** (`tools/watch-run.ts`): en Actions, leer `watch_findings`, guardarlo y gestionar los issues son obligatorios. Si alguno falla, la ejecución sale en rojo con `::error::Vigilancia: …` aunque todas las comprobaciones estén bien. Si no se puede leer el estado, no se calcula ni se guarda ninguna racha y no se tocan los issues: se conserva el estado anterior en lugar de reiniciarlo todo como «aislado» cada día. Si falla GitHub, el estado se guarda y el issue se reintenta al día siguiente con el listado real (sin duplicados). Fuera de Actions es una **ejecución local**: no lee ni escribe estado ni toca issues, y lo dice («MODO LOCAL»). Las filas sin observar en 14 días se borran; una consulta que falla un día no borra rachas. Pruebas: `watch-policy.test.ts` (consecutivos, huecos, mismo día, recuperación) y `watch-run.test.ts` (flujo completo con D1 y GitHub simulados).
 
-### Medido en producción el 03/10/2026
+### Medido en producción el 15/10/2026 (grupo de 16 personas)
+
+La vigilancia del 14/10 (run 38581604252) vio 33 peticiones en 24 h, ninguna cortada, p50 7,3 ms y p99 20,8 ms. Con tan pocas peticiones eso no demuestra una regresión ni que se cumpla el límite, así que se midió por ruta con una carga de grupo:
+
+- **Carga** (`tools/cpu-probe.ts` + `tools/cpu-group-sql.ts`): 2 cuentas de prueba reales (`prod-check-<ejecución>-p/q`) y 14 miembros sintéticos insertados en D1 (`pcs-<ejecución>-*`), todos con 150 días de disponibilidad, amistad con la cuenta p y miembros de un viaje. Las altas por la API están limitadas a 5 por IP y hora, por eso los sintéticos van directos a D1. La limpieza borra por los ID y UID exactos del manifiesto (17 → 1 perfiles, administradores 1).
+- **Muestras**: 12 peticiones seguidas en las rutas de grupo, 5 en el resto y 20 altas de gasto con 16 participantes. La tabla separa la **primera** petición de la ventana (isolate frío) de las **repetidas** (CPU de `wrangler tail`).
+
+Antes (run 38704461036, código de b0a0a04 publicado; 241 peticiones, todas `ok`, ninguna cortada). CPU en ms:
+
+| Ruta | n | 1.ª | Repetidas p50 / máx. | > 10 ms (repetidas) |
+|---|---|---|---|---|
+| `GET /api/availability/common` (16 personas × 150 días) | 12 | 27 | 11 / 16 | 7 de 7 |
+| `GET /api/availability/trip/:id` (16) | 12 | 14 | 11 / 14 | 4 de 6 |
+| `PUT /api/availability/me` (150 días) | 2 | 11 | 28 | 1 de 1 |
+| `GET /api/trips/:id/budget` (16) | 12 | 12 | 8 / 11 | 2 de 10 |
+| `GET /api/trips/:id/cost-comparison` (16) | 12 | 16 | 7 / 8 | 0 |
+| `GET /api/trips/:id/shopping` | 12 | 14 | 6 / 7 | 0 |
+| `GET /api/availability/common` (2 personas) | 5 | 5 | 5 / 7 | 0 |
+| `POST /api/trips/:id/expenses` (16 participantes) | 20 | 6 | 4 / 8 | 0 |
+| `POST /api/me` (alta) | 1 | 13 | — | — |
+| Resto (34 rutas) | | ≤ 16 | ≤ 6 | 0 |
+
+El exceso estaba en el **calendario** con muchas personas, no en la autenticación (`GET /api/me` 2 ms) ni en la ingesta (≤ 3 ms en esta medición). Con 16 personas eran 2.400 filas de D1 que el Worker convertía en objetos, recorría dos veces (recuento diario e intervalos, creando los 148 intervalos aunque no llegaran al mínimo) y volvía a serializar (≈ 53 KB). Cambios:
+
+- D1 devuelve una fila por persona con sus días ya en JSON (`json_group_object`); ese texto se analiza una vez para contar y se reenvía tal cual en la respuesta.
+- `core/calendar.ts`: códigos por día calculados una vez para el recuento y los intervalos; solo se crean los intervalos que llegan al mínimo. `calendar.test.ts` lo compara con la definición directa.
+- `PUT /availability/me`: comprobación por día equivalente al esquema de objeto de zod, que era caro en un isolate frío.
+- Mismos permisos (`visibleAvailabilityOwners`), misma transacción de escritura y misma forma de respuesta (`cpu-group.test.ts`).
+
+Indicador local (Node 22, solo el cálculo, sin D1): 16 personas × 150 días, 3,5 → 1,3 ms en caliente. **Los números de producción «después» se toman con el mismo sondeo cuando esté publicado**; hasta entonces no se da el problema por resuelto.
+
+**Si quedan picos.** Workers Free corta una petición que pasa de 10 ms de CPU de forma sostenida (`exceededCpu`); tolera picos aislados. La vigilancia diaria marca un FALLO con cualquier `exceededCpu` en 24 h y avisa (AVISO) si el p99 pasa de 10 ms. Respuesta prevista sin coste: lanzar «v2 · medir CPU» para identificar la ruta, reducir el trabajo de esa ruta (menos filas o menos cálculo por petición) y, en el calendario, limitar el rango o las personas por consulta. No se contrata un plan de pago ni se desactivan controles.
+
+### Medido en producción el 03/10/2026 (historial)
 
 24 h tras la publicación (recuperación, run 37126210933): 236 peticiones, p50 2,9 ms, p99 16,3 ms. **Ninguna cortada por CPU**: todas `success`. Free tolera ráfagas por encima de 10 ms, pero no conviene depender de eso.
 
@@ -219,7 +257,18 @@ La mayoría de los picos son la primera petición de una ventana, cuando el isol
 - **Fechas comunes** (`findCandidateWindows`, `dailyCounts`): recorrían cada intervalo día a día con aritmética de fechas sobre cadenas. Ahora calculan la lista de días una vez y usan sumas acumuladas por persona, con el mismo resultado (`calendar.test.ts` lo compara con la definición directa en calendarios pseudoaleatorios). En Node 22: 1,4 → 0,7 ms con 1 persona, 3,9 → 0,6 ms con 8 y 12,1 → 1,1 ms con 30.
 - **Ingesta de ofertas**: el coste crece con las ofertas de la parte (dos SHA-256 y validación por oferta). El recolector las envía ahora en partes de 80 en lugar de 200: mismas ofertas, más POST.
 
-Pendiente: repetir «v2 · medir CPU» con estos cambios publicados y anotar aquí el después.
+Después, con los cambios publicados (run 37143655755, commit b0a0a04; 206 peticiones, todas `ok`, ninguna cortada):
+
+| Ruta | Antes p50 / p99 | Después p50 / p99 | Por encima de 10 ms |
+|---|---|---|---|
+| `POST /api/ingest/offers` (partes de 80) | 15 / 31 | 7 / 15 | 2 de 11 (antes 4 de 5) |
+| `GET /api/availability/common` | 12,9 / 18,5 | 9,5 / 16,9 | 1 de 5 (antes 4 de 5) |
+| `GET /api/trips/:id/expenses` | 5,3 / 21,9 | 3,5 / 5,4 | 0 |
+| `GET /api/trips/:id/cost-comparison` | 5,3 / 17,5 | 4,9 / 7,3 | 0 |
+| `POST /api/me` (alta) | 16,7 | 4,1 / 7,9 | 0 |
+| `GET /api/public/catalog` | 5,1 / 13,1 | 8,1 / 19,7 | 1 de 5 (isolate frío) |
+
+Con 2 personas, la búsqueda de intervalos ya solo cuesta ~1 ms; el resto de `common` es leer y convertir las filas de D1, así que sigue rozando los 10 ms y la mejora crece con el número de personas. El catálogo sube en la primera petición de su ventana (arranque del isolate); varía de una medición a otra. Siguen existiendo picos aislados por encima de 10 ms, que Free tolera; la vigilancia diaria avisa si aparece algún `exceededCpu`.
 
 Importación de la hoja (5.000 filas, un SHA-256 por fila): no medida en Cloudflare. Es una operación puntual de administración. Si superara los 10 ms de CPU, Cloudflare la cortaría sin escribir nada a medias (un solo batch); la solución gratuita es dividir el CSV.
 
@@ -229,5 +278,5 @@ Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los r
 
 ## Qué queda pendiente en Free
 
-- Repetir el sondeo de CPU con los cambios de arriba publicados.
-- Ver si las filas leídas bajan sin pruebas (un día normal). Si no bajan, buscar la ruta en «Métricas» de D1.
+- Repetir el sondeo de CPU con el grupo de 16 cuando se publiquen los cambios del 15/10/2026.
+- Seguir el p99 diario en la vigilancia: con pocas peticiones al día, un solo arranque en frío lo sube por encima de 10 ms.
