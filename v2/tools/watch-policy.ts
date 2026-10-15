@@ -44,6 +44,8 @@ export function classifySource(s: SourceRow, nowMs: number, maxAgeMs: number): {
   const age = (t: number) => `${((nowMs - t) / 864e5).toFixed(1)} días`;
   if (!s.last_attempt_at) return { kind: 'pending', level: 'AVISO', value: 'sin ningún intento', action: 'Comprobar que la fuente está en la captura.' };
   if (nowMs - s.last_attempt_at > maxAgeMs) return { kind: s.last_success_at ? 'regression' : 'pending', level: 'AVISO', value: `último intento hace ${age(s.last_attempt_at)}`, action: 'La captura programada no la ha intentado: revisar el workflow.' };
+  // Sin adaptador o robots.txt lo impide: limitación documentada en docs/SOURCES.md, no una degradación diaria.
+  if (s.last_status === 'unsupported') return { kind: 'absence', level: 'OK', value: 'no soportada por la fuente (documentado)', action: '' };
   if (s.last_status === 'ok') return { kind: 'regression', level: 'OK', value: `datos hace ${age(s.last_success_at ?? s.last_attempt_at)}`, action: '' };
   if (s.last_status === 'empty' && s.reason && (LEGITIMATE_ABSENCE as readonly string[]).includes(s.reason))
     return { kind: 'absence', level: 'OK', value: `${s.reason === 'off_season' ? 'fuera de temporada' : 'sin parte publicado'} (pendiente de invierno)`, action: '' };

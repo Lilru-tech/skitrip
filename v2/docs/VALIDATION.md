@@ -1,6 +1,41 @@
 # Validación
 
-## Estado en producción (03/10/2026)
+## Estado al 15/10/2026 (corrección tras revisar la fase 2)
+
+Cuatro tipos de comprobación, separados. Una captura de octubre **no** valida el formato de invierno.
+
+| Tipo | Qué | Resultado |
+|---|---|---|
+| Tests locales | `tsc`, Vitest (Workers pool, D1 local), actionlint de los workflows | ✔ ver la PR |
+| Tests remotos | «v2 · CI» de la PR (las mismas pruebas en GitHub) | ver la PR |
+| Captura real de fuentes desde la rama | v2-online-check 38704049207 | ✔ FGC 5 de 5 (La Molina, Vall de Núria, Espot, Port Ainé, Boí Taüll): fuera de temporada confirmado. Esquiades 18 de 18 estaciones con fila (85 filas en la página); Alp 2500 y Formigal-Panticosa sin fila conjunta, marcadas no soportadas |
+| CPU en producción, antes | v2-cpu-probe 38704461036 | 241 peticiones, 0 cortadas; calendario con 16 personas por encima de 10 ms (ver `QUOTAS.md`) |
+| Ingesta real y CPU después | tras publicar | pendiente: v2-snow, v2-online-check, v2-cpu-probe y v2-watch con el código publicado |
+| Invierno | primera apertura de las estaciones | pendiente: los casos de invierno de los tests son sintéticos y están marcados así |
+
+### Nieve: qué falló y qué se corrigió
+
+- **La Molina** (fgc-pirineu365, en error desde la captura del 12/10, run 38270429136). Fuera de temporada, `/stations/15/status` devuelve `station_name` vacío y la comprobación estricta de identidad lo rechazaba, correctamente. `/stations/{n}/report` sí da el nombre (captura real del 15/10). Las cinco estaciones FGC prioritarias usan `/report` y mantienen la comprobación estricta: nombre vacío o ajeno → error de identidad, nunca cifras. Los números 21–23 responden 404. robots.txt de la API lo permite todo.
+- **Port Ainé y Boí Taüll**: ahora tienen adaptador FGC (estaciones 19 y 20, identificadas por nombre en `/report`). Vallter (17) también responde, pero no hay área de Vallter en el catálogo, así que no se añade.
+- **Esquiades** (20 fuentes con 5 fallos seguidos en la vigilancia del 14/10, run 38581604252). La comprobación decía «incompatible» y el recolector guardaba «vacío». Causa real: la fecha «Última nevada 08/10/2026» se contaba como un par «x / y» y descartaba todas las filas. El lector reconoce ahora estado, km y pistas totales y la fecha de cada bloque («Última actualización del …»). La Molina y Masella, y Formigal y Panticosa, salen por separado: las áreas combinadas Alp 2500 y Formigal-Panticosa no tienen fila y sumar estaciones sería inventar el dominio, así que quedan no soportadas en Esquiades y usan su fuente oficial.
+- **Motivos comunes** (`src/core/snow-outcome.ts`), los mismos en recolector, comprobación online, ingesta, Administración y vista pública: fuera de temporada, sin parte publicado, estación no incluida, formato no reconocido, identidad ajena, transporte y bloqueo. Fuera de temporada y sin parte publicado no suman fallos seguidos; el resto sí. Un resultado vacío nunca deja una captura como correcta.
+- **Pruebas con capturas reales saneadas** (`test/fixtures/real/*.2026-10-15.*`): nombre vacío, nombre ajeno (Vallter en lugar de Boí Taüll, La Molina en lugar de Port Ainé), cierre estacional (`is_winter` activo pero estación inactiva), 404 y la página de Esquiades. El caso de invierno sigue siendo sintético.
+
+### Cobertura de nieve por estación prioritaria (cerca de Tarragona)
+
+| Estación | Fuente oficial | Fila de Esquiades | Hasta invierno |
+|---|---|---|---|
+| La Molina, Vall de Núria, Espot, Port Ainé, Boí Taüll | API de FGC (`/report`) | sí | fuera de temporada confirmado; formato de invierno sin validar |
+| Masella | no publica parte oficial | sí | solo Esquiades |
+| Port del Comte | web oficial | sí | |
+| Grandvalira, Ordino Arcalís, Pal Arinsal | web oficial | sí | Ordino y Pal no publican km |
+| Cerler, Formigal-Panticosa | Aramón | Cerler sí; Formigal y Panticosa por separado | |
+| Baqueira-Beret | baqueira.es responde 403 y no se elude | sí | solo Esquiades |
+| Ax 3 Domaines, Font-Romeu | sin adaptador (Ax solo publica un mapa) | sí | solo Esquiades |
+
+El recolector antiguo (`update-data.yml`) sigue desactivado: v2 cubre sus páginas y no hay una necesidad concreta para reactivarlo.
+
+## Historial: estado en producción (03/10/2026)
 
 SkiTrip v2 está publicado en https://lilru-tech.github.io/skitrip/ (Pages desde Actions) con la API en https://skitrip.cold-fire-2451.workers.dev. Todo lo de esta sección se ejecutó en GitHub Actions contra los servicios reales; un workflow omitido por falta de secretos no cuenta.
 
@@ -98,7 +133,7 @@ Todos los recorridos de navegador y los tests los escribí y ejecuté yo (Claude
 - **El robots.txt se interpretaba mal:** `Disallow: /*/hotel/offer/load` se convertía en «/» y bloqueaba todo Esquiades.
 - **Distancias heredadas erróneas:** ver 5c.
 
-## Pendiente online o de David
+## Pendiente online o de David (01/10/2026, ya resuelto)
 
 - Push a `Lilru-tech/skitrip`: davidcliqpod no tiene permiso de escritura. Se entrega como bundle.
 - Cloudflare: los tres secretos.
