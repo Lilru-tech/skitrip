@@ -82,8 +82,12 @@ describe('edad y cobertura de una fuente prioritaria', () => {
     expect(classifySource(src({ last_attempt_at: now - 9 * day, last_success_at: now - 9 * day }), now, 8 * day)).toMatchObject({ kind: 'regression', level: 'AVISO', value: expect.stringMatching(/último intento/) });
     expect(classifySource(src({ last_attempt_at: null }), now, 8 * day)).toMatchObject({ kind: 'pending', level: 'AVISO' });
   });
-  it('sin adaptador (Ax, Font-Romeu): limitación documentada, no degradación', () => {
+  it('no soportada o sin adaptador (Ax, Font-Romeu, nunca intentadas): limitación documentada, no degradación', () => {
     expect(classifySource(src({ last_status: 'unsupported' }), now, 8 * day)).toMatchObject({ kind: 'absence', level: 'OK' });
+    expect(classifySource(src({ adapter: null, last_attempt_at: null, last_status: null }), now, 8 * day)).toMatchObject({ kind: 'absence', level: 'OK' });
+  });
+  it('robots.txt no disponible es un fallo de transporte: una fuente que funcionaba es regresión', () => {
+    expect(classifySource(src({ adapter: 'port-del-comte-official', last_status: 'error', reason: 'transport', last_success_at: now - 12 * day }), now, 8 * day)).toMatchObject({ kind: 'regression', level: 'AVISO' });
   });
   it('con datos recientes: OK', () => {
     expect(classifySource(src({ last_success_at: now - 3600e3 }), now, 8 * day)).toMatchObject({ level: 'OK' });

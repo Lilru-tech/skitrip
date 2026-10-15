@@ -10,7 +10,11 @@ Cuatro tipos de comprobación, separados. Una captura de octubre **no** valida e
 | Tests remotos | «v2 · CI» de la PR (las mismas pruebas en GitHub) | ver la PR |
 | Captura real de fuentes desde la rama | v2-online-check 38704049207 | ✔ FGC 5 de 5 (La Molina, Vall de Núria, Espot, Port Ainé, Boí Taüll): fuera de temporada confirmado. Esquiades 18 de 18 estaciones con fila (85 filas en la página); Alp 2500 y Formigal-Panticosa sin fila conjunta, marcadas no soportadas |
 | CPU en producción, antes | v2-cpu-probe 38704461036 | 241 peticiones, 0 cortadas; calendario con 16 personas por encima de 10 ms (ver `QUOTAS.md`) |
-| Ingesta real y CPU después | tras publicar | pendiente: v2-snow, v2-online-check, v2-cpu-probe y v2-watch con el código publicado |
+| Publicación | v2-release 38711486050 (PR #10) | ✔ pruebas, API (migraciones 0013 y 0014) y Pages |
+| Ingesta real de nieve | v2-snow 38712647103 | 29 fuentes: 28 válidas, 0 fallidas, 1 «no soportada» (Port del Comte oficial: ver abajo); 28 filas escritas |
+| Fuentes online, publicado | v2-online-check 38712651823 | ✔ FGC 5 de 5 (fuera de temporada confirmado), Esquiades 18 de 18, ofertas 17 con datos + 2 fuera de temporada, nieve oficial con datos salvo Port del Comte |
+| CPU después | v2-cpu-probe 38713197532 y 38714990287 | 258 y 261 peticiones, 0 cortadas; ver `QUOTAS.md` (antes/después y lo que sigue por encima de 10 ms) |
+| Vigilancia con estado | v2-watch 38714993409 | ✔ 0 fallos, 0 degradaciones, 7 avisos aislados, 0 errores de los mecanismos; estado guardado en `watch_findings` |
 | Invierno | primera apertura de las estaciones | pendiente: los casos de invierno de los tests son sintéticos y están marcados así |
 
 ### Nieve: qué falló y qué se corrigió
@@ -32,6 +36,12 @@ Cuatro tipos de comprobación, separados. Una captura de octubre **no** valida e
 | Cerler, Formigal-Panticosa | Aramón | Cerler sí; Formigal y Panticosa por separado | |
 | Baqueira-Beret | baqueira.es responde 403 y no se elude | sí | solo Esquiades |
 | Ax 3 Domaines, Font-Romeu | sin adaptador (Ax solo publica un mapa) | sí | solo Esquiades |
+
+**Errores observados tras publicar (15/10/2026):**
+- **Port del Comte oficial** quedó «robots.txt no lo permite» en la ingesta y en la comprobación. Cinco minutos después, el sondeo (v2-online-check 38713288532) leyó su robots.txt, que permite `/pistes/`. Causa: un 5xx o un error de red al pedir robots.txt se trataba como «prohibido» y la fuente quedaba «no soportada», que la vigilancia muestra como limitación documentada. Eso ocultaba que una fuente que funcionaba el 03/10 había fallado. Corregido después: robots.txt no disponible = fallo de transporte, con un reintento.
+- **Vigilancia:** Ax y Font-Romeu oficiales (sin adaptador) salían como «sin ningún intento» y se habrían degradado al 3.er día. Corregido: sin adaptador = limitación documentada.
+- **Motivos de ofertas:** la migración 0013 rehízo la columna de motivos, así que Baqueira y Port del Comte (ofertas) salen «nunca ha dado datos» hasta la siguiente captura de ofertas, que vuelve a guardar «fuera de temporada».
+- **Filas leídas de D1:** 1,27 M en 24 h por las mediciones de hoy (aviso aislado; el límite es 5 M).
 
 El recolector antiguo (`update-data.yml`) sigue desactivado: v2 cubre sus páginas y no hay una necesidad concreta para reactivarlo.
 

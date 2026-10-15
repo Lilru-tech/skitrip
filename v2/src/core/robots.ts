@@ -37,3 +37,21 @@ export function robotsAllows(rules: readonly RobotsRule[], path: string): boolea
   }
   return best ? best.allow : true;
 }
+
+/**
+ * Qué significa una respuesta al pedir robots.txt (RFC 9309 §2.3.1): 2xx → sus reglas; 4xx → sin restricciones;
+ * 5xx o error de red → «no disponible». No disponible no es «prohibido»: no se carga la página (se trata como
+ * prohibido por prudencia), pero la fuente queda como fallo de transporte, no como «no soportada» por la fuente.
+ */
+export type RobotsState = { kind: 'rules'; rules: RobotsRule[] } | { kind: 'unavailable'; detail: string };
+export function robotsFromResponse(status: number | null, text: string, error?: string): RobotsState {
+  if (status === null) return { kind: 'unavailable', detail: `robots.txt no disponible (${error ?? 'error de red'})` };
+  if (status >= 200 && status < 300) return { kind: 'rules', rules: parseRobots(text) };
+  if (status >= 400 && status < 500) return { kind: 'rules', rules: [] };
+  return { kind: 'unavailable', detail: `robots.txt no disponible (HTTP ${status})` };
+}
+export type RobotsVerdict = { verdict: 'allowed' } | { verdict: 'denied' } | { verdict: 'unavailable'; detail: string };
+export function robotsVerdict(state: RobotsState, path: string): RobotsVerdict {
+  if (state.kind === 'unavailable') return { verdict: 'unavailable', detail: state.detail };
+  return robotsAllows(state.rules, path) ? { verdict: 'allowed' } : { verdict: 'denied' };
+}

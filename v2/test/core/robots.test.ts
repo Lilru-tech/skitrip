@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRobots, robotsAllows } from '../../src/core/robots';
+import { parseRobots, robotsAllows, robotsFromResponse, robotsVerdict } from '../../src/core/robots';
 
 // Extractos literales de los robots.txt consultados el 01/10/2026 (ver docs/SOURCES.md).
 const ESQUIADES = `User-agent: *
@@ -50,5 +50,18 @@ describe('robots.txt (RFC 9309)', () => {
     expect(robotsAllows(own, '/publico')).toBe(true);
     expect(robotsAllows(own, '/privado/x')).toBe(false);
     expect(robotsAllows(parseRobots(''), '/x')).toBe(true);
+  });
+});
+
+describe('robots.txt que no se puede leer (Port del Comte, 15/10/2026)', () => {
+  it('5xx o error de red → no disponible, nunca «prohibido por la fuente»', () => {
+    expect(robotsVerdict(robotsFromResponse(503, ''), '/pistes/')).toEqual({ verdict: 'unavailable', detail: 'robots.txt no disponible (HTTP 503)' });
+    expect(robotsVerdict(robotsFromResponse(null, '', 'sin respuesta en 10 s'), '/pistes/')).toEqual({ verdict: 'unavailable', detail: 'robots.txt no disponible (sin respuesta en 10 s)' });
+  });
+  it('4xx → sin restricciones; 2xx → sus reglas (el robots.txt real permite /pistes/)', () => {
+    expect(robotsVerdict(robotsFromResponse(404, ''), '/pistes/')).toEqual({ verdict: 'allowed' });
+    const real = 'User-agent: *\nDisallow: /wp-content/uploads/wc-logs/\nDisallow: /*?add-to-cart=\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n';
+    expect(robotsVerdict(robotsFromResponse(200, real), '/pistes/')).toEqual({ verdict: 'allowed' });
+    expect(robotsVerdict(robotsFromResponse(200, real), '/wp-admin/')).toEqual({ verdict: 'denied' });
   });
 });

@@ -228,7 +228,25 @@ El exceso estaba en el **calendario** con muchas personas, no en la autenticaci�
 - `PUT /availability/me`: comprobación por día equivalente al esquema de objeto de zod, que era caro en un isolate frío.
 - Mismos permisos (`visibleAvailabilityOwners`), misma transacción de escritura y misma forma de respuesta (`cpu-group.test.ts`).
 
-Indicador local (Node 22, solo el cálculo, sin D1): 16 personas × 150 días, 3,5 → 1,3 ms en caliente. **Los números de producción «después» se toman con el mismo sondeo cuando esté publicado**; hasta entonces no se da el problema por resuelto.
+Indicador local (Node 22, solo el cálculo, sin D1): 16 personas × 150 días, 3,5 → 1,3 ms en caliente.
+
+Después, publicado (PR #10, v2-release 38711486050), con el mismo sondeo, la misma carga y las mismas muestras, medido dos veces porque la primera medición de la disponibilidad del viaje se salió de lo esperado:
+
+| Ruta | Antes (38704461036): 1.ª · rep. p50 / máx. · > 10 ms | Después 1 (38713197532) | Después 2 (38714990287) |
+|---|---|---|---|
+| `GET /api/availability/common` (16) | 27 · 11 / 16 · 7 de 7 | 10 · 5 / 7 · 0 de 10 | 10 · 5 / 7 · 0 de 11 |
+| `GET /api/availability/trip/:id` (16) | 14 · 11 / 14 · 4 de 6 | 20 · 10 / 13 · 6 de 11 | 6 · 6 / 7 · 0 de 12 |
+| `PUT /api/availability/me` (150 días) | 11 · 28 · 1 de 1 | 9 · 5 · 0 de 2 | 6 · 4 · 0 de 2 |
+| `GET /api/trips/:id/budget` (16) | 12 · 8 / 11 · 2 de 10 | 7 · 4 / 5 · 0 de 12 | 9 · 4 / 5 · 0 de 11 |
+| `GET /api/trips/:id/cost-comparison` (16) | 16 · 7 / 8 · 0 | 8 · 7 / 10 · 0 | 7 · 5 / 7 · 0 |
+
+Analítica de Cloudflare (p50 / p99 de la ventana): fechas comunes 11,7 / 27,2 → 5,3 / 10,7 y 5,8 / 10,7; viaje 11,8 / 14,1 → 10,9 / 20,2 y 6,3 / 7,4. Las 241, 258 y 261 peticiones terminaron `ok`, sin ningún corte.
+
+Lectura honesta:
+- El calendario de grupo baja a la mitad de forma repetida (fechas comunes en las dos mediciones; guardar días también).
+- La disponibilidad del viaje hace el mismo trabajo que fechas comunes, pero la primera medición no mejoró y la segunda sí (6 / 7). Con 12 muestras por ventana, la variación entre mediciones (isolate, máquina) es del orden de lo que se mide. **No se da por resuelta**: se vuelve a medir con la siguiente ejecución de «v2 · medir CPU».
+- Siguen por encima de 10 ms, sobre todo en la **primera petición** de una ventana (isolate frío): el catálogo público (1.ª 19–20 ms, p50 9–10 en las dos mediciones), crear un viaje (12–13 ms, una vez por viaje), el alta de perfil (9–10 ms, una vez por persona) y picos sueltos (gastos 14 ms, añadir artículos 19 ms) en una sola muestra. Ninguna petición se cortó.
+- Margen: con 16 personas, las rutas de calendario repetidas quedan en 5–7 ms (30–50 % de margen frente a 10 ms); el catálogo público, que todo el mundo carga al entrar, es ahora la ruta con menos margen.
 
 **Si quedan picos.** Workers Free corta una petición que pasa de 10 ms de CPU de forma sostenida (`exceededCpu`); tolera picos aislados. La vigilancia diaria marca un FALLO con cualquier `exceededCpu` en 24 h y avisa (AVISO) si el p99 pasa de 10 ms. Respuesta prevista sin coste: lanzar «v2 · medir CPU» para identificar la ruta, reducir el trabajo de esa ruta (menos filas o menos cálculo por petición) y, en el calendario, limitar el rango o las personas por consulta. No se contrata un plan de pago ni se desactivan controles.
 
@@ -278,5 +296,5 @@ Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los r
 
 ## Qué queda pendiente en Free
 
-- Repetir el sondeo de CPU con el grupo de 16 cuando se publiquen los cambios del 15/10/2026.
+- Volver a medir la disponibilidad del viaje (una medición después no mejoró y la otra sí) y vigilar el catálogo público (p50 9–10 ms en las dos mediciones después).
 - Seguir el p99 diario en la vigilancia: con pocas peticiones al día, un solo arranque en frío lo sube por encima de 10 ms.
