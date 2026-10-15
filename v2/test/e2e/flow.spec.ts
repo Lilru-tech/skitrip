@@ -33,6 +33,8 @@ test('dos amigos organizan un viaje y encuentran una ventana candidata', async (
     await p.getByLabel('Todas mis amistades').check();
     await p.getByRole('button', { name: 'Guardar' }).click();
     await waitToast(p, 'Preferencias de compartición guardadas.');
+    // En móvil el aviso queda sobre la barra de acciones del calendario: se cierra para no tapar «Libre».
+    await p.locator('.toasts').getByRole('button', { name: 'Cerrar aviso' }).click();
 
     await p.goto('/#/calendario');
     await p.locator(`[data-date="${days[0]}"]`).click();
