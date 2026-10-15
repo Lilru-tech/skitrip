@@ -13,7 +13,7 @@ Fecha: 01/10/2026 (tabla de sentencias regenerada ese día). Rama `rebuild/v2`. 
 | CPU por petición del Worker | 10 ms | Ver «CPU» más abajo. |
 | Filas leídas / escritas al día | 5 M / 100.000 | Uso previsto para 10–20 personas muy por debajo. |
 
-No se recomienda ni se necesita el plan de pago: **las 125 rutas del Worker** quedan en 19 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
+No se recomienda ni se necesita el plan de pago: **las 130 rutas del Worker** quedan en 19 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
 
 ## Sentencias medidas por ruta
 
@@ -29,6 +29,10 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /ingest/offers` | 12 | 180 ofertas (60 de escenario + 2 × 60 de catálogo) |
 | `GET /trips/:id/budget` | 11 | 150 artículos, 30 productos × 10 fechas |
 | `GET /trips/:id/cost-comparison` | 11 | 20 candidaturas |
+| `POST /trips/:id/cost-comparison` | 11 | otra salida fija u origen personalizado (19 estaciones) |
+| `POST /geo/routes` | 5 | 19 estaciones con ruta |
+| `POST /geo/search` | 4 | — |
+| `GET /geo/status` | 2 | — |
 | `PUT /trips/:id/expenses/:eid` | 11 | 8 beneficiarios |
 | `GET /public/areas/:id` | 10 | — (incluye las rutas desde cada origen) |
 | `POST /trips/:id/scenarios` | 9 | — |
@@ -179,6 +183,21 @@ Medidas también con su propio test:
 - No queda ninguna ruta que emita una sentencia por elemento. `POST /notifications/read` lo hacía (50 IDs → 503) y ahora usa una sola sentencia.
 
 Antes de las revisiones la ingesta hacía 54 consultas por POST, marcar avisos una por ID, la importación CSV hacía 1–2 por fila (503 con 500 filas), el calendario una por día y la lista de escenarios dos por escenario.
+
+## Origen personalizado (Geoapify Free)
+
+Comprobado el 15/10/2026 en https://www.geoapify.com/pricing/ y https://www.geoapify.com/term-and-conditions/: plan Free de **3.000 créditos al día**, 5 peticiones por segundo, sin tarjeta y con uso comercial permitido si se muestra «Powered by Geoapify» y la atribución de OpenStreetMap. El tope es «blando»: Geoapify puede suspender la cuenta si se supera a menudo, y repartir el uso entre varias cuentas está prohibido. Las condiciones no dicen nada sobre guardar resultados.
+
+| Acción | Créditos | Cuándo se gasta |
+|---|---|---|
+| Buscar una dirección | 1 | Al pulsar «Buscar» (nunca al escribir) |
+| Calcular distancias | 1 por estación (hoy 19) | Al pulsar «Calcular distancias desde aquí» (nunca al mover el mapa) |
+| Mapa | 0 | Teselas de OpenStreetMap (tile.openstreetmap.org) con atribución; no usan la clave ni créditos |
+
+- **Topes propios** (tabla `geo_usage`, por día UTC): 2.000 créditos al día en total (deja 1.000 de margen) y 250 por persona (unas 12 consultas de distancias con sus búsquedas). Se reserva antes de llamar al proveedor; al llegar al tope se responde 429 con el motivo y la web ofrece Tarragona o Sabadell. Ajustables con `GEO_DAILY_CREDITS` y `GEO_USER_DAILY_CREDITS`.
+- **Uso previsto para 20 personas**: cambiar de origen cuesta unos 20 créditos (1 búsqueda + 19 estaciones). Si cada persona lo hace 2 veces por semana, son 800 créditos a la semana, unos 115 al día de media: un 4 % del plan. Un día de mucho uso (las 20 a la vez, 2 orígenes cada una) serían ~800 créditos (27 %).
+- **Reutilización**: las distancias calculadas se reutilizan en la pestaña sin volver a consultar; con «Recordar en este navegador» se guardan solo en ese navegador hasta 30 días. El Worker no guarda direcciones, coordenadas ni resultados.
+- **D1**: 4–5 sentencias por consulta (ver tabla de arriba) y una fila por persona y día en `geo_usage`, que el cron diario borra pasados 35 días.
 
 ## Ejecuciones de captura por partes
 

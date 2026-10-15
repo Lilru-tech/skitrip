@@ -15,6 +15,8 @@ import { shoppingRoutes } from './routes/shopping';
 import { shoppingListRoutes } from './routes/shopping-lists';
 import { expenseRoutes } from './routes/expenses';
 import { socialRoutes } from './routes/social';
+import { geoRoutes } from './routes/geo';
+import { purgeGeoUsage } from './geo';
 import { purgeRateLimits } from './ratelimit';
 import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
 
@@ -135,6 +137,7 @@ app.route('/api/trips', expenseRoutes);
 app.route('/api', shoppingRoutes);
 app.route('/api', shoppingListRoutes);
 app.route('/api', socialRoutes);
+app.route('/api/geo', geoRoutes);
 
 app.all('/api/*', () => {
   throw new ApiError(404, 'not_found', 'Ruta no encontrada.');
@@ -158,6 +161,7 @@ export default {
   fetch: app.fetch,
   async scheduled(_ctrl: ScheduledController, env: AppEnv['Bindings']) {
     await purgeRateLimits(env.DB);
+    await purgeGeoUsage(env.DB);
   },
 } satisfies ExportedHandler<AppEnv['Bindings']>;
 

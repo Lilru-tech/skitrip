@@ -1,6 +1,7 @@
 // Configuración local aislada de los E2E. Son valores de prueba, no secretos: solo valen contra el emulador de Auth y
 // la D1 local de test/e2e/.state. No dependen de .dev.vars (se pasan con --var, que además tiene prioridad sobre él).
 export const E2E_INGEST_TOKEN = 'e2e-ingest-token-not-a-secret';
+export const GEO_MOCK_PORT = 8790;
 export const E2E_WORKER_VARS: Record<string, string> = {
   AUTH_MODE: 'emulator',
   FIREBASE_PROJECT_ID: 'demo-skitrip',
@@ -11,6 +12,9 @@ export const E2E_WORKER_VARS: Record<string, string> = {
   ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:8787,http://localhost:4173',
   MAX_PROFILES: '100000',
   INGEST_TOKEN: E2E_INGEST_TOKEN,
+  // Geoapify simulado (test/e2e/geoapify-mock.mjs): clave de prueba, sin red.
+  GEOAPIFY_API_KEY: 'e2e-geo-key-not-a-secret',
+  GEOAPIFY_BASE_URL: `http://localhost:${GEO_MOCK_PORT}`,
 };
 
 /** Build de prueba de Pages: base /skitrip/, API en otro origen y CSP en <meta>, contra el emulador de Auth. */

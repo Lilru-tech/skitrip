@@ -1,14 +1,14 @@
 import { defineConfig } from '@playwright/test';
 
 // E2E de la SPA contra servicios locales oficiales: emulador de Firebase Auth (9099),
-// Worker en workerd con D1 local (8787) y Vite (5173). Sin servicios de terceros.
+// Worker en workerd con D1 local (8787), Vite (5173) y Geoapify simulado (8790). Sin servicios de terceros.
 // La D1 de E2E vive aparte (test/e2e/.state) y se recrea en cada ejecución, para no tocar
 // la base de desarrollo ni agotar MAX_PROFILES.
 //
 // Configuración explícita y sin secretos (test/e2e/env.ts): no se lee nada de .dev.vars ni de otros archivos ignorados.
 // Con CI=1 no se reutiliza ningún servidor ya arrancado (si un puerto está ocupado, la ejecución falla).
 // Chromium: el que instala `npx playwright install chromium`; PW_CHROMIUM_PATH solo si hay que usar otro binario.
-import { E2E_WORKER_VARS, PAGES_TEST_ENV, PAGES_URL } from './test/e2e/env';
+import { E2E_WORKER_VARS, GEO_MOCK_PORT, PAGES_TEST_ENV, PAGES_URL } from './test/e2e/env';
 
 const CHROME = process.env.PW_CHROMIUM_PATH || undefined;
 const STATE = 'test/e2e/.state';
@@ -38,6 +38,15 @@ export default defineConfig({
     { name: 'desktop-1280', use: { viewport: { width: 1280, height: 800 } } },
   ],
   webServer: [
+    {
+      // Geoapify simulado para el origen personalizado (sin red ni clave real).
+      command: `node test/e2e/geoapify-mock.mjs`,
+      url: `http://localhost:${GEO_MOCK_PORT}/health`,
+      reuseExistingServer: reuse,
+      timeout: 30_000,
+      env: { GEO_MOCK_PORT: String(GEO_MOCK_PORT) },
+      stdout: 'ignore',
+    },
     {
       command: 'npx firebase emulators:start --only auth --project demo-skitrip',
       url: 'http://127.0.0.1:9099/',

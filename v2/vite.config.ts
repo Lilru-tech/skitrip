@@ -7,11 +7,13 @@ import { parseApiOrigin } from './src/web/api-origin';
 // - Publicación en GitHub Pages (SKITRIP_TARGET=pages): base «/skitrip/», API en otro origen (VITE_API_BASE_URL),
 //   Firebase real y CSP en <meta> (Pages no permite cabeceras propias). El build falla si falta configuración.
 const FIREBASE_CONNECT = ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'];
+// Teselas del mapa para elegir un origen personalizado (OpenStreetMap, con atribución; sin clave ni coste).
+const MAP_TILES = 'https://tile.openstreetmap.org';
 
 function pagesCsp(apiOrigin: string, extraConnect: string[]): Plugin {
   // Lo que una CSP en <meta> puede aplicar. frame-ancestors, report-uri y sandbox se ignoran en <meta> (ver DEPLOY.md).
   const csp = [
-    "default-src 'self'", "script-src 'self'", "style-src 'self'", "img-src 'self' data:", "font-src 'self'",
+    "default-src 'self'", "script-src 'self'", "style-src 'self'", `img-src 'self' data: ${MAP_TILES}`, "font-src 'self'",
     `connect-src ${[apiOrigin, ...FIREBASE_CONNECT, ...extraConnect].join(' ')}`, "frame-src 'none'", "object-src 'none'", "base-uri 'self'",
     "form-action 'self'", "manifest-src 'self'", "worker-src 'self'",
   ].join('; ');

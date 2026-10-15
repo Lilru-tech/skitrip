@@ -5,6 +5,13 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   MAX_PROFILES: string;
   INGEST_TOKEN?: string;
+  /** Clave de Geoapify (secreto del Worker). Sin ella, el origen personalizado queda desactivado y se explica. */
+  GEOAPIFY_API_KEY?: string;
+  /** Solo pruebas: servidor simulado de Geoapify. En producción no se define (api.geoapify.com). */
+  GEOAPIFY_BASE_URL?: string;
+  /** Topes de créditos al día (UTC): global y por persona. Por defecto 2000 y 250 (el plan gratuito da 3000). */
+  GEO_DAILY_CREDITS?: string;
+  GEO_USER_DAILY_CREDITS?: string;
 }
 
 export interface AuthInfo {

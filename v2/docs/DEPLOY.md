@@ -61,6 +61,17 @@ No hace falta guardarlo en ningún otro sitio. El workflow lo copia al Worker le
 
 En Firebase → Authentication → Settings → Dominios autorizados debe estar `lilru-tech.github.io`. Sin él, el alta y el acceso fallan desde Pages.
 
+### Origen personalizado: clave de Geoapify (opcional)
+
+Sin la clave, Comparar ofrece la opción «Otra dirección o punto del mapa…» pero explica que aún no está activada y deja Tarragona y Sabadell. La clave **no va en GitHub ni en el chat**: solo como secreto del Worker en Cloudflare.
+
+1. Crear una cuenta gratuita en https://myprojects.geoapify.com/ (correo o inicio de sesión con Google/GitHub). El plan Free es el de partida y no pide tarjeta: no hay que elegir ningún plan.
+2. Crear un proyecto («SkiTrip»). Geoapify genera una API key: copiarla al portapapeles sin pegarla en ningún otro sitio.
+3. En https://dash.cloudflare.com → Workers y Pages → `skitrip` → Settings → Variables and Secrets → Add: tipo **Secret**, nombre `GEOAPIFY_API_KEY`, pegar la clave y guardar (Deploy).
+4. Comprobar: Comparar → «Salida desde» → «Otra dirección o punto del mapa…» ya no dice «aún no está activado».
+
+Los secretos del Worker se conservan en cada publicación (`wrangler deploy` no los borra). Para retirarla: borrar el secreto en esa misma pantalla, o rotar la clave desde Geoapify. Consumo y topes: `QUOTAS.md`, «Origen personalizado».
+
 ## Workflows
 
 Todos están en `.github/workflows/` de la raíz del repositorio. Todos ejecutan sus pasos con `shell: bash`, es decir, `bash -eo pipefail`: si falla un comando dentro de una tubería (`… | tee`), falla el paso. Ojo: un `defaults.run` dentro de un job sustituye entero al del workflow, así que si fija `working-directory` debe repetir `shell: bash`. `npm run test:workflows` lo comprueba ejecutando los pasos críticos con un artefacto roto y otro válido.

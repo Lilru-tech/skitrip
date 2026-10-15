@@ -80,3 +80,8 @@ INSERT INTO legacy_comments (id, file_id, row_hash, legacy_author_name, legacy_r
 -- En producción el rol se da por UID real con el workflow «v2 · administración» (docs/DEPLOY.md).
 INSERT INTO users (id, firebase_uid, alias, alias_norm, email, role, status, tokens_valid_after, created_at, updated_at) VALUES
   ('e2e-admin', 'e2eAdminUid0000000000001', 'admin-e2e', 'admin-e2e', 'admin-e2e@example.test', 'admin', 'active', 0, 0, 0);
+
+-- Acceso de llegada para el origen personalizado: Épsilon sin acceso en coche (como Vall de Núria).
+INSERT INTO area_access (area_id, name, lat, lon, mode, note, source) VALUES
+  ('e2e-dominio', 'Aparcamiento Alfa (sintético)', 42.305, 1.905, 'car', NULL, 'e2e'),
+  ('e2e-cerrada', 'Cremallera Épsilon (sintético)', 42.40, 1.55, 'rack_railway', 'Sin acceso en coche: se sube en cremallera (sintético).', 'e2e');

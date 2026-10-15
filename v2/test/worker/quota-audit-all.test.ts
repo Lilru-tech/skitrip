@@ -4,7 +4,7 @@
 // un batch). El Worker corta a 40 (503 query_budget); D1 Free admite 50. Al final se comprueba que ambas auditorías
 // juntas cubren todas las rutas definidas en src/worker (mismo cálculo que tools/check-audit-coverage.ts).
 import { env } from 'cloudflare:test';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import catalog from '../../data/catalog.json';
 import TICKET from '../fixtures/parsers/mercadona-ticket.txt?raw';
 import indexSrc from '../../src/worker/index.ts?raw';
@@ -299,6 +299,32 @@ describe('auditoría de consultas: resto de rutas', () => {
     expect(rd1.json.updated).toBe(60);
     const rd2 = await m('POST /notifications/read (100 ids)', '100 IDs (máximo), todos sin leer', api(o.token, 'POST', '/api/notifications/read', { ids: oUnread }));
     expect(rd2.json.updated).toBe(100);
+
+    // ---------- Origen personalizado (Geoapify simulado, sin red) y coste desde otra salida ----------
+    {
+      await db.batch([
+        db.prepare(`INSERT OR IGNORE INTO origins (id, name, lat, lon) VALUES ('tarragona', 'Tarragona', 41.1189, 1.2445), ('sabadell', 'Sabadell', 41.5463, 2.1086)`),
+        ...cat.areas.map((a: any) => db.prepare('UPDATE areas SET lat = ?2, lon = ?3 WHERE id = ?1').bind(a.id, a.lat, a.lon)),
+        ...cat.routes.map((r: any) => db.prepare(`INSERT OR IGNORE INTO routes (origin_id, area_id, access_name, road_km, duration_min, source, checked_on, validated) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0)`)
+          .bind(r.origin, r.area, r.access_name, r.road_km, r.duration_min, r.source, r.checked_on ?? null)),
+      ]);
+      const realFetch = globalThis.fetch;
+      const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: any, init?: any) => {
+        const url = new URL(typeof input === 'string' ? input : input.url);
+        if (url.hostname !== 'geo.mock') return realFetch(input, init);
+        if (url.pathname === '/v1/geocode/search') return Response.json({ results: [{ formatted: 'Reus', lat: 41.15, lon: 1.1, result_type: 'city' }] });
+        const body = JSON.parse(init.body);
+        return Response.json({ sources_to_targets: [body.targets.map((_: unknown, i: number) => ({ source_index: 0, target_index: i, distance: 200_000, time: 7200 }))] });
+      });
+      await m('GET /geo/status', '—', api(o.token, 'GET', '/api/geo/status'));
+      await m('POST /geo/search', '5 resultados como máximo', api(o.token, 'POST', '/api/geo/search', { text: 'Reus' }));
+      const gr = await m('POST /geo/routes', `${cat.routes.length / 2} estaciones con ruta`, api(o.token, 'POST', '/api/geo/routes', { lat: 41.15, lon: 1.1 }));
+      expect(gr.json.routes.length).toBeGreaterThan(15);
+      spy.mockRestore();
+      const roads = Object.fromEntries(gr.json.routes.map((r: any) => [r.areaId, r.roadKm]));
+      await m('POST /trips/:id/cost-comparison', 'origen personalizado, 20 candidaturas como máximo', api(o.token, 'POST', `${T}/cost-comparison`, { roads, tollsCentsPerCar: 2000 }));
+      await m('POST /trips/:id/cost-comparison (otro origen fijo)', '—', api(o.token, 'POST', `${T}/cost-comparison`, { originId: 'sabadell' }));
+    }
 
     // ---------- Comentarios ----------
     const comments: string[] = [];
