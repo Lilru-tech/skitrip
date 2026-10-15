@@ -135,10 +135,11 @@ const zCommon = z.object({
   min: z.coerce.number().int().min(1).max(60).optional(),
 });
 
-/** Vista común con personas elegidas. Quien no comparte aparece como «no compartido», nunca con datos. */
+/** Vista común con personas elegidas. Quien no comparte aparece como «no compartido», nunca con datos. Sin `ids` (nadie
+ * elegido, p. ej. una cuenta sin amistades), la vista es solo de quien consulta: no es un error. */
 availabilityRoutes.get('/common', async (c) => {
   const me = c.get('user').id;
-  const q = parseQuery(c, zCommon.extend({ ids: z.string().max(2000) }));
+  const q = parseQuery(c, zCommon.extend({ ids: z.string().max(2000).default('') }));
   if (q.to < q.from || daysBetween(q.from, q.to) > MAX_RANGE_DAYS) throw new ApiError(422, 'validation', 'Rango no válido.');
   const ids = [...new Set([me, ...q.ids.split(',').map((s) => s.trim()).filter(Boolean)])].slice(0, 30);
   const people = await commonView(c.env.DB, me, ids, q.from, q.to);

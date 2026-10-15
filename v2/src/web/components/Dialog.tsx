@@ -58,6 +58,16 @@ export function Dialog({ open, title, onClose, children, footer, size = 'normal'
     };
   }, []);
 
+  // Los errores de validación (role="alert") suelen quedar al final de un formulario largo: en móvil no se veían y
+  // parecía que el botón no hacía nada. Al aparecer o cambiar, se desplaza el cuerpo hasta el error.
+  const lastAlert = useRef('');
+  useEffect(() => {
+    const alert = ref.current?.querySelector<HTMLElement>('.dialog-inner [role="alert"]');
+    const text = alert?.textContent ?? '';
+    if (alert && text !== lastAlert.current) alert.scrollIntoView({ block: 'nearest' });
+    lastAlert.current = text;
+  });
+
   // Si se desmonta abierto, devolver el foco igualmente.
   useEffect(() => () => {
     const el = opener.current;
