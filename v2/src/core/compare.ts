@@ -163,3 +163,55 @@ export function noOpenNotice(c: StatusCounts): { allClosed: boolean; text: strin
   const known = [c.closed ? n(c.closed, 'cerrada', 'cerradas') : '', c.off_season ? `${c.off_season} fuera de temporada` : ''].filter(Boolean).join(' y ');
   return { allClosed: false, text: `Ninguna abierta confirmada: ${known ? `${known}, ` : ''}${c.unknown} con estado desconocido (${c.unknown === 1 ? 'puede estar abierta' : 'pueden estar abiertas'}; no hay dato vigente).` };
 }
+
+// ---------- Coste por persona de un viaje, por estación ----------
+export interface CostByAreaInput {
+  id: string; title: string; areaId: string | null; complete: boolean; perPersonCents: number | null; pending: string[];
+  modality?: string | null; forfaitIncluded?: string | null; hypothetical?: boolean;
+}
+export interface AreaCost {
+  /** Coste completo por persona de la candidatura más barata entre las completas; null = coste pendiente. */
+  perPersonCents: number | null;
+  /** Candidatura de la que sale el coste. */
+  via: { id: string; title: string; package: boolean; hypothetical: boolean } | null;
+  completeCount: number;
+  candidateCount: number;
+  /** Partidas que faltan en las candidaturas incompletas de la estación (sin repetir). */
+  pending: string[];
+}
+
+/**
+ * Coste por persona de cada estación (de primer nivel: `topOf` lleva una estación miembro a su dominio) con los
+ * presupuestos completos del viaje (rankCosts/computeBudget: mismas fechas, noches, ocupación y días de forfait; un
+ * alojamiento solo suma forfait aparte y un paquete no). Con varias completas se usa la más barata y se dice cuál. Una
+ * estación sin presupuesto completo queda pendiente: nunca cuenta como 0 € ni como la más barata.
+ */
+export function costsByArea(rows: readonly CostByAreaInput[], topOf: (areaId: string) => string = (id) => id): Map<string, AreaCost> {
+  const out = new Map<string, AreaCost>();
+  for (const r of rows) {
+    if (!r.areaId) continue;
+    const key = topOf(r.areaId);
+    const cur = out.get(key) ?? { perPersonCents: null, via: null, completeCount: 0, candidateCount: 0, pending: [] };
+    cur.candidateCount++;
+    if (r.complete && r.perPersonCents != null) {
+      cur.completeCount++;
+      if (cur.perPersonCents == null || r.perPersonCents < cur.perPersonCents || (r.perPersonCents === cur.perPersonCents && r.id < cur.via!.id)) {
+        cur.perPersonCents = r.perPersonCents;
+        cur.via = { id: r.id, title: r.title, package: r.forfaitIncluded === 'yes' || (r.forfaitIncluded == null && r.modality === 'lodging_forfait'), hypothetical: !!r.hypothetical };
+      }
+    } else {
+      for (const p of r.pending) if (!cur.pending.includes(p)) cur.pending.push(p);
+    }
+    out.set(key, cur);
+  }
+  return out;
+}
+
+/** Qué le falta a un viaje para que el coste pueda puntuar (fechas, noches y días de esquí). */
+export function tripCostMissing(t: { startDate: string | null; endDate: string | null; nights: number | null; skiDays: number | null }): string[] {
+  const m: string[] = [];
+  if (!t.startDate || !t.endDate) m.push('fechas de llegada y salida');
+  if (t.nights == null) m.push('noches');
+  if (t.skiDays == null) m.push('días de esquí');
+  return m;
+}
