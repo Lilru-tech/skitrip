@@ -25,6 +25,8 @@ export interface StatusRow {
   openRuns: number | null;
   totalRuns: number | null;
   flags: SnowFlag[];
+  /** Fecha del parte publicada por la fuente (AAAA-MM-DD), si la hay. */
+  sourceDate?: string | null;
 }
 
 /** Salida común de todos los adaptadores. */
@@ -89,6 +91,8 @@ const REGION_RE =
   /^(andorra|pirineo( \w+)*|alpes( \w+)*|sierra( \w+)*|serra( \w+)*|sistema( \w+)*|cordillera( \w+)*|otras( \w+)*|espana|francia|italia|suiza|austria|portugal)$/;
 const PAIR_SRC = '([\\u2010-\\u2015\\u2212-]|\\d{1,4}(?:[.,]\\d{1,2})?)?\\s*/\\s*([\\u2010-\\u2015\\u2212-]|\\d{1,4}(?:[.,]\\d{1,2})?)';
 const KMS_LABEL = /^kms?\b\.?:?/i;
+// Fechas «08/10/2026» (última nevada): no son pares «abiertos / totales» y no deben contarse como tales.
+const DATE_RE = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
 const RUNS_LABEL = /^pistas\b:?/i;
 
 function labelledPair(rowText: string, label: string): KmPair | null {
@@ -141,9 +145,16 @@ function isLabelText(t: string) {
 /** Fila con etiquetas «Kms»/«Pistas» dentro de cada fila (estructura asumida por el scraper legado). */
 function rowFromLabelled(row: El): StatusRow | null {
   const leaves = leafTexts(row).map((t) => t.replace(DASHES, '-'));
-  const rowText = leaves.join(' ');
-  const km = labelledPair(rowText, 'kms?');
-  const runs = labelledPair(rowText, 'pistas');
+  const rowText = leaves.join(' ').replace(DATE_RE, ' ');
+  // «Kms - / 215 Pistas 142»: cada etiqueta lee solo su tramo, para que el par de km no se tome como el de pistas.
+  const at = rowText.search(/\bpistas\b/i), ki = rowText.search(/\bkms?\b/i);
+  const split = at > 0 && ki >= 0 && ki < at;
+  const km = labelledPair(split ? rowText.slice(0, at) : rowText, 'kms?');
+  // «Pistas 142» sin «/»: Esquiades publica solo el total fuera de temporada (captura real del 15/10/2026). En invierno
+  // está sin comprobar si el número suelto sigue siendo el total: abiertas queda desconocido, nunca 0.
+  const runsText = split ? rowText.slice(at) : rowText;
+  const lone = /^pistas\b:?\s*(\d{1,4})\b(?!\s*\/)/i.exec(runsText);
+  const runs = labelledPair(runsText, 'pistas') ?? (lone ? { open: null, total: Number(lone[1]), flags: [] } : null);
   const isPair = (t: string) => new RegExp(`^${PAIR_SRC}$`).test(t) || /^[\d/ .,-]+$/.test(t);
 
   const statusByClass = firstByClass(row, /estado|status/i);
@@ -155,9 +166,10 @@ function rowFromLabelled(row: El): StatusRow | null {
   const region = regionByClass ?? regionLeaf;
 
   const nameByClass = firstByClass(row, /(^|[-_])(name|nombre|title|titulo)([-_]|$)/i);
+  // La primera hoja puede coincidir con la región (estación «Sierra Nevada», región «Sierra Nevada»).
   const nameLeaf =
     leaves.find(
-      (t) => t !== statusText && t !== region && !isLabelText(t) && !isPair(t) && /\p{L}/u.test(t),
+      (t, i) => t !== statusText && (i === 0 || t !== region) && !isLabelText(t) && !isPair(t) && /\p{L}/u.test(t),
     ) ?? null;
 
   if (!km && !statusText) return null; // cabeceras, leyendas
@@ -195,6 +207,16 @@ function rowsFromTables(doc: El): StatusRow[] {
   return out;
 }
 
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** «Última actualización del 14 de Octubre de 2026 a las 05:45» (una por bloque). Solo si todas coinciden. */
+export function esquiadesUpdateDate(text: string): string | null {
+  const found = [...text.matchAll(/[uú]ltima actualizaci[oó]n del (\d{1,2}) de (\p{L}+) de (\d{4})/giu)].map((m) => {
+    const mo = MONTHS.indexOf(normalizeName(m[2]));
+    return mo < 0 ? null : `${m[3]}-${String(mo + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  });
+  return found.length && found.every((d) => d && d === found[0]) ? found[0] : null;
+}
+
 /**
  * Página «estado de pistas» de Esquiades. Una fila = el mayor elemento que contiene UNA sola
  * etiqueta «Kms». Sin deduplicar por cifras; solo se colapsan filas idénticas en TODO
@@ -215,12 +237,20 @@ export function parseEsquiadesStatusHtml(html: string): StatusRow[] {
     if (!rowEls.includes(row)) rowEls.push(row);
   }
   const rows: StatusRow[] = [];
+  // Fecha del parte: la «Última actualización» del bloque (región) que contiene la fila.
+  const dateOf = (el: El) => {
+    for (let e: El | null = el.parent; e; e = e.parent) {
+      const t = textContent(e);
+      if (/[uú]ltima actualizaci[oó]n del/i.test(t)) return esquiadesUpdateDate(t);
+    }
+    return null;
+  };
   for (const el of rowEls) {
     // Un contenedor con más de 2 pares «X / Y» no es una fila de estación.
-    const pairs = leafTexts(el).join(' ').match(new RegExp(PAIR_SRC, 'g')) ?? [];
+    const pairs = leafTexts(el).join(' ').replace(DATE_RE, ' ').match(new RegExp(PAIR_SRC, 'g')) ?? [];
     if (pairs.length > 2) continue;
     const r = rowFromLabelled(el);
-    if (r) rows.push(r);
+    if (r) rows.push({ ...r, sourceDate: dateOf(el) });
   }
   const all = rows.length ? rows : rowsFromTables(doc);
   const seen = new Set<string>();
@@ -234,7 +264,7 @@ export function parseEsquiadesStatusHtml(html: string): StatusRow[] {
 
 export const esquiadesAdapter: Adapter = {
   id: 'esquiades_estado_pistas',
-  version: '2.0.0',
+  version: '2.1.0',
   parse: parseEsquiadesStatusHtml,
 };
 

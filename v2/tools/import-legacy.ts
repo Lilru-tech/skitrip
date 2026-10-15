@@ -96,7 +96,7 @@ for (const p of providers) sql.push(`INSERT OR IGNORE INTO providers (id, name, 
 for (const x of catalog.sources) {
   sql.push(`INSERT INTO sources (id, area_id, scope_area_id, kind, provider, url, method, fields, priority, status, checked_on, limitations, adapter, match_aliases)
 VALUES (${[x.id, x.area, x.scope, x.kind, x.provider, x.url, x.method, JSON.stringify(x.fields), x.priority, x.status, x.checked_on, x.limitations, x.adapter, x.aliases ? JSON.stringify(x.aliases) : null].map(q).join(', ')})
-ON CONFLICT (id) DO UPDATE SET url = excluded.url, fields = excluded.fields, priority = excluded.priority, checked_on = excluded.checked_on, limitations = excluded.limitations,
+ON CONFLICT (id) DO UPDATE SET url = excluded.url, method = excluded.method, fields = excluded.fields, priority = excluded.priority, checked_on = excluded.checked_on, limitations = excluded.limitations,
   adapter = excluded.adapter, match_aliases = excluded.match_aliases, scope_area_id = excluded.scope_area_id;`);
 }
 

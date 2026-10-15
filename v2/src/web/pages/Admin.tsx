@@ -5,7 +5,7 @@ import { IDENTITY_WARNING, UserPicker, type UserHit } from '../components/UserPi
 import { CsvHelp, LegacyCommentsReview, LegacyOverview } from './AdminLegacy';
 import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
-import { healthText, instant, plural, RUN_STATUS_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL } from '../format';
+import { healthText, isLegitimateAbsence, instant, plural, RUN_STATUS_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL } from '../format';
 import { useResource } from '../hooks';
 import { Link, usePageTitle } from '../router';
 import { useProfile } from '../session';
@@ -56,7 +56,7 @@ function HealthPanel() {
   if (r.loading && !r.data) return <section className="panel"><Loading /></section>;
   if (r.error && !r.data) return <section className="panel"><ErrorState message={r.error} onRetry={r.reload} /></section>;
   const h = r.data!;
-  const bad = h.sources.filter((s) => s.last_status && s.last_status !== 'ok' && s.reason !== 'no_offers' && s.reason !== 'off_season');
+  const bad = h.sources.filter((s) => s.last_status && s.last_status !== 'ok' && !isLegitimateAbsence(s.reason));
   return (
     <>
       <section className="panel stack" aria-labelledby="adm-health">

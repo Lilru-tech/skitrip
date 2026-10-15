@@ -7,7 +7,8 @@
  * Una fuente que falla no cancela las demás; cada fuente informa su estado.
  */
 import { readFileSync } from 'node:fs';
-import { esquiadesAdapter, matchResortRow, type StatusRow } from '../../src/core/parsers/snow.ts';
+import { esquiadesAdapter, type StatusRow } from '../../src/core/parsers/snow.ts';
+import { aggregatorSnowOutcome, officialSnowOutcome, snowFailure, type SnowReason } from '../../src/core/snow-outcome.ts';
 import { chunkBy } from '../../src/core/chunk.ts';
 import { OFFICIAL_ADAPTERS } from '../../src/core/parsers/official-snow.ts';
 import { allowedByRobots, apiGet, apiPost, BlockedError, requireConfig, runId, withBrowser, withRetry } from './lib.ts';
@@ -25,61 +26,49 @@ const byUrl = new Map<string, Source[]>();
 for (const s of sources) (byUrl.get(`${s.adapter}|${s.url}`) ?? byUrl.set(`${s.adapter}|${s.url}`, []).get(`${s.adapter}|${s.url}`)!).push(s);
 
 const observations: unknown[] = [];
-const health: { sourceId: string; status: string; error: string | null; attemptedAt: number }[] = [];
+const health: { sourceId: string; status: string; reason: SnowReason | null; error: string | null; attemptedAt: number }[] = [];
 let ok = 0, failed = 0, unsupported = 0;
 
 async function processGroup(load: ((url: string) => Promise<string>) | null, key: string, group: Source[]) {
   const [adapterId, url] = key.split('|');
   const adapter = ADAPTERS[adapterId];
   const attemptedAt = Date.now();
-  const mark = (s: Source, status: string, error: string | null) => health.push({ sourceId: s.id, status, error, attemptedAt });
+  // Mismo criterio que la comprobación online y las vistas (core/snow-outcome.ts).
+  const mark = (s: Source, o: { status: string; reason: SnowReason | null; error: string | null }) => {
+    health.push({ sourceId: s.id, status: o.status, reason: o.status === 'ok' ? null : o.reason, error: o.error, attemptedAt });
+    if (o.status === 'ok') ok++; else if (o.status === 'unsupported') unsupported++; else failed++;
+  };
   const official = OFFICIAL_ADAPTERS[adapterId];
+  if (!official && !adapter) { group.forEach((s) => mark(s, { status: 'unsupported', reason: null, error: `sin adaptador ${adapterId}` })); return; }
+  let html: string;
+  try {
+    if (!fixture && !(await allowedByRobots(url))) { group.forEach((s) => mark(s, { status: 'unsupported', reason: null, error: 'robots.txt no lo permite' })); return; }
+    html = fixture ? readFileSync(fixture, 'utf8') : await withRetry(() => load!(url));
+  } catch (e) {
+    const o = snowFailure(e, e instanceof BlockedError);
+    group.forEach((s) => mark(s, o));
+    return;
+  }
   if (official) {
     // Web oficial de una sola estación: una fila por página, sin emparejar nombres.
-    try {
-      if (!fixture && !(await allowedByRobots(url))) { group.forEach((s) => mark(s, 'unsupported', 'robots.txt no lo permite')); unsupported += group.length; return; }
-      const html = fixture ? readFileSync(fixture, 'utf8') : await withRetry(() => load!(url));
-      const r = official.parse(html);
-      if (!r) { group.forEach((s) => mark(s, 'empty', 'la página no contiene la línea de km reconocible')); failed += group.length; return; }
-      for (const s of group) {
-        observations.push({ sourceId: s.id, areaId: s.scope_area_id, observedAt: Date.now(), ...r, extractor: `${adapterId}@${official.version}` });
-        mark(s, 'ok', null); ok++;
-      }
-    } catch (e) {
-      group.forEach((s) => mark(s, e instanceof BlockedError ? 'blocked' : 'error', String((e as Error).message).slice(0, 300)));
-      failed += group.length;
+    let o;
+    try { o = officialSnowOutcome(html, official.parse); } catch (e) { o = snowFailure(e, false); }
+    for (const s of group) {
+      if (o.data) observations.push({ sourceId: s.id, areaId: s.scope_area_id, observedAt: Date.now(), ...o.data, extractor: `${adapterId}@${official.version}` });
+      mark(s, o);
     }
     return;
   }
-  if (!adapter) { group.forEach((s) => mark(s, 'unsupported', `sin adaptador ${adapterId}`)); unsupported += group.length; return; }
-  let rows: StatusRow[];
-  try {
-    if (!fixture && !(await allowedByRobots(url))) { group.forEach((s) => mark(s, 'unsupported', 'robots.txt no lo permite')); unsupported += group.length; return; }
-    const html = fixture ? readFileSync(fixture, 'utf8') : await withRetry(() => load!(url));
-    rows = adapter.parse(html);
-  } catch (e) {
-    const blocked = e instanceof BlockedError;
-    group.forEach((s) => mark(s, blocked ? 'blocked' : 'error', String((e as Error).message).slice(0, 300)));
-    failed += group.length;
-    return;
-  }
-  if (!rows.length) { group.forEach((s) => mark(s, 'empty', 'la página no devolvió filas reconocibles')); failed += group.length; return; }
+  const rows: StatusRow[] = adapter.parse(html);
   for (const s of group) {
     const aliases: string[] = s.match_aliases ? JSON.parse(s.match_aliases) : [s.area_name];
-    // Alias en orden de prioridad, coincidencia exacta; nunca subcadenas.
-    let hit: StatusRow | null = null, reason = 'no_match';
-    for (const a of aliases) {
-      const m = matchResortRow(rows, [a]);
-      if (m.match) { hit = m.match; break; }
-      if (m.reason === 'ambiguous') { reason = 'ambiguous'; break; }
-    }
-    if (!hit) { mark(s, 'error', `sin fila (${reason})`); failed++; continue; }
-    observations.push({
-      sourceId: s.id, areaId: s.scope_area_id, observedAt: Date.now(), sourceDate: null, opStatus: hit.opStatus,
+    const o = aggregatorSnowOutcome(rows, aliases);
+    const hit = o.data;
+    if (hit) observations.push({
+      sourceId: s.id, areaId: s.scope_area_id, observedAt: Date.now(), sourceDate: hit.sourceDate ?? null, opStatus: hit.opStatus,
       openKm: hit.openKm, totalKm: hit.totalKm, openRuns: hit.openRuns, totalRuns: hit.totalRuns, extractor: `${adapter.id}@${adapter.version}`,
     });
-    mark(s, 'ok', null);
-    ok++;
+    mark(s, o);
   }
 }
 
