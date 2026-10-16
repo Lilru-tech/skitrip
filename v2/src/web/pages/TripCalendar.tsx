@@ -246,7 +246,7 @@ export function TripCalendarPage({ tripId }: { tripId: string }) {
 
           <section className="stack" aria-labelledby="d-h">
             <h2 id="d-h">Día a día</h2>
-            <GroupCalendar idPrefix="trip" data={data} alias={alias} from={season.start} to={season.end} selection={selection} onSelectionChange={setSelection}
+            <GroupCalendar idPrefix="trip" meId={me.id} data={data} alias={alias} from={season.start} to={season.end} selection={selection} onSelectionChange={setSelection}
               selectionActions={([a, b]) => a !== b && !selection?.pending ? (
                 <button type="button" className="btn btn-secondary" disabled={busy !== null} onClick={() => void propose(a, b)}>
                   Proponer {dayShort(a)} → {dayShort(b)}
