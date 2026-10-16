@@ -66,3 +66,76 @@ test('sin fechas o días de esquí el coste no se activa y se explica qué falta
   await page.getByText('Pesos de la puntuación').click();
   await expect(page.getByLabel(/^Coste:/)).toHaveCount(0);
 });
+
+// Regresión: al cambiar de viaje o de salida, los importes anteriores no se muestran ni puntúan bajo la selección
+// nueva. Mientras llega la respuesta (retrasada aquí a propósito) el coste queda pendiente; si falla, también.
+async function twoTrips(request: APIRequestContext, token: string) {
+  const start = future(60), end = future(62);
+  const cond = { unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1 };
+  const make = async (name: string, amountCents: number) => {
+    const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name, startDate: start, endDate: end, nights: 2, participantsPlanned: 2, skiDays: 2, rooms: 1, areaId: 'e2e-dominio', cars: 0 });
+    await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: `Hotel de ${name}`, modality: 'lodging', amountCents, areaId: 'e2e-dominio', forfaitIncluded: 'no', ...cond });
+    const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
+    await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0 });
+    return trip as { id: string };
+  };
+  return { a: await make('Viaje A', 40000), b: await make('Viaje B', 60000) };
+}
+/** Retiene las respuestas de coste de un viaje hasta llamar a `release()`. */
+async function holdCosts(page: Page, tripId: string) {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route(`**/api/trips/${tripId}/cost-comparison`, async (r) => { await gate; await r.continue(); });
+  return { release, stop: () => page.unroute(`**/api/trips/${tripId}/cost-comparison`) };
+}
+const failCosts = (page: Page, tripId: string) => page.route(`**/api/trips/${tripId}/cost-comparison`,
+  (r) => r.fulfill({ status: 500, json: { error: { code: 'internal', message: 'Error de prueba.' } } }));
+
+test('al cambiar de viaje no se reutilizan los costes del anterior (respuesta retrasada y error)', async ({ page, request }) => {
+  const token = await loggedIn(page, request);
+  const { a, b } = await twoTrips(request, token);
+  await page.goto(`/#/comparar?viaje=${a.id}`);
+  const alfa = card(page, 'Dominio Alfa');
+  await expect(alfa).toContainText('280,00 €');
+
+  const held = await holdCosts(page, b.id);
+  await page.getByLabel('Coste por persona de').selectOption({ label: 'Viaje B' });
+  await expect(alfa).toContainText('coste pendiente · calculando');
+  await expect(alfa).not.toContainText('280,00 €');
+  await page.getByText('Pesos de la puntuación').click();
+  await expect(page.getByLabel(/^Coste:/)).toHaveCount(0);
+  held.release();
+  await expect(alfa).toContainText('380,00 €');
+  await expect(page.getByLabel(/^Coste:/)).toBeVisible();
+  await held.stop();
+
+  await failCosts(page, a.id);
+  await page.getByLabel('Coste por persona de').selectOption({ label: 'Viaje A' });
+  await expect(page.getByRole('status', { name: 'Coste del viaje' })).toContainText('El coste queda pendiente: no se usan importes de otra selección');
+  await expect(alfa).toContainText('coste pendiente · no se ha podido calcular');
+  await expect(alfa).not.toContainText(/[23]80,00 €/);
+  await expect(page.getByLabel(/^Coste:/)).toHaveCount(0);
+});
+
+test('al cambiar de salida el coste espera a su respuesta y, si falla, queda pendiente', async ({ page, request }) => {
+  const token = await loggedIn(page, request);
+  const { a } = await twoTrips(request, token);
+  await page.goto(`/#/comparar?viaje=${a.id}`);
+  const alfa = card(page, 'Dominio Alfa');
+  await expect(alfa).toContainText('280,00 €');
+
+  const held = await holdCosts(page, a.id);
+  await page.getByLabel('Salida desde').selectOption('sabadell');
+  await expect(alfa).toContainText('150 km');
+  await expect(alfa).toContainText('coste pendiente · calculando');
+  await expect(alfa).not.toContainText('280,00 €');
+  held.release();
+  await expect(alfa).toContainText('280,00 €');
+  await held.stop();
+
+  await failCosts(page, a.id);
+  await page.getByLabel('Salida desde').selectOption('tarragona');
+  await expect(alfa).toContainText('190 km');
+  await expect(alfa).toContainText('coste pendiente · no se ha podido calcular');
+  await expect(alfa).not.toContainText('280,00 €');
+});
