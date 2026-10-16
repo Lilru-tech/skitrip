@@ -56,16 +56,19 @@ No se llega en coche. La ruta del origen personalizado termina en el **aparcamie
 
 Precios encontrados (16/10/2026, tarifas de la temporada 2025-2026 en [pirineu365.cat](https://pirineu365.cat/en/valldenuria/resort/rates/), sin confirmar en valldenuria.cat): forfait de día **sin** cremallera 23,50 € adulto; «forfait de día + cremallera» 41 € adulto, 31 € infantil; cremallera solo, ida y vuelta, 31 € adulto y 20 € infantil desde Queralbs, y 34 € y 22 € desde Ribes. El billete combinado Skitren (Renfe R3 + cremallera + forfait de un día, 47,70 € adulto en 2025-2026, [lugaresdenieve.com](https://www.lugaresdenieve.com/?q=es%2Fnoticia%2Ffgc-renfe-skitren-trenatura-la-molina-vall-de-nuria)) también lo incluye. Una central de reservas ([centraldereservas.com](https://actividades.centraldereservas.com/d/queralbs/forfait-vall-de-nuria-lstRM8M88)) dice que «todos los forfaits» lo incluyen, pero la tabla de tarifas distingue forfaits con y sin cremallera. Por eso **depende del producto concreto** y la aplicación no lo da por incluido: lo indica cada candidatura.
 
-## Port Ainé: tiempo dudoso desde un origen personalizado
+## Port Ainé: discrepancia de tiempos entre proveedores (causa no confirmada)
 
-El 16/10/2026, desde la plaza del Mercadal de Reus, Geoapify dio **210 km y 334 min** hasta Port Ainé (ejecución 38886245758). Revisión:
+Observación del 16/10/2026, desde la plaza del Mercadal de Reus hasta el mismo punto de llegada (base Cota 2000; 42,4284, 1,21384):
 
-- **Punto de llegada**: base Cota 2000, la dirección de la estación («Estació de Muntanya Cota 2000, Rialp»). OSRM lo ajusta a 12 m de la carretera, al final de la carretera de acceso a Port Ainé: está conectado.
-- **Otro proveedor (OSRM)**, mismo origen y mismo punto: **212 km y 222 min**. La distancia coincide (2 km de diferencia), así que el recorrido es el mismo: Rialp, carretera de Roní (4,6 km) y carretera de acceso a Port Ainé (13,9 km), unos 40 min desde Rialp.
-- **Comparación con las otras 18 estaciones**: con los mismos datos de Reus, el tiempo de Geoapify queda entre 0,71 y 1,13 veces el que da la velocidad media de su ruta OSRM. Port Ainé queda en 1,75 veces.
-- **Causa**: la matriz de Geoapify no devuelve el recorrido ni el tipo de vía, así que no se puede saber qué tramo penaliza. El exceso (unos 110 min) está en el tiempo del proveedor, no en el punto ni en la distancia. No se ha cambiado la coordenada ni el tiempo.
-- **Lo que hace la aplicación**: si el tiempo del proveedor supera en más de 1,4 veces el que da la velocidad media de la ruta OSRM más rápida guardada para esa estación (de 50 km o más), se muestra tal cual, marcado como «tiempo dudoso», con una nota que da la referencia. La distancia (la que se usa para el combustible) no cambia.
-- **Ruta guardada desde Tarragona**: era la distancia heredada de 225 km sin tiempo ni fuente. Ahora es OSRM, 216 km y 220 min hasta el mismo punto (16/10/2026).
+| Proveedor | Distancia | Tiempo | Evidencia |
+|---|---|---|---|
+| Geoapify (matriz de rutas, modo coche) | 210 km | 334 min (5 h 34 min) | Registro de la ejecución 38886245758 de «v2 · comprobar producción» |
+| OSRM (router.project-osrm.org) | 212 km | 222 min (3 h 42 min) | Consulta directa a OSRM, misma fecha |
+
+- **Punto de llegada**: OSRM lo ajusta a 12 m de la red viaria, al final de la carretera de acceso a Port Ainé.
+- **Lo que no se sabe**: la matriz de Geoapify no devuelve el recorrido ni el tipo de vía, y no se ha podido consultar OpenStreetMap directamente. Que las distancias se parezcan no demuestra que los dos proveedores sigan el mismo recorrido, y la discrepancia no indica cuál de los dos tiempos es el correcto. La causa no está confirmada.
+- **Lo que hace la aplicación**: desde un origen personalizado, la ruta a Port Ainé muestra la distancia y el tiempo de Geoapify tal cual, con una nota que describe esta observación (proveedores, fecha, valores y origen) y aclara que no verifica el tiempo desde otros orígenes. No se marca ningún tiempo como dudoso ni se calcula una duración de referencia a partir de rutas de otros orígenes (Tarragona, Sabadell): sus carreteras y velocidades pueden ser muy distintas.
+- **Ruta guardada desde Tarragona**: era la distancia heredada de 225 km, sin tiempo ni fuente. Ahora es OSRM, 216 km y 220 min hasta el mismo punto (16/10/2026). Es un dato de Tarragona y no se usa para valorar tiempos desde otros orígenes.
 
 ## Cómo actualizar
 

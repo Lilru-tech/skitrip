@@ -6,8 +6,6 @@ import type { Route } from './catalog';
 
 export interface CustomRoute {
   areaId: string; accessName: string; lastLeg: 'rack_railway' | null; roadKm: number | null; durationMin: number | null; notes: string | null;
-  /** El tiempo del proveedor no cuadra con la ruta de referencia (OSRM) de la estación: se muestra, pero marcado. */
-  durationDoubtful?: boolean;
   /** Grado de confirmación del punto de llegada (catalog_center = punto central del catálogo, no un acceso). */
   access?: { confidence: 'contrasted' | 'single_source' | 'approximate' | 'catalog_center'; source: string | null; checkedOn: string | null };
 }
@@ -65,7 +63,7 @@ export function useCustomOrigin(): CustomOrigin | null {
 /** Rutas del origen personalizado con la forma de las del catálogo (peajes siempre sin confirmar). */
 export function customRouteMap(o: CustomOrigin): Map<string, Route> {
   return new Map(o.routes.map((r) => [r.areaId, {
-    accessName: r.accessName, roadKm: r.roadKm, durationMin: r.durationMin, durationDoubtful: r.durationDoubtful === true, tollCents: null,
+    accessName: r.accessName, roadKm: r.roadKm, durationMin: r.durationMin, tollCents: null,
     source: 'Geoapify (OpenStreetMap)', checkedOn: o.checkedOn, validated: false,
     notes: r.notes ?? (r.lastLeg === 'rack_railway' ? 'Sin acceso en coche: el último tramo es en cremallera.' : null),
   }]));
