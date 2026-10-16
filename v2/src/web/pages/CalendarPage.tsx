@@ -145,7 +145,7 @@ function CommonView({ from, to }: { from: string; to: string }) {
           </section>
           <section className="stack" aria-labelledby="grid-h">
             <h2 id="grid-h">Día a día</h2>
-            <GroupCalendar idPrefix="common" data={data} alias={alias} from={from} to={to} selection={selection} onSelectionChange={setSelection} />
+            <GroupCalendar idPrefix="common" meId={me.id} data={data} alias={alias} from={from} to={to} selection={selection} onSelectionChange={setSelection} />
           </section>
         </div>
       )}

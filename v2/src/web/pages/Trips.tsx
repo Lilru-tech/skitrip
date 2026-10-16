@@ -7,6 +7,7 @@ import { euros, range, ROLE_LABEL, TRIP_STATUS_LABEL, plural } from '../format';
 import { useBusy, useResource } from '../hooks';
 import { Link, navigate, usePageTitle } from '../router';
 import type { MyInvitation, Trip } from '../types';
+import { announceNotificationsChanged, useNotificationsPulse } from '../notifications-live';
 import { emptyTripForm, formToPayload, TripForm, validateTripForm, type TripFormValues } from './TripForm';
 import { GettingStarted, LegacyPendingNotice } from '../components/GettingStarted';
 
@@ -15,6 +16,8 @@ export function TripsPage() {
   const toast = useToast();
   const trips = useResource(() => get<{ trips: (Trip & { role: 'owner' | 'editor' | 'member' })[] }>('/api/trips'), []);
   const invs = useResource(() => get<{ invitations: MyInvitation[] }>('/api/trips/invitations/mine'), []);
+  // Una invitación nueva desde otra sesión aparece sin recargar la página.
+  useNotificationsPulse(() => { void invs.reload(); });
   const { busy, run } = useBusy();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<TripFormValues>(emptyTripForm);
@@ -47,6 +50,7 @@ export function TripsPage() {
       await run(`${action}:${inv.id}`, () => post(`/api/trips/invitations/${inv.id}/${action}`));
       toast.show(action === 'accept' ? `Te has unido a «${inv.trip_name}».` : 'Invitación rechazada.');
       await Promise.all([invs.reload(), trips.reload()]);
+      announceNotificationsChanged();
     } catch (e) {
       toast.show(errorMessage(e), 'error');
     }

@@ -6,6 +6,7 @@ import { areFriends, isBlocked, pair } from '../access';
 import { badRequest, conflict, newId, notFound, now, parseBody, parseQuery } from '../http';
 import { rateLimit } from '../ratelimit';
 import { zId } from '../schemas';
+import { closeNotice, closeNoticesBetween, friendRequestNotice } from '../notices';
 
 export const friendRoutes = new Hono<AppEnv>();
 
@@ -57,12 +58,18 @@ friendRoutes.post('/requests', async (c) => {
     await c.env.DB.batch([
       c.env.DB.prepare(`UPDATE friend_requests SET status = 'accepted', responded_at = ?1 WHERE id = ?2 AND status = 'pending'`).bind(t, reverse.id),
       c.env.DB.prepare(`INSERT INTO friendships (user_a, user_b, created_at) VALUES (?1, ?2, ?3) ON CONFLICT DO NOTHING`).bind(a, b, t),
+      closeNotice(c.env.DB, me, 'friend_request', reverse.id, t),
     ]);
     return c.json({ status: 'accepted', requestId: reverse.id });
   }
   const id = newId();
   try {
-    await c.env.DB.prepare(`INSERT INTO friend_requests (id, from_user, to_user, status, created_at) VALUES (?1, ?2, ?3, 'pending', ?4)`).bind(id, me, userId, t).run();
+    // Solicitud y aviso al destinatario en una sola transacción: un reintento choca con la solicitud pendiente y no
+    // crea otro aviso.
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO friend_requests (id, from_user, to_user, status, created_at) VALUES (?1, ?2, ?3, 'pending', ?4)`).bind(id, me, userId, t),
+      friendRequestNotice(c.env.DB, userId, me, id, t),
+    ]);
   } catch (e) {
     if (/UNIQUE/.test(String(e))) throw conflict('Ya enviaste una solicitud a esta persona.', 'request_pending');
     throw e;
@@ -80,7 +87,11 @@ friendRoutes.post('/requests/:id/:action{accept|reject|cancel}', async (c) => {
   if (action === 'accept' && (await isBlocked(c.env.DB, req.from_user, req.to_user))) throw notFound('Solicitud');
   const t = now();
   const status = action === 'accept' ? 'accepted' : action === 'reject' ? 'rejected' : 'cancelled';
-  const upd = await c.env.DB.prepare(`UPDATE friend_requests SET status = ?1, responded_at = ?2 WHERE id = ?3 AND status = 'pending'`).bind(status, t, req.id).run();
+  // El aviso del destinatario deja de estar pendiente en la misma transacción (aceptar, rechazar o cancelar).
+  const [upd] = await c.env.DB.batch([
+    c.env.DB.prepare(`UPDATE friend_requests SET status = ?1, responded_at = ?2 WHERE id = ?3 AND status = 'pending'`).bind(status, t, req.id),
+    closeNotice(c.env.DB, req.to_user, 'friend_request', req.id, t),
+  ]);
   if (!upd.meta.changes) throw conflict('La solicitud ya no está pendiente.', 'request_closed');
   if (action === 'accept') {
     const [a, b] = pair(req.from_user, req.to_user);
@@ -112,6 +123,7 @@ friendRoutes.post('/blocks', async (c) => {
     c.env.DB.prepare('DELETE FROM friendships WHERE user_a = ?1 AND user_b = ?2').bind(a, b),
     c.env.DB.prepare(`UPDATE friend_requests SET status = 'cancelled', responded_at = ?3 WHERE status = 'pending' AND ((from_user = ?1 AND to_user = ?2) OR (from_user = ?2 AND to_user = ?1))`).bind(me, userId, t),
     c.env.DB.prepare(`UPDATE trip_invitations SET status = 'revoked', responded_at = ?3 WHERE status = 'pending' AND ((inviter_id = ?1 AND invitee_id = ?2) OR (inviter_id = ?2 AND invitee_id = ?1))`).bind(me, userId, t),
+    closeNoticesBetween(c.env.DB, me, userId, t),
   ]);
   return c.json({ ok: true });
 });
