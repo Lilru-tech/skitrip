@@ -95,3 +95,71 @@ export function rankCosts(options: readonly CostOption[]): RankedCost[] {
   const incomplete = rows.filter((r) => !r.complete).sort((a, b) => a.title.localeCompare(b.title, 'es') || a.id.localeCompare(b.id));
   return [...complete, ...incomplete];
 }
+
+// ---------- Estado de apertura de una estación ----------
+// Cuatro estados que se muestran por separado. Solo hay «Abierta», «Cerrada» o «Fuera de temporada» con un dato vigente
+// (mismo criterio que «Nieve abierta ahora»: captura reciente, parte de hoy o de ayer, calidad ok). Un dato ausente,
+// antiguo o dudoso es «Estado desconocido», nunca cierre. Tampoco se deduce el cierre de 0 km abiertos: decide el estado
+// que publica la fuente.
+export type ResortStatus = 'open' | 'closed' | 'off_season' | 'unknown';
+export const RESORT_STATUS_LABEL: Record<ResortStatus, string> = { open: 'Abierta', closed: 'Cerrada', off_season: 'Fuera de temporada', unknown: 'Estado desconocido' };
+export interface ResortStatusInfo {
+  status: ResortStatus;
+  /** Abierta solo en parte según la fuente. */
+  partial: boolean;
+  /** Por qué el estado es desconocido. */
+  reason: string | null;
+  /** Último estado publicado cuando ya no es vigente (p. ej. «cerrada»), solo como contexto. */
+  lastKnown: string | null;
+}
+type StatusInput = Pick<SnowCandidate, 'observedAt' | 'opStatus' | 'quality' | 'sourceDate'>;
+const OP_WORD: Record<string, string> = { open: 'abierta', partial: 'abierta en parte', closed_confirmed: 'cerrada', out_of_season: 'fuera de temporada' };
+
+export function resortStatus(s: StatusInput | null | undefined, nowMs: number): ResortStatusInfo {
+  const unknown = (reason: string, last = true): ResortStatusInfo => ({ status: 'unknown', partial: false, reason, lastKnown: last && s ? OP_WORD[s.opStatus] ?? null : null });
+  if (!s) return unknown('no hay datos de la fuente', false);
+  const c = { ...s, sourceId: '', priority: 0, openKm: null };
+  if (!captured(c, nowMs)) return unknown(`último dato capturado hace más de ${STALE_HOURS.snow} h`);
+  if (reportOld(c, nowMs)) return unknown('el parte de la fuente es anterior a ayer');
+  if (s.quality !== 'ok' || reportFuture(c, nowMs)) return unknown('dato dudoso');
+  if (s.opStatus === 'open' || s.opStatus === 'partial') return { status: 'open', partial: s.opStatus === 'partial', reason: null, lastKnown: null };
+  if (s.opStatus === 'closed_confirmed') return { status: 'closed', partial: false, reason: null, lastKnown: null };
+  if (s.opStatus === 'out_of_season') return { status: 'off_season', partial: false, reason: null, lastKnown: null };
+  return unknown('la fuente no indica si está abierta', false);
+}
+
+/**
+ * Estado de un dominio sin parte propio a partir de sus estaciones: abierto si alguna lo está; cerrado o fuera de
+ * temporada solo si todas lo confirman; en otro caso, desconocido.
+ */
+export function combineStatus(parts: readonly ResortStatusInfo[]): ResortStatusInfo {
+  if (!parts.length) return { status: 'unknown', partial: false, reason: 'no hay datos de la fuente', lastKnown: null };
+  const open = parts.filter((p) => p.status === 'open');
+  if (open.length) return { status: 'open', partial: open.length < parts.length || open.some((p) => p.partial), reason: null, lastKnown: null };
+  if (parts.every((p) => p.status === 'closed' || p.status === 'off_season')) {
+    return { status: parts.some((p) => p.status === 'closed') ? 'closed' : 'off_season', partial: false, reason: null, lastKnown: null };
+  }
+  return { status: 'unknown', partial: false, reason: 'no todas sus estaciones tienen un estado vigente', lastKnown: null };
+}
+
+export type StatusCounts = Record<ResortStatus, number> & { total: number };
+export function countStatuses(list: readonly ResortStatus[]): StatusCounts {
+  const c: StatusCounts = { open: 0, closed: 0, off_season: 0, unknown: 0, total: list.length };
+  for (const s of list) c[s]++;
+  return c;
+}
+
+/**
+ * Aviso global cuando no hay ninguna estación abierta confirmada en un conjunto. «Todas cerradas» solo si todas
+ * tienen cierre (o fin de temporada) confirmado y vigente; si alguna es desconocida se dice cuántas.
+ * null = hay al menos una abierta confirmada (o el conjunto está vacío).
+ */
+export function noOpenNotice(c: StatusCounts): { allClosed: boolean; text: string } | null {
+  if (c.total === 0 || c.open > 0) return null;
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  if (c.unknown === 0) {
+    return { allClosed: true, text: `Las ${c.total} están cerradas o fuera de temporada según su fuente, con dato vigente.` };
+  }
+  const known = [c.closed ? n(c.closed, 'cerrada', 'cerradas') : '', c.off_season ? `${c.off_season} fuera de temporada` : ''].filter(Boolean).join(' y ');
+  return { allClosed: false, text: `Ninguna abierta confirmada: ${known ? `${known}, ` : ''}${c.unknown} con estado desconocido (${c.unknown === 1 ? 'puede estar abierta' : 'pueden estar abiertas'}; no hay dato vigente).` };
+}

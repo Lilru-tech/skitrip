@@ -3,7 +3,8 @@
 // antiguos quedan plegados, con sus fuentes, fechas y avisos a un clic.
 import { useState } from 'react';
 import { get } from '../api';
-import { Freshness, ReportDate } from '../components/Badges';
+import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
+import { resortStatus } from '../../core/compare';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
 import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, healthText, instant, isLegitimateAbsence, kmText, numDate, OP_STATUS_LABEL, PRICE_KIND_LABEL, PROVIDER_LABEL, RUN_STATUS_LABEL, SNOW_QUALITY_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
@@ -61,6 +62,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
         {latest ? (
           <>
             <p className="status-line">
+              <StatusBadge info={resortStatus(latest, Date.now())} />
               <SnowStatus snow={latest} />
               <Freshness state={latest.freshness} at={latest.observedAt} /><ReportDate date={latest.sourceDate} />
             </p>
@@ -70,7 +72,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
                 {latest.openLifts != null && `remontes ${latest.openLifts}${latest.totalLifts != null ? ` de ${latest.totalLifts}` : ''}`}</p>
             )}
           </>
-        ) : <p>Sin dato de nieve en los últimos 90 días.</p>}
+        ) : <p><StatusBadge info={resortStatus(null, Date.now())} /> Sin dato de nieve en los últimos 90 días.</p>}
         <p className="muted small">Km totales declarados: {kmText(area.official_total_km)}{area.total_km_source && ` (${area.total_km_source})`}. Las condiciones actuales no predicen las de un viaje futuro.</p>
         {area.notes && <p className="small muted">Nota del catálogo: {area.notes}</p>}
         {snow.length > 1 && <SnowChart snow={snow} />}

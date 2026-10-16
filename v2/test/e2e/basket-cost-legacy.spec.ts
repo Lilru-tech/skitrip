@@ -221,11 +221,11 @@ test('legacy y nieve: comentario de la hoja con su autoría y nieve antigua que 
 
   await page.goto('/#/comparar');
   const near = page.getByRole('list', { name: 'Estaciones dentro de la distancia' });
-  await expect(near).toContainText('no puntúa: capturado hace más de 30 h');
+  await expect(near).toContainText('no puntúa en «nieve abierta ahora»: capturado hace más de 30 h');
   // Parte de hace una semana re-descargado hoy: se ven captura y fecha del parte, y no puntúa.
   // Gamma está a 780 km: se amplía la distancia máxima para que entre en la lista.
   await page.locator('#cmp-km').fill('800');
   const gamma = near.getByRole('listitem').filter({ hasText: 'Gamma Lejana (sintético)' });
   await expect(gamma).toContainText('parte del');
-  await expect(gamma).toContainText('no puntúa: el parte de la fuente es anterior a ayer');
+  await expect(gamma).toContainText('no puntúa en «nieve abierta ahora»: el parte de la fuente es anterior a ayer');
 });

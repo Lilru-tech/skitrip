@@ -168,8 +168,9 @@ test('ficha y Comparar: cierre confirmado, cobertura explicada, procedencia de l
   const eps = near.getByRole('listitem').filter({ hasText: 'Épsilon Cerrada (sintético)' });
   await expect(eps).toContainText('Cerrada (confirmado por la fuente) · la fuente no publica km');
   await expect(eps).not.toContainText('sin dato abiertos de sin dato');
-  await expect(eps).toContainText('cobertura 100 % de los criterios con dato');
-  await expect(eps).toContainText('Cerrada: «nieve abierta ahora» puntúa 0 km');
+  await expect(eps).toContainText('(cobertura 100 %)');
+  await expect(eps.locator('.status-badge')).toHaveText('✕ Cerrada');
+  await expect(eps).toContainText('Cerrada hoy; puede estar abierta en las fechas de tu viaje.');
   await expect(eps).toContainText('calculada con OSRM (OpenStreetMap) el 01/10/2026, sin revisión humana');
   await expect(near.getByRole('listitem').filter({ hasText: 'Beta (sintético)' })).toContainText('anotada a mano el 01/09/2026, sin revisar');
   await expectNoHorizontalOverflow(page, `comparar con cierre (${info.project.name})`);

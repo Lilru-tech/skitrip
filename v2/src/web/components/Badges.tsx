@@ -1,8 +1,24 @@
 import { instant } from '../format';
+import { RESORT_STATUS_LABEL, type ResortStatusInfo } from '../../core/compare';
 
-/** Frescura de un dato con su hora de observación. Nunca solo color: texto explícito. */
+const STATUS_SYMBOL = { open: '✓', closed: '✕', off_season: '–', unknown: '?' } as const;
+
+/** Estado de apertura: Abierta, Cerrada, Fuera de temporada o Estado desconocido, con símbolo y texto. */
+export function StatusBadge({ info }: { info: ResortStatusInfo }) {
+  const label = info.status === 'open' && info.partial ? 'Abierta en parte' : RESORT_STATUS_LABEL[info.status];
+  return (
+    <span className={`status-badge status-${info.status}`}>
+      <span aria-hidden="true">{STATUS_SYMBOL[info.status]}</span> {label}
+    </span>
+  );
+}
+
+/**
+ * Actualidad de un dato con su hora de captura. Nunca solo color: texto explícito. Es neutra a propósito: «dato
+ * reciente» no significa «abierta» (eso es StatusBadge, el único verde de apertura).
+ */
 export function Freshness({ state, at }: { state: 'fresh' | 'stale' | 'never'; at?: number | null }) {
-  const label = state === 'fresh' ? 'Actualizado' : state === 'stale' ? 'Desactualizado' : 'Sin datos';
+  const label = state === 'fresh' ? 'Dato reciente' : state === 'stale' ? 'Dato antiguo' : 'Sin datos';
   return (
     <span className={`badge badge-${state}`}>
       <span aria-hidden="true">{state === 'fresh' ? '●' : state === 'stale' ? '◐' : '○'}</span> {label}
