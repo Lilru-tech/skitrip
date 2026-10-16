@@ -7,7 +7,7 @@ import { get } from '../api';
 import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
 import { ErrorState, Loading, Empty } from '../components/States';
 import { AREA_KIND_LABEL, euros, kmText, MODALITY_LABEL, plural, range } from '../format';
-import { useResource } from '../hooks';
+import { useKeyedResource, useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { topLevel, type Catalog, type CatalogArea } from '../catalog';
 import { DEFAULT_WEIGHTS, scoreRows, type Weights } from '../../core/score';
@@ -48,7 +48,10 @@ export function ComparePage() {
   const tripId = query.get('viaje');
   const trips = useResource(() => get<{ trips: Trip[] }>('/api/trips').catch(() => ({ trips: [] as Trip[] })), []);
   const trip = trips.data?.trips.find((t) => t.id === tripId) ?? null;
-  const costs = useResource(() => (trip ? get<{ options: CostByAreaInput[] }>(`/api/trips/${trip.id}/cost-comparison`) : Promise.resolve(null)), [trip?.id, trip?.version]);
+  // Los costes van ligados a la selección que los pidió (viaje, versión y salida): al cambiarla no se reutilizan los
+  // anteriores; hasta que llegue la respuesta nueva (o si falla) el coste queda pendiente.
+  const costKey = trip ? JSON.stringify([trip.id, trip.version, origin]) : null;
+  const costs = useKeyedResource(costKey, () => get<{ options: CostByAreaInput[] }>(`/api/trips/${trip!.id}/cost-comparison`));
   const costByArea = useMemo(() => {
     if (!trip || !costs.data || !catalog.data) return null;
     const parentOf = new Map(catalog.data.links.map((l) => [l.child_id, l.parent_id]));
@@ -84,7 +87,7 @@ export function ComparePage() {
 
   const originName = origin === 'tarragona' ? 'Tarragona' : 'Sabadell';
   const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
-    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} mode={mode} origin={originName} ctx={ctx} cost={trip ? costByArea?.get(e.area.id) ?? null : undefined} {...extra} />
+    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} {...extra} />
   );
 
   return (
@@ -224,7 +227,7 @@ function CostContext({ trip, missing, loading, error, active, anyCandidates, ori
       <p className="small">Cada estación usa la candidatura con presupuesto completo más barata para esas mismas condiciones: alojamiento o paquete, forfait si no va incluido, alquiler, transporte y compra del viaje. Si falta alguna partida, el coste queda pendiente.</p>
       {trip.originId && trip.originId !== originId && <p className="small text-warn">El transporte del coste sale de la salida del viaje, no de la elegida arriba.</p>}
       {loading && <p className="small muted">Calculando costes…</p>}
-      {error && <p className="small text-warn">No se pudieron calcular los costes: {error}</p>}
+      {error && <p className="small text-warn">No se pudieron calcular los costes: {error} El coste queda pendiente: no se usan importes de otra selección.</p>}
       {!active && !loading && !error && (
         <p className="small text-warn">El coste no puntúa todavía: {missing.length ? `al viaje le faltan ${missing.join(', ')}` : anyCandidates ? 'ninguna candidatura tiene el presupuesto completo' : 'el viaje no tiene candidaturas con precio'}. <Link to={missing.length ? `/viajes/${trip.id}` : `/viajes/${trip.id}/presupuesto`}>{missing.length ? 'Completar el viaje' : 'Ver presupuesto'}</Link></p>
       )}
@@ -284,8 +287,9 @@ function GeneralTips() {
 
 function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost }: {
   area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; mode: Mode; origin: string; ctx: Context; rank?: number;
-  /** undefined = sin viaje elegido (no se muestra); null = el viaje no tiene candidaturas en esta estación. */
-  cost?: AreaCost | null;
+  /** undefined = sin viaje elegido (no se muestra); null = el viaje no tiene candidaturas en esta estación;
+   * 'loading' / 'error' = aún no hay costes de la selección actual (nunca se muestran los de otra). */
+  cost?: AreaCost | null | 'loading' | 'error';
   score?: ReturnType<typeof scoreRows>[number];
 }) {
   const href = `/estaciones/${area.id}${mode === 'lodging_forfait' ? '?modalidad=lodging_forfait' : ''}`;
@@ -347,7 +351,9 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost 
   );
 }
 
-function CostText({ cost }: { cost: AreaCost | null }) {
+function CostText({ cost }: { cost: AreaCost | null | 'loading' | 'error' }) {
+  if (cost === 'loading') return <>coste pendiente <span className="muted small">· calculando</span></>;
+  if (cost === 'error') return <>coste pendiente <span className="muted small">· no se ha podido calcular</span></>;
   if (!cost) return <>coste pendiente <span className="muted small">· sin candidaturas del viaje en esta estación</span></>;
   if (cost.perPersonCents == null) return <>coste pendiente <span className="muted small">· {cost.pending.length ? `falta: ${cost.pending.join(', ').toLowerCase()}` : 'ningún presupuesto completo'}</span></>;
   const v = cost.via!;
