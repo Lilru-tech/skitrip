@@ -6,12 +6,13 @@ import { useMemo, useState } from 'react';
 import { get } from '../api';
 import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
 import { ErrorState, Loading, Empty } from '../components/States';
-import { AREA_KIND_LABEL, kmText, MODALITY_LABEL } from '../format';
-import { useResource } from '../hooks';
+import { AREA_KIND_LABEL, euros, kmText, MODALITY_LABEL, plural, range } from '../format';
+import { useKeyedResource, useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { topLevel, type Catalog, type CatalogArea } from '../catalog';
 import { DEFAULT_WEIGHTS, scoreRows, type Weights } from '../../core/score';
-import { combineStatus, countStatuses, noOpenNotice, RESORT_STATUS_LABEL, resortStatus, snowStateText, type ResortStatusInfo, type StatusCounts } from '../../core/compare';
+import { combineStatus, costsByArea, countStatuses, noOpenNotice, RESORT_STATUS_LABEL, resortStatus, snowStateText, tripCostMissing, type AreaCost, type CostByAreaInput, type ResortStatusInfo, type StatusCounts } from '../../core/compare';
+import type { Trip } from '../types';
 import { routeProvenance } from '../../core/legacy';
 import type { LegacyComment } from '../catalog';
 
@@ -21,9 +22,9 @@ type Context = 'plan' | 'ahora';
 const snowRankKm = (a: CatalogArea) => (a.snow?.rank ? a.snow.rank.openKm : null);
 const WEIGHT_LABEL: Record<keyof Weights, string> = { snowNow: 'Nieve abierta ahora', size: 'Km de pistas', distance: 'Cercanía', vibe: 'Ambiente', cost: 'Coste' };
 const SLIDERS: (keyof Weights)[] = ['snowNow', 'size', 'distance', 'vibe'];
-// El coste no puntúa aquí: el catálogo no tiene presupuestos completos por estación. Al planificar, la nieve de hoy
-// no puntúa por defecto (no dice nada de las fechas del viaje); se puede subir a mano.
-const INITIAL_WEIGHTS: Record<Context, Weights> = { plan: { ...DEFAULT_WEIGHTS, cost: 0, snowNow: 0 }, ahora: { ...DEFAULT_WEIGHTS, cost: 0 } };
+// El coste solo puntúa con un viaje elegido y presupuestos completos (mismas fechas y condiciones); sin eso, su peso
+// efectivo es 0. Al planificar, la nieve de hoy no puntúa por defecto (no dice nada de las fechas del viaje).
+const INITIAL_WEIGHTS: Record<Context, Weights> = { plan: { ...DEFAULT_WEIGHTS, snowNow: 0 }, ahora: { ...DEFAULT_WEIGHTS } };
 
 /** Estado de una entrada de primer nivel: su propio parte o, en un dominio sin parte, el de sus estaciones. */
 function entryStatus(area: CatalogArea, members: CatalogArea[], nowMs: number): ResortStatusInfo {
@@ -41,8 +42,25 @@ export function ComparePage() {
   const [maxKmText, setMaxKmText] = useState('300');
   const maxKm = Math.max(0, Number(maxKmText) || 0);
   const [weightsBy, setWeightsBy] = useState(INITIAL_WEIGHTS);
-  const weights = weightsBy[ctx];
   const setWeights = (w: Weights) => setWeightsBy((all) => ({ ...all, [ctx]: w }));
+
+  // Coste por persona de un viaje: presupuestos completos de sus candidaturas, calculados cada uno en su estación.
+  const tripId = query.get('viaje');
+  const trips = useResource(() => get<{ trips: Trip[] }>('/api/trips').catch(() => ({ trips: [] as Trip[] })), []);
+  const trip = trips.data?.trips.find((t) => t.id === tripId) ?? null;
+  // Los costes van ligados a la selección que los pidió (viaje, versión y salida): al cambiarla no se reutilizan los
+  // anteriores; hasta que llegue la respuesta nueva (o si falla) el coste queda pendiente.
+  const costKey = trip ? JSON.stringify([trip.id, trip.version, origin]) : null;
+  const costs = useKeyedResource(costKey, () => get<{ options: CostByAreaInput[] }>(`/api/trips/${trip!.id}/cost-comparison`));
+  const costByArea = useMemo(() => {
+    if (!trip || !costs.data || !catalog.data) return null;
+    const parentOf = new Map(catalog.data.links.map((l) => [l.child_id, l.parent_id]));
+    return costsByArea(costs.data.options, (id) => parentOf.get(id) ?? id);
+  }, [trip, costs.data, catalog.data]);
+  const tripMissing = trip ? tripCostMissing(trip) : [];
+  const anyComplete = !!costByArea && [...costByArea.values()].some((c) => c.perPersonCents != null);
+  const costActive = !!trip && tripMissing.length === 0 && anyComplete;
+  const weights: Weights = costActive ? weightsBy[ctx] : { ...weightsBy[ctx], cost: 0 };
 
   const groups = useMemo(() => {
     if (!catalog.data) return null;
@@ -54,7 +72,7 @@ export function ComparePage() {
     // «Esquiar ahora»: solo se puntúan y recomiendan las abiertas confirmadas; el resto se lista aparte, sin puntuar.
     const candidates = ctx === 'ahora' ? near.filter((e) => e.status.status === 'open') : near;
     const scored = scoreRows(candidates.map((e) => ({
-      id: e.area.id, costPerPersonCents: null, roadKm: e.area.route?.roadKm ?? null,
+      id: e.area.id, costPerPersonCents: costActive ? costByArea?.get(e.area.id)?.perPersonCents ?? null : null, roadKm: e.area.route?.roadKm ?? null,
       totalKm: e.area.snow?.totalKm ?? e.area.officialTotalKm, openKmNow: snowRankKm(e.area), vibe: e.area.vibe,
     })), weights);
     const byId = new Map(candidates.map((e) => [e.area.id, e]));
@@ -65,11 +83,11 @@ export function ComparePage() {
       far, noRoute,
       counts: { all: countStatuses(entries.map((e) => e.status.status)), filtered: countStatuses(near.map((e) => e.status.status)) },
     };
-  }, [catalog.data, maxKm, weights, ctx]);
+  }, [catalog.data, maxKm, weights, ctx, costActive, costByArea]);
 
   const originName = origin === 'tarragona' ? 'Tarragona' : 'Sabadell';
   const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
-    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} mode={mode} origin={originName} ctx={ctx} {...extra} />
+    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} {...extra} />
   );
 
   return (
@@ -111,11 +129,19 @@ export function ComparePage() {
               <label key={m} className="radio"><input type="radio" name="cmp-mode" checked={mode === m} onChange={() => setQuery('modalidad', m === 'lodging' ? null : m)} /> {MODALITY_LABEL[m]}</label>
             ))}
           </fieldset>
+          <div className="field field-inline">
+            <label htmlFor="cmp-trip">Coste por persona de</label>
+            <select id="cmp-trip" value={trip?.id ?? ''} onChange={(e) => setQuery('viaje', e.target.value || null)}>
+              <option value="">Ningún viaje (el coste no puntúa)</option>
+              {(trips.data?.trips ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
         </div>
+        <CostContext trip={trip} missing={tripMissing} loading={costs.loading} error={costs.error} active={costActive} anyCandidates={!!costs.data?.options.length} originId={origin} hasTrips={(trips.data?.trips.length ?? 0) > 0} />
         <details className="weights">
           <summary>Pesos de la puntuación</summary>
           <div className="weights-grid">
-            {SLIDERS.map((k) => (
+            {(costActive ? ['cost' as const, ...SLIDERS] : SLIDERS).map((k) => (
               <div key={k} className="field">
                 <label htmlFor={`w-${k}`}>{WEIGHT_LABEL[k]}: <strong>{Math.round(weights[k] * 100)}</strong></label>
                 <input id={`w-${k}`} type="range" min={0} max={100} step={5} value={Math.round(weights[k] * 100)}
@@ -123,7 +149,7 @@ export function ComparePage() {
               </div>
             ))}
           </div>
-          <p className="muted small">Un dato que falta puntúa 0 en ese criterio y se indica. El coste no puntúa en esta vista porque no hay presupuestos completos por estación. El après-ski se muestra, pero todavía no forma parte de la puntuación.</p>
+          <p className="muted small">Un dato que falta puntúa 0 en ese criterio y se indica: un coste pendiente nunca cuenta como 0 € ni como el más barato. El coste solo puntúa con un viaje elegido y presupuestos completos. El après-ski se muestra, pero todavía no forma parte de la puntuación.</p>
           <p className="muted small">La <strong>cobertura</strong> dice qué parte de la puntuación se calcula con datos disponibles. No indica si la estación está abierta: eso lo dice su estado.</p>
         </details>
         <p className="muted small">Las ofertas de cada estación se muestran en su ficha en modo «{MODALITY_LABEL[mode]}». Son orientativas, con fechas del proveedor.</p>
@@ -180,6 +206,35 @@ export function ComparePage() {
   );
 }
 
+/** Contexto del criterio de coste: viaje elegido, condiciones comparadas y qué falta para activarlo. */
+function CostContext({ trip, missing, loading, error, active, anyCandidates, originId, hasTrips }: {
+  trip: Trip | null; missing: string[]; loading: boolean; error: string | null; active: boolean; anyCandidates: boolean; originId: string; hasTrips: boolean;
+}) {
+  if (!trip) {
+    return <p className="muted small">{hasTrips ? 'Elige un viaje para comparar el coste completo por persona en sus fechas y condiciones.' : <>Para comparar costes, <Link to="/viajes">crea un viaje</Link> con fechas, noches y días de esquí y añade candidaturas con precio.</>} Los precios «desde» de las fichas son referencias aparte y no puntúan.</p>;
+  }
+  const people = trip.participantsPlanned;
+  const cond = [
+    trip.startDate && trip.endDate ? range(trip.startDate, trip.endDate) : null,
+    trip.nights != null ? plural(trip.nights, 'noche', 'noches') : null,
+    people != null ? `${plural(people, 'persona', 'personas')}${trip.childrenAges.length ? ` (${trip.childrenAges.length} menor${trip.childrenAges.length === 1 ? '' : 'es'})` : ''}` : 'personas: las del viaje',
+    trip.rooms != null ? plural(trip.rooms, 'habitación', 'habitaciones') : null,
+    trip.skiDays != null ? `${plural(trip.skiDays, 'día', 'días')} de forfait` : null,
+  ].filter(Boolean).join(' · ');
+  return (
+    <div className="notice stack-s" role="status" aria-label="Coste del viaje">
+      <p><strong>Coste por persona de «{trip.name}»</strong>: {cond}.</p>
+      <p className="small">Cada estación usa la candidatura con presupuesto completo más barata para esas mismas condiciones: alojamiento o paquete, forfait si no va incluido, alquiler, transporte y compra del viaje. Si falta alguna partida, el coste queda pendiente.</p>
+      {trip.originId && trip.originId !== originId && <p className="small text-warn">El transporte del coste sale de la salida del viaje, no de la elegida arriba.</p>}
+      {loading && <p className="small muted">Calculando costes…</p>}
+      {error && <p className="small text-warn">No se pudieron calcular los costes: {error} El coste queda pendiente: no se usan importes de otra selección.</p>}
+      {!active && !loading && !error && (
+        <p className="small text-warn">El coste no puntúa todavía: {missing.length ? `al viaje le faltan ${missing.join(', ')}` : anyCandidates ? 'ninguna candidatura tiene el presupuesto completo' : 'el viaje no tiene candidaturas con precio'}. <Link to={missing.length ? `/viajes/${trip.id}` : `/viajes/${trip.id}/presupuesto`}>{missing.length ? 'Completar el viaje' : 'Ver presupuesto'}</Link></p>
+      )}
+    </div>
+  );
+}
+
 const countsText = (c: StatusCounts) => [
   `${c.open} ${c.open === 1 ? 'abierta' : 'abiertas'}`, `${c.closed} ${c.closed === 1 ? 'cerrada' : 'cerradas'}`,
   `${c.off_season} fuera de temporada`, `${c.unknown} con estado desconocido`,
@@ -230,8 +285,11 @@ function GeneralTips() {
   );
 }
 
-function AreaCard({ area, members, status, mode, score, rank, origin, ctx }: {
+function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost }: {
   area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; mode: Mode; origin: string; ctx: Context; rank?: number;
+  /** undefined = sin viaje elegido (no se muestra); null = el viaje no tiene candidaturas en esta estación;
+   * 'loading' / 'error' = aún no hay costes de la selección actual (nunca se muestran los de otra). */
+  cost?: AreaCost | null | 'loading' | 'error';
   score?: ReturnType<typeof scoreRows>[number];
 }) {
   const href = `/estaciones/${area.id}${mode === 'lodging_forfait' ? '?modalidad=lodging_forfait' : ''}`;
@@ -257,6 +315,7 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx }: {
           {prov?.level === 'legacy' && <span className="small text-warn"> · {prov.label}</span>}</dd></div>
         <div><dt>Km abiertos</dt><dd>{openKm != null ? `${kmText(openKm)} de ${kmText(snow!.totalKm ?? area.officialTotalKm)}` : status.status === 'unknown' ? 'sin dato vigente' : 'la fuente no publica km abiertos'}
           {closed && openKm === 0 && <span className="muted small"> · 0 km abiertos no significa que no haya nieve</span>}</dd></div>
+        {cost !== undefined && <div><dt>Coste por persona</dt><dd><CostText cost={cost} /></dd></div>}
       </dl>
       {score && (
         <p className="score-line">
@@ -289,6 +348,18 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx }: {
         </div>
       )}
     </li>
+  );
+}
+
+function CostText({ cost }: { cost: AreaCost | null | 'loading' | 'error' }) {
+  if (cost === 'loading') return <>coste pendiente <span className="muted small">· calculando</span></>;
+  if (cost === 'error') return <>coste pendiente <span className="muted small">· no se ha podido calcular</span></>;
+  if (!cost) return <>coste pendiente <span className="muted small">· sin candidaturas del viaje en esta estación</span></>;
+  if (cost.perPersonCents == null) return <>coste pendiente <span className="muted small">· {cost.pending.length ? `falta: ${cost.pending.join(', ').toLowerCase()}` : 'ningún presupuesto completo'}</span></>;
+  const v = cost.via!;
+  return (
+    <><strong>{euros(cost.perPersonCents)}</strong>{' '}
+      <span className="muted small">· de «{v.title}» ({v.package ? 'paquete con forfait' : 'alojamiento + forfait aparte'}){cost.completeCount > 1 ? `, la más barata de ${cost.completeCount} completas` : ''}{v.hypothetical ? ', calculado en esta estación sin cambiar el viaje' : ''}</span></>
   );
 }
 

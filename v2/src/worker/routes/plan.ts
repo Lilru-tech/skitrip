@@ -371,10 +371,11 @@ planRoutes.get('/:id/cost-comparison', async (c) => {
     const areaId = cand.area_id ?? ctx.t.area_id;
     const route = areaId ? routeBy.get(areaId) ?? null : null;
     const b = budgetWith(ctx, cand, route, { areaLabel });
-    return { id: cand.id, title: cand.title, areaId, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, hypothetical: b.hypothetical, budget: b.result };
+    return { id: cand.id, title: cand.title, areaId, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, hypothetical: b.hypothetical, budget: b.result,
+      modality: cand.modality as string | null, forfaitIncluded: cand.forfait_included as string | null };
   });
   return c.json({
-    options: rankCosts(options).map((r) => { const o = options.find((x) => x.id === r.id)!; return { ...r, hypothetical: o.hypothetical, warnings: o.budget.warnings }; }),
+    options: rankCosts(options).map((r) => { const o = options.find((x) => x.id === r.id)!; return { ...r, hypothetical: o.hypothetical, warnings: o.budget.warnings, modality: o.modality, forfaitIncluded: o.forfaitIncluded }; }),
     note: 'Coste completo por persona con transporte, forfait, alquiler y compra del viaje. Un presupuesto incompleto no tiene posición: nunca se muestra como el más barato.',
   });
 });

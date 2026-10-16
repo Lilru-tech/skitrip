@@ -44,5 +44,7 @@ export function scoreRows(rows: readonly ScoreRow[], weights: Weights = DEFAULT_
     const missing = details.filter((d) => d.normalized == null && d.weight > 0).map((d) => d.key);
     const coverage = details.filter((d) => d.normalized != null).reduce((s, d) => s + d.weight, 0);
     return { id: r.id, score: Math.round(details.reduce((s, d) => s + d.points, 0) * 10) / 10, coverage: Math.round(coverage * 100) / 100, details, missing };
-  }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  // Empate de puntos: primero la que tiene más criterios con dato. Así la más cara de las completas (0 puntos de coste
+  // por la normalización) nunca queda detrás de una con el coste pendiente.
+  }).sort((a, b) => b.score - a.score || b.coverage - a.coverage || a.id.localeCompare(b.id));
 }
