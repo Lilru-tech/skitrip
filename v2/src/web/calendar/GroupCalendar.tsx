@@ -3,10 +3,13 @@
 // quien no comparte aparece como «no compartido», sin datos.
 import { useMemo, type ReactNode } from 'react';
 import { dayLongNoYear, dayShort, plural, range as fmtRange, STATUS_LABEL } from '../format';
-import type { CandidateWindow, CommonResponse } from '../types';
+import type { CandidateWindow, CommonResponse, DayStatus } from '../types';
 import { eachDay, selRange, type Selection } from './dates';
 import { MonthGrid } from './MonthGrid';
-import { Legend, StatusSwatch } from './Status';
+import { Legend, StatusSwatch, SYMBOL, type Status } from './Status';
+
+/** Símbolo de cada recuento en la casilla: nunca solo color. */
+const COUNT_SYMBOL = { free: '✓', maybe: '?', busy: '✕', unknown: '·', hidden: '—' } as const;
 
 interface Props {
   data: CommonResponse;
@@ -16,17 +19,24 @@ interface Props {
   selection: Selection | null;
   onSelectionChange: (s: Selection | null) => void;
   idPrefix: string;
+  /** Quien consulta: su propio estado se marca en cada casilla. */
+  meId?: string;
   /** Acciones adicionales para la selección (p. ej. proponer fechas). */
   selectionActions?: (range: [string, string]) => ReactNode;
 }
 
-export function GroupCalendar({ data, alias, from, to, selection, onSelectionChange, idPrefix, selectionActions }: Props) {
+export function GroupCalendar({ data, alias, from, to, selection, onSelectionChange, idPrefix, meId, selectionActions }: Props) {
   const byDay = useMemo(() => new Map(data.daily.map((d) => [d.day, d])), [data]);
   const total = data.people.length;
+
+  const own = meId ? data.people.find((p) => p.id === meId) : undefined;
 
   const cell = (d: string) => {
     const c = byDay.get(d);
     if (!c) return { label: dayLongNoYear(d), className: 'gc', content: <span className="cell-day">{Number(d.slice(8))}</span> };
+    // Tu propio estado se ve siempre (es tuyo: no depende de compartirlo). El resto es un recuento: un «ocupado» de una
+    // persona nunca pinta el día entero como ocupado para todos.
+    const mine: Status | null = own?.days ? (own.days[d] as DayStatus | undefined) ?? 'unknown' : null;
     const parts = [
       `${c.free} ${c.free === 1 ? 'libre' : 'libres'}`,
       c.maybe ? `${c.maybe} quizá` : '',
@@ -35,15 +45,18 @@ export function GroupCalendar({ data, alias, from, to, selection, onSelectionCha
       c.hidden ? `${c.hidden} no compartido${c.hidden === 1 ? '' : 's'}` : '',
     ].filter(Boolean);
     const level = total ? (c.free === total ? 'all' : c.free + c.maybe === total ? 'maybe' : c.free > 0 ? 'some' : 'none') : 'none';
+    const counts: [keyof typeof COUNT_SYMBOL, number][] = (['free', 'maybe', 'busy', 'unknown', 'hidden'] as const).map((k) => [k, c[k]] as [keyof typeof COUNT_SYMBOL, number]).filter(([k, n]) => k === 'free' || n > 0);
     return {
-      label: `${dayLongNoYear(d)}: ${parts.join(', ')}`,
+      label: `${dayLongNoYear(d)}: ${parts.join(', ')}${mine ? `; tú: ${STATUS_LABEL[mine]}` : ''}`,
       className: `gc gc-${level}`,
       content: (
         <>
-          <span className="cell-day">{Number(d.slice(8))}</span>
+          <span className="gc-top">
+            <span className="cell-day">{Number(d.slice(8))}</span>
+            {mine && mine !== 'unknown' && <span className={`gc-mine st-${mine}`} aria-hidden="true" title={`Tú: ${STATUS_LABEL[mine]}`}>{SYMBOL[mine]}</span>}
+          </span>
           <span className="gc-counts" aria-hidden="true">
-            <span className="gc-free">{c.free}✓</span>
-            {(c.maybe > 0 || c.unknown > 0) && <span className="gc-rest">{c.maybe > 0 && `${c.maybe}?`}{c.unknown > 0 && ` ${c.unknown}·`}</span>}
+            {counts.map(([k, n]) => <span key={k} className={`gc-n gc-n-${k}`}>{n}{COUNT_SYMBOL[k]}</span>)}
           </span>
         </>
       ),
@@ -56,7 +69,8 @@ export function GroupCalendar({ data, alias, from, to, selection, onSelectionCha
     <div className="stack">
       <Legend extra={<li><span className="swatch st-hidden" aria-hidden="true">—</span> No compartido</li>} />
       <p className="muted small" id={`${idPrefix}-help`}>
-        Cada día muestra cuántas personas están libres (✓), quizá (?) y sin indicar (·). Selecciona un día o un rango para ver el detalle.
+        Cada día cuenta cuántas personas están libres (✓), quizá (?), ocupadas (✕), sin indicar (·) y sin compartir (—). Es un recuento del grupo:
+        que una persona esté ocupada no marca el día como ocupado para todas.{own?.days ? ' La marca de la esquina es tu propio estado.' : ''} Selecciona un día o un rango para ver el detalle por persona.
       </p>
       <MonthGrid idPrefix={idPrefix} from={from} to={to} cell={cell} selection={selection} onSelectionChange={onSelectionChange} describedBy={`${idPrefix}-help`} />
       {sel && <SelectionDetail data={data} alias={alias} range={sel} onClear={() => onSelectionChange(null)} actions={selectionActions?.(sel)} />}

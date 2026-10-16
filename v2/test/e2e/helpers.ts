@@ -79,8 +79,14 @@ export function seasonStartYear(): number {
 }
 
 export async function expectNoHorizontalOverflow(page: Page, label: string) {
-  const r = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
-  expect(r.sw, `desbordamiento horizontal en ${label}: ${r.sw} > ${r.iw}`).toBeLessThanOrEqual(r.iw);
+  const r = await page.evaluate(() => {
+    const iw = window.innerWidth;
+    // Para el mensaje de error: los elementos más profundos que sobresalen por la derecha.
+    const culprits = [...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > iw + 0.5 && ![...el.children].some((ch) => ch.getBoundingClientRect().right > iw + 0.5))
+      .slice(0, 5).map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
+    return { sw: document.documentElement.scrollWidth, iw, culprits };
+  });
+  expect(r.sw, `desbordamiento horizontal en ${label}: ${r.sw} > ${r.iw} (${r.culprits.join(', ')})`).toBeLessThanOrEqual(r.iw);
 }
 
 export async function waitToast(page: Page, text: string | RegExp) {

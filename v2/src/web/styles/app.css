@@ -113,7 +113,7 @@
 .chip:has(input:focus-visible) { box-shadow: var(--focus); }
 .chip input:focus-visible { box-shadow: none; }
 .weekday-picker, .people-picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.weekday-picker legend, .people-picker legend { width: 100%; }
+.weekday-picker legend:not(.visually-hidden), .people-picker legend:not(.visually-hidden) { width: 100%; }
 .input-with-btn { display: flex; gap: var(--space-2); }
 .input-with-btn input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 0.85rem; }
 .link-box { padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius); }
@@ -206,9 +206,15 @@
 .gc-all { background: var(--st-free-bg); color: var(--st-free-fg); border-color: transparent; }
 .gc-maybe { background: linear-gradient(to top, var(--st-maybe-bg) 45%, var(--st-free-bg) 45%); color: var(--st-free-fg); border-color: transparent; }
 .gc-some { background: color-mix(in srgb, var(--st-free-bg) 45%, var(--surface)); }
-.gc-counts { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; font-variant-numeric: tabular-nums; }
-.gc-free { font-weight: 750; font-size: 0.82rem; }
-.gc-rest { font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
+.gc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 2px; min-width: 0; }
+.gc-mine { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 4px; font-size: 0.62rem; font-weight: 800; line-height: 1; flex: none;
+  box-shadow: 0 0 0 1.5px currentColor; }
+.gc-counts { display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 3px; row-gap: 0; line-height: 1.05; font-variant-numeric: tabular-nums; min-width: 0; }
+.gc-n { font-size: 0.66rem; white-space: nowrap; color: var(--text-muted); }
+.gc-n-free { font-weight: 750; font-size: 0.74rem; color: inherit; }
+.gc-n-busy { font-weight: 750; color: var(--st-busy-fg); }
+.gc-n-maybe { color: var(--st-maybe-fg); font-weight: 650; }
+@media (max-width: 400px) { .gc-n { font-size: 0.6rem; } .gc-n-free { font-size: 0.68rem; } .gc-counts { line-height: 1; } }
 
 .action-bar {
   position: sticky; bottom: calc(var(--bottom-nav-h) + var(--space-2)); z-index: 15; background: var(--surface); border: 1px solid var(--border-strong);
