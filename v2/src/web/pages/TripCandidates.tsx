@@ -43,7 +43,7 @@ export function TripCandidatesPage({ tripId }: { tripId: string }) {
 
 const emptyForm = { title: '', modality: 'lodging', url: '', amount: '', unit: 'per_person', priceKind: 'user_quote', areaId: '', checkIn: '', checkOut: '',
   adults: '', children: '', rooms: '', forfaitIncluded: 'no', forfaitDays: '', conditions: '', pendingNotes: '',
-  ownForfait: '', ownRental: '', ownTolls: '', ownParking: '', costsNote: '' };
+  ownForfait: '', ownRental: '', ownTolls: '', ownParking: '', ownRailway: '', railwayIncluded: 'unknown', costsNote: '' };
 type CandForm = typeof emptyForm;
 
 /** Formulario precargado con las condiciones del viaje (se corrigen si la cotización es para otras). */
@@ -183,7 +183,7 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
       setFormErr('Una cotización es para unas fechas concretas: indica la entrada y la salida para las que te la dieron, o márcala como estimación manual.');
       return;
     }
-    const own = { forfait: parseEuros(form.ownForfait), rental: parseEuros(form.ownRental), tolls: parseEuros(form.ownTolls), parking: parseEuros(form.ownParking) };
+    const own = { forfait: parseEuros(form.ownForfait), rental: parseEuros(form.ownRental), tolls: parseEuros(form.ownTolls), parking: parseEuros(form.ownParking), railway: parseEuros(form.ownRailway) };
     if (Object.values(own).some((v) => Number.isNaN(v))) { setFormErr('Costes propios: importe no válido.'); return; }
     setBusy('create'); setFormErr(null);
     try {
@@ -193,7 +193,7 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
         priceKind: amount != null ? form.priceKind : null, areaId: form.areaId || null, checkIn: form.checkIn || null, checkOut: form.checkOut || null,
         adults: n(form.adults), childrenAges: kids, rooms: n(form.rooms), forfaitIncluded: form.forfaitIncluded,
         forfaitDays: form.forfaitIncluded === 'yes' ? n(form.forfaitDays) : null, conditions: form.conditions || null, pendingNotes: form.pendingNotes || null,
-        forfaitCentsPerDay: own.forfait, rentalCentsPerDay: own.rental, tollsCentsPerCar: own.tolls, parkingCentsPerCar: own.parking, costsNote: form.costsNote.trim() || null,
+        forfaitCentsPerDay: own.forfait, rentalCentsPerDay: own.rental, tollsCentsPerCar: own.tolls, parkingCentsPerCar: own.parking, railwayCentsPerPerson: own.railway, railwayIncluded: form.railwayIncluded, costsNote: form.costsNote.trim() || null,
       });
       toast.show(amount == null ? 'Candidatura añadida.' : form.priceKind === 'manual_estimate' ? 'Estimación manual añadida.' : 'Cotización añadida.');
       onSaved();
@@ -250,6 +250,11 @@ export function CandidateDialog({ tripId, initial, onClose, onSaved, title = 'Nu
             <Field label="Alquiler por día y persona (€)" inputMode="decimal" value={form.ownRental} onChange={(e) => setForm({ ...form, ownRental: e.target.value })} />
             <Field label="Peajes por coche, ida y vuelta (€)" inputMode="decimal" value={form.ownTolls} onChange={(e) => setForm({ ...form, ownTolls: e.target.value })} />
             <Field label="Parking por coche, estancia (€)" inputMode="decimal" value={form.ownParking} onChange={(e) => setForm({ ...form, ownParking: e.target.value })} />
+            <SelectField label="¿El forfait o paquete de esta opción incluye el cremallera?" value={form.railwayIncluded} onChange={(e) => setForm({ ...form, railwayIncluded: e.target.value })}
+              hint="Solo estaciones sin acceso en coche (Vall de Núria). Si no consta, el cremallera queda pendiente.">
+              <option value="unknown">No consta</option><option value="yes">Sí, confirmado</option><option value="no">No</option>
+            </SelectField>
+            <Field label="Cremallera por persona, toda la estancia (€)" inputMode="decimal" value={form.ownRailway} onChange={(e) => setForm({ ...form, ownRailway: e.target.value })} />
             <Field className="span-2" label="Nota de los costes" maxLength={300} value={form.costsNote} onChange={(e) => setForm({ ...form, costsNote: e.target.value })} />
           </fieldset>
         </form>

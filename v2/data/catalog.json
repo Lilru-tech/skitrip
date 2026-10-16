@@ -296,14 +296,14 @@
    "kind": "domain",
    "country": "ES",
    "region": "Aragón",
-   "lat": 42.744164,
-   "lon": 0.055364,
+   "lat": 42.774806,
+   "lon": -0.372752,
    "official_total_km": 143,
    "total_km_source": "catálogo legacy (sin verificar)",
    "vibe_score": 8,
    "apres_score": 10,
    "official_url": null,
-   "notes": "Dominio conjunto (forfait común). Las cifras legacy son del conjunto.",
+   "notes": "Dominio conjunto (forfait común). Las cifras legacy son del conjunto. Coordenadas: aparcamiento de Formigal-Sextas (skiresort.com, acceso en coche); el punto anterior (42.744, 0.055) estaba a unos 30 km, en el valle de Tena oriental, y alargaba las rutas.",
    "legacy_id": "formigal-panticosa"
   },
   {
@@ -538,12 +538,12 @@
   {
    "origin": "tarragona",
    "area": "formigal-panticosa",
-   "access_name": "(punto de la estación en el catálogo)",
-   "road_km": 370,
-   "duration_min": 334,
+   "access_name": "(Formigal, aparcamiento de Sextas; punto de una sola fuente)",
+   "road_km": 292,
+   "duration_min": 223,
    "source": "OSRM (OpenStreetMap), router.project-osrm.org",
-   "checked_on": "2026-10-01",
-   "notes": "El punto del dominio queda entre Formigal y Panticosa; OSRM lo ajustó a una carretera a 2,9 km, del lado de Formigal."
+   "checked_on": "2026-10-16",
+   "notes": "Ruta hasta el aparcamiento de Formigal-Sextas (punto de una sola fuente: skiresort.com). Panticosa queda unos 15 km antes, por la misma carretera. Sustituye a la ruta del 01/10/2026, calculada hacia un punto del catálogo erróneo a unos 30 km."
   },
   {
    "origin": "tarragona",
@@ -711,12 +711,12 @@
   {
    "origin": "sabadell",
    "area": "formigal-panticosa",
-   "access_name": "(punto de la estación en el catálogo)",
-   "road_km": 416,
-   "duration_min": 361,
+   "access_name": "(Formigal, aparcamiento de Sextas; punto de una sola fuente)",
+   "road_km": 338,
+   "duration_min": 250,
    "source": "OSRM (OpenStreetMap), router.project-osrm.org",
-   "checked_on": "2026-10-01",
-   "notes": "El punto del dominio queda entre Formigal y Panticosa; OSRM lo ajustó a una carretera a 2,9 km, del lado de Formigal."
+   "checked_on": "2026-10-16",
+   "notes": "Ruta hasta el aparcamiento de Formigal-Sextas (punto de una sola fuente: skiresort.com). Panticosa queda unos 15 km antes, por la misma carretera. Sustituye a la ruta del 01/10/2026, calculada hacia un punto del catálogo erróneo a unos 30 km."
   },
   {
    "origin": "sabadell",

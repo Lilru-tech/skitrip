@@ -181,7 +181,9 @@ describe('coste del viaje desde otra salida', () => {
     const tripId = t.json.trip.id;
     const cond = { modality: 'lodging', amountCents: 40000, forfaitIncluded: 'no', unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1 };
     // Precio de forfait propio en cada candidatura para que el único dato que distinga los destinos sea el peaje.
-    for (const areaId of AREAS) await api(u.token, 'POST', `/api/trips/${tripId}/candidates`, { title: `Hotel ${areaId}`, areaId, forfaitCentsPerDay: 4000, rentalCentsPerDay: 0, parkingCentsPerCar: 0, ...cond });
+    // g-nuria no tiene acceso en coche: su candidatura indica también el precio del cremallera (si no, quedaría pendiente).
+    for (const areaId of AREAS) await api(u.token, 'POST', `/api/trips/${tripId}/candidates`, { title: `Hotel ${areaId}`, areaId, forfaitCentsPerDay: 4000, rentalCentsPerDay: 0, parkingCentsPerCar: 0,
+      ...(areaId === 'g-nuria' ? { railwayCentsPerPerson: 3100 } : {}), ...cond });
     const b0 = await api(u.token, 'GET', `/api/trips/${tripId}/budget`);
     await api(u.token, 'PUT', `/api/trips/${tripId}/budget`, { version: b0.json.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0,
       fuelCentsPerLitre: 160, litresPer100kmX10: 60, tollsCentsPerCar: 2000, parkingCentsPerCar: 0 });
@@ -207,5 +209,35 @@ describe('coste del viaje desde otra salida', () => {
     const z = Object.fromEntries(zero.json.options.map((o: any) => [o.areaId, o]));
     expect(z['g-nuria'].perPersonCents).not.toBeNull();
     expect(z['g-uno'].perPersonCents).toBeNull();
+  });
+
+  it('cremallera: sin precio ni constancia de que el paquete lo incluya, la opción queda pendiente; incluido, no se suma dos veces', async () => {
+    const u = await signup();
+    const start = '2027-02-19', end = '2027-02-21';
+    const t = await api(u.token, 'POST', '/api/trips', { name: 'Núria', startDate: start, endDate: end, nights: 2, participantsPlanned: 2, skiDays: 2, rooms: 1, areaId: 'g-nuria', cars: 1 });
+    const tripId = t.json.trip.id;
+    const cond = { amountCents: 40000, unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1, areaId: 'g-nuria' };
+    const hotel = (await api(u.token, 'POST', `/api/trips/${tripId}/candidates`, { title: 'Hotel', modality: 'lodging', forfaitIncluded: 'no', ...cond })).json.id;
+    const pack = (await api(u.token, 'POST', `/api/trips/${tripId}/candidates`, { title: 'Paquete', modality: 'lodging_forfait', forfaitIncluded: 'yes', forfaitDays: 2, railwayIncluded: 'yes', ...cond })).json.id;
+    const b0 = await api(u.token, 'GET', `/api/trips/${tripId}/budget`);
+    await api(u.token, 'PUT', `/api/trips/${tripId}/budget`, { version: b0.json.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0,
+      fuelCentsPerLitre: 160, litresPer100kmX10: 60, tollsCentsPerCar: 0, parkingCentsPerCar: 0 });
+    const opts = async () => Object.fromEntries((await api(u.token, 'GET', `/api/trips/${tripId}/cost-comparison`)).json.options.map((o: any) => [o.id, o]));
+    let by = await opts();
+    expect(by[hotel].perPersonCents).toBeNull();
+    expect(JSON.stringify(by[hotel])).toMatch(/cremallera/i);
+    // El paquete dice que su forfait incluye el cremallera y esquían los dos: completo, sin sumarlo.
+    expect(by[pack].perPersonCents).not.toBeNull();
+    // El presupuesto elegido (sin candidatura) también lo deja pendiente.
+    const bud = await api(u.token, 'GET', `/api/trips/${tripId}/budget`);
+    expect(bud.json.result.components.find((c: any) => c.key === 'railway')).toMatchObject({ status: 'pending' });
+    expect(bud.json.result.complete).toBe(false);
+    // Con el precio del cremallera para el viaje: el hotel suma 2 × 31 € y el paquete sigue sin sumarlo.
+    const b1 = await api(u.token, 'GET', `/api/trips/${tripId}/budget`);
+    expect((await api(u.token, 'PUT', `/api/trips/${tripId}/budget`, { version: b1.json.params.version, railwayCentsPerPerson: 3100 })).status).toBe(200);
+    const before = by;
+    by = await opts();
+    expect(by[hotel].perPersonCents).not.toBeNull();
+    expect(by[pack].perPersonCents).toBe(before[pack].perPersonCents);
   });
 });
