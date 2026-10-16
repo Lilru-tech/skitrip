@@ -154,19 +154,54 @@ describe('coste del viaje desde otra salida', () => {
     const sab = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { originId: 'sabadell' });
     expect(sab.status).toBe(200);
     expect(sab.json.options[0]).toMatchObject({ roadKm: 150, perPersonCents: null });
-    expect(sab.json.transport).toMatchObject({ originId: 'sabadell', tolls: 'pending' });
+    expect(sab.json.transport).toMatchObject({ originId: 'sabadell', tolls: 'per_route', tollAreas: [{ areaId: 'g-uno', given: false }] });
     expect(JSON.stringify(sab.json.options[0].missing ?? sab.json.options[0])).toMatch(/peaje/i);
 
     // Origen personalizado con peajes indicados: completo y con sus km.
-    const per = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { roads: { 'g-uno': 120 }, tollsCentsPerCar: 0 });
+    const per = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { roads: { 'g-uno': 120 }, tollsByArea: { 'g-uno': 0 } });
     expect(per.json.options[0]).toMatchObject({ roadKm: 120 });
     expect(per.json.options[0].perPersonCents).not.toBeNull();
     expect(per.json.options[0].perPersonCents).toBeLessThan(base.json.options[0].perPersonCents);
-    expect(per.json.transport).toMatchObject({ originId: 'personal', tolls: 'given' });
+    expect(per.json.transport).toMatchObject({ originId: 'personal', tolls: 'per_route', tollAreas: [{ areaId: 'g-uno', given: true }] });
 
     // Misma salida que el viaje: idéntico a la consulta normal.
     const same = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { originId: 'tarragona' });
     expect(same.json.options[0].perPersonCents).toBe(base.json.options[0].perPersonCents);
     expect((await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { originId: 'sabadell', roads: {} })).status).toBe(422);
+  });
+
+  it('peajes por recorrido: cada estación con los suyos y la que no tiene dato, pendiente', async () => {
+    const u = await signup();
+    const start = '2027-02-12', end = '2027-02-14';
+    const t = await api(u.token, 'POST', '/api/trips', { name: 'Peajes', startDate: start, endDate: end, nights: 2, participantsPlanned: 2, skiDays: 2, rooms: 1, areaId: 'g-uno', cars: 1 });
+    const tripId = t.json.trip.id;
+    const cond = { modality: 'lodging', amountCents: 40000, forfaitIncluded: 'no', unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1 };
+    // Precio de forfait propio en cada candidatura para que el único dato que distinga los destinos sea el peaje.
+    for (const areaId of AREAS) await api(u.token, 'POST', `/api/trips/${tripId}/candidates`, { title: `Hotel ${areaId}`, areaId, forfaitCentsPerDay: 4000, rentalCentsPerDay: 0, parkingCentsPerCar: 0, ...cond });
+    const b0 = await api(u.token, 'GET', `/api/trips/${tripId}/budget`);
+    await api(u.token, 'PUT', `/api/trips/${tripId}/budget`, { version: b0.json.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0,
+      fuelCentsPerLitre: 160, litresPer100kmX10: 60, tollsCentsPerCar: 2000, parkingCentsPerCar: 0 });
+
+    const roads = { 'g-uno': 100, 'g-dos': 100, 'g-nuria': 100 };
+    const r = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { roads, tollsByArea: { 'g-uno': 1000, 'g-dos': 3000 } });
+    expect(r.status).toBe(200);
+    const by = Object.fromEntries(r.json.options.map((o: any) => [o.areaId, o]));
+    // Mismos km y mismo hotel: la diferencia por persona es exactamente la de los peajes (2.000 céntimos / 2 personas).
+    expect(by['g-uno'].perPersonCents).not.toBeNull();
+    expect(by['g-dos'].perPersonCents - by['g-uno'].perPersonCents).toBe(1000);
+    // Sin peajes indicados para esta estación: pendiente, sin tomar los de otra ni los del viaje.
+    expect(by['g-nuria'].perPersonCents).toBeNull();
+    expect(JSON.stringify(by['g-nuria'].missing ?? by['g-nuria'])).toMatch(/peaje/i);
+    expect(r.json.transport.tollAreas).toEqual(expect.arrayContaining([
+      expect.objectContaining({ areaId: 'g-uno', given: true }), expect.objectContaining({ areaId: 'g-dos', given: true }), expect.objectContaining({ areaId: 'g-nuria', given: false }),
+    ]));
+    // Otra salida sin peajes: ninguno se traslada de la consulta anterior.
+    const sab = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { originId: 'sabadell' });
+    expect(sab.json.options.every((o: any) => o.perPersonCents == null)).toBe(true);
+    // Un peaje de 0 € es un dato (no hay peajes), distinto de «sin dato».
+    const zero = await api(u.token, 'POST', `/api/trips/${tripId}/cost-comparison`, { roads, tollsByArea: { 'g-nuria': 0 } });
+    const z = Object.fromEntries(zero.json.options.map((o: any) => [o.areaId, o]));
+    expect(z['g-nuria'].perPersonCents).not.toBeNull();
+    expect(z['g-uno'].perPersonCents).toBeNull();
   });
 });

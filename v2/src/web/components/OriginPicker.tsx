@@ -52,7 +52,7 @@ export function OriginPicker({ origin }: { origin: CustomOrigin | null }) {
     try {
       const r = await post<{ routes: CustomRoute[]; checkedOn: string; attribution: string }>('/api/geo/routes', { lat: chosen.lat, lon: chosen.lon });
       setCustomOrigin({ label: chosen.label, lat: chosen.lat, lon: chosen.lon, routes: r.routes, checkedOn: r.checkedOn, attribution: r.attribution,
-        tollsCentsPerCar: origin && origin.lat === chosen.lat && origin.lon === chosen.lon ? origin.tollsCentsPerCar : null, remembered: remember });
+        tollsByArea: origin && origin.lat === chosen.lat && origin.lon === chosen.lon ? origin.tollsByArea : {}, remembered: remember });
       setEditing(false); setPlaces(null); setShowMap(false);
     } catch (e) { fail(e); } finally { setBusy(null); void status.reload(); }
   }

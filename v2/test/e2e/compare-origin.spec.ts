@@ -117,7 +117,7 @@ test('errores y límites del proveedor: se explican y se ofrecen los orígenes f
   await expect(card(page, 'Dominio Alfa')).toContainText('150 km');
 });
 
-test('coste del viaje desde otra salida: peajes pendientes hasta indicarlos', async ({ page, request }) => {
+test('coste del viaje desde otra salida: peajes del recorrido pendientes hasta indicarlos', async ({ page, request }) => {
   const token = await loggedIn(page, request);
   const future = (d: number) => new Date(Date.now() + d * 86400_000).toISOString().slice(0, 10);
   const start = future(50), end = future(52);
@@ -136,10 +136,80 @@ test('coste del viaje desde otra salida: peajes pendientes hasta indicarlos', as
   await page.getByRole('button', { name: 'Calcular distancias desde aquí' }).click();
   const ctx = page.getByRole('status', { name: 'Coste del viaje' });
   await expect(ctx).toContainText('Transporte desde Reus, Baix Camp, Tarragona, España, no desde la salida del viaje');
-  await expect(ctx).toContainText('quedan pendientes hasta que los indiques');
+  await expect(ctx).toContainText('Los que no indiques quedan pendientes');
   await expect(card(page, 'Dominio Alfa')).toContainText('coste pendiente · falta: peajes');
-  await ctx.getByLabel('Peajes por coche, ida y vuelta (€)').fill('0');
-  await ctx.getByRole('button', { name: 'Aplicar' }).click();
-  await expect(ctx).toContainText('se usan los que has indicado');
+  await ctx.getByLabel(/Peajes por coche hasta Dominio Alfa/).fill('0');
+  await ctx.getByRole('button', { name: 'Aplicar peajes' }).click();
+  await expect(ctx).toContainText('Peajes indicados en todos los recorridos.');
   await expect(card(page, 'Dominio Alfa')).toContainText(/\d+,\d\d\s€ · de «Hotel en Alfa»/);
+});
+
+test('peajes por recorrido: cada destino los suyos, sin dato pendiente y sin trasladarse a otra salida', async ({ page, request }, info) => {
+  const token = await loggedIn(page, request);
+  const future = (d: number) => new Date(Date.now() + d * 86400_000).toISOString().slice(0, 10);
+  const start = future(70), end = future(72);
+  const { trip } = await apiAs(request, token, 'POST', '/api/trips', { name: 'Peajes por recorrido', startDate: start, endDate: end, nights: 2, participantsPlanned: 2, skiDays: 2, rooms: 1, areaId: 'e2e-dominio', cars: 1 });
+  const cond = { modality: 'lodging', amountCents: 40000, forfaitIncluded: 'no', unit: 'per_stay', priceKind: 'user_quote', checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1 };
+  await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title: 'Hotel en Alfa', areaId: 'e2e-dominio', ...cond });
+  for (const [title, areaId] of [['Hotel en Beta', 'e2e-beta'], ['Hotel en Épsilon', 'e2e-cerrada']]) {
+    await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, { title, areaId, forfaitCentsPerDay: 4000, rentalCentsPerDay: 0, parkingCentsPerCar: 0, ...cond });
+  }
+  const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
+  await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, skiers: 2, renters: 0, forfaitCentsPerDay: 4000, groceriesCents: 0,
+    fuelCentsPerLitre: 150, litresPer100kmX10: 60, tollsCentsPerCar: 3000, parkingCentsPerCar: 0 });
+  const bodies: any[] = [];
+  page.on('request', (r) => { if (r.url().endsWith('/cost-comparison') && r.method() === 'POST') bodies.push(r.postDataJSON()); });
+
+  await page.goto(`/#/comparar?viaje=${trip.id}`);
+  const ctx = page.getByRole('status', { name: 'Coste del viaje' });
+  // Salida del viaje: sus peajes; no se piden por recorrido.
+  await expect(card(page, 'Dominio Alfa')).toContainText(/\d+,\d\d\s€ · de «Hotel en Alfa»/);
+  await expect(ctx.getByRole('form', { name: 'Peajes por recorrido' })).toHaveCount(0);
+
+  await page.getByLabel('Salida desde').selectOption('personal');
+  await page.getByLabel('Dirección o municipio de salida').fill('Reus');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  await page.getByRole('button', { name: 'Calcular distancias desde aquí' }).click();
+  const tolls = ctx.getByRole('form', { name: 'Peajes por recorrido' });
+  const alfa = tolls.getByLabel(/hasta Dominio Alfa/), beta = tolls.getByLabel(/hasta Beta/), eps = tolls.getByLabel(/hasta Épsilon/);
+  await expect(alfa).toHaveValue('');
+  await expect(tolls).toContainText('Peajes indicados en 0 de 3 recorridos.');
+  await alfa.fill('10');
+  await beta.fill('30');
+  await tolls.getByRole('button', { name: 'Aplicar peajes' }).click();
+  await expect(tolls).toContainText('Peajes indicados en 2 de 3 recorridos.');
+  // Cada recorrido con los suyos; el que no tiene dato queda pendiente (no toma los de otra estación ni los del viaje).
+  await expect.poll(() => bodies.at(-1)?.tollsByArea).toEqual({ 'e2e-beta': 3000, 'e2e-dominio': 1000 });
+  await expect(card(page, 'Dominio Alfa')).toContainText(/\d+,\d\d\s€ · de «Hotel en Alfa»/);
+  await expect(card(page, 'Beta')).toContainText(/\d+,\d\d\s€ · de «Hotel en Beta»/);
+  await expect(card(page, 'Épsilon')).toContainText('coste pendiente · falta: peajes');
+  await expect(eps).toHaveValue('');
+  await expectNoHorizontalOverflow(page, `peajes por recorrido (${info.project.name})`);
+
+  // Otra salida: los importes de Reus no se trasladan; los campos muestran los de Sabadell (ninguno aún).
+  await page.getByLabel('Salida desde').selectOption('sabadell');
+  await expect(tolls.getByLabel(/hasta Dominio Alfa/)).toHaveValue('');
+  await expect(tolls.getByLabel(/hasta Beta/)).toHaveValue('');
+  await expect(tolls).toContainText('Peajes indicados en 0 de 3 recorridos.');
+  await expect(card(page, 'Dominio Alfa')).toContainText('falta: peajes');
+  await expect.poll(() => bodies.at(-1)).toEqual({ originId: 'sabadell', tollsByArea: {} });
+  await tolls.getByLabel(/hasta Dominio Alfa/).fill('12');
+  await tolls.getByRole('button', { name: 'Aplicar peajes' }).click();
+  await expect(card(page, 'Dominio Alfa')).toContainText(/\d+,\d\d\s€ · de «Hotel en Alfa»/);
+
+  // Volver a cada salida muestra sus propios importes en el campo visible.
+  await page.getByLabel('Salida desde').selectOption('personal');
+  await expect(tolls.getByLabel(/hasta Dominio Alfa/)).toHaveValue(/^10/);
+  await expect(tolls.getByLabel(/hasta Beta/)).toHaveValue(/^30/);
+  await page.getByLabel('Salida desde').selectOption('sabadell');
+  await expect(tolls.getByLabel(/hasta Dominio Alfa/)).toHaveValue(/^12/);
+  await expect(tolls.getByLabel(/hasta Beta/)).toHaveValue('');
+  // Un punto nuevo del origen personalizado empieza sin peajes.
+  await page.getByLabel('Salida desde').selectOption('personal');
+  await page.getByRole('button', { name: 'Cambiar origen' }).click();
+  await page.getByLabel('Dirección o municipio de salida').fill('Tarragona');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  await page.getByRole('button', { name: 'Calcular distancias desde aquí' }).click();
+  await expect(tolls.getByLabel(/hasta Dominio Alfa/)).toHaveValue('');
+  await expect(card(page, 'Dominio Alfa')).toContainText('falta: peajes');
 });

@@ -362,19 +362,20 @@ planRoutes.get('/:id/cost-comparison', async (c) => c.json(await costComparison(
 /**
  * La misma comparación con el transporte desde otra salida: un origen fijo (`originId`) o el origen personalizado
  * (`roads`: km por carretera por estación, calculados en el navegador con /api/geo/routes). Los peajes guardados
- * corresponden a la salida del viaje: desde otra salida no se dan por buenos y quedan pendientes salvo que se indiquen
- * (`tollsCentsPerCar`). No modifica el viaje ni guarda la salida.
+ * corresponden a la salida del viaje: desde otra salida no se dan por buenos. Se indican por recorrido
+ * (`tollsByArea`: estación de destino → peajes por coche desde esta salida); la estación sin dato queda con los peajes
+ * pendientes y nunca toma los de otra. No modifica el viaje ni guarda la salida.
  */
 planRoutes.post('/:id/cost-comparison', async (c) => {
   const b = await parseBody(c, z.object({
     originId: zId.optional(),
     roads: z.record(zId, z.number().positive().max(5000).nullable()).refine((r) => Object.keys(r).length <= 60, 'demasiadas estaciones').optional(),
-    tollsCentsPerCar: zCents.nullable().optional(),
+    tollsByArea: z.record(zId, zCents.nullable()).refine((r) => Object.keys(r).length <= 60, 'demasiadas estaciones').optional(),
   }).refine((x) => !(x.originId && x.roads), 'originId o roads, no ambos'));
   return c.json(await costComparison(c.env.DB, c.req.param('id'), c.get('user').id, b));
 });
 
-type TransportOverride = { originId?: string; roads?: Record<string, number | null>; tollsCentsPerCar?: number | null };
+type TransportOverride = { originId?: string; roads?: Record<string, number | null>; tollsByArea?: Record<string, number | null> };
 async function costComparison(db: D1Database, tripId: string, me: string, over?: TransportOverride) {
   await requireTripMember(db, tripId, me);
   const ctx = await budgetContext(db, tripId);
@@ -395,18 +396,23 @@ async function costComparison(db: D1Database, tripId: string, me: string, over?:
     : routes.map((r) => [r.area_id, r]));
   const nameBy = new Map(names.map((a) => [a.id, a.name]));
   const areaLabel = (id: string) => nameBy.get(id) ?? id;
-  const tolls = otherOrigin ? { cents: over?.tollsCentsPerCar ?? null } : undefined;
+  // Peajes de cada recorrido (esta salida → estación de la candidatura): solo los indicados para esa estación.
+  const tollsFor = (areaId: string | null) => (otherOrigin ? { cents: areaId ? over?.tollsByArea?.[areaId] ?? null : null } : undefined);
   const options = cands.map((cand) => {
     // Cada candidatura se calcula en su propio destino (hipótesis) sin tocar el viaje; su ruta es la de su estación.
     const areaId = cand.area_id ?? ctx.t.area_id;
     const route = areaId ? routeBy.get(areaId) ?? null : null;
-    const b = budgetWith(ctx, cand, route, { areaLabel, tolls });
+    const b = budgetWith(ctx, cand, route, { areaLabel, tolls: tollsFor(areaId) });
     return { id: cand.id, title: cand.title, areaId, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, hypothetical: b.hypothetical, budget: b.result,
       modality: cand.modality as string | null, forfaitIncluded: cand.forfait_included as string | null };
   });
   return {
     options: rankCosts(options).map((r) => { const o = options.find((x) => x.id === r.id)!; return { ...r, hypothetical: o.hypothetical, warnings: o.budget.warnings, modality: o.modality, forfaitIncluded: o.forfaitIncluded }; }),
-    transport: { originId: over?.roads ? 'personal' : originId, tripOriginId: tripOrigin, tolls: !otherOrigin ? 'trip' : over?.tollsCentsPerCar != null ? 'given' : 'pending' },
+    transport: {
+      originId: over?.roads ? 'personal' : originId, tripOriginId: tripOrigin, tolls: otherOrigin ? 'per_route' : 'trip',
+      /** Estaciones de las candidaturas y si sus peajes desde esta salida están indicados (solo desde otra salida). */
+      tollAreas: otherOrigin ? [...new Set(options.map((o) => o.areaId).filter(Boolean) as string[])].map((id) => ({ areaId: id, name: areaLabel(id), given: over?.tollsByArea?.[id] != null })) : [],
+    },
     note: 'Coste completo por persona con transporte, forfait, alquiler y compra del viaje. Un presupuesto incompleto no tiene posición: nunca se muestra como el más barato.',
   };
 }

@@ -2,7 +2,7 @@
 // actualidad del dato, dominios con sus estaciones miembro (sin contar dos veces) y puntuación con pesos editables.
 // Dos contextos: «Esquiar ahora» (solo recomienda estaciones con apertura confirmada) y «Planificar un viaje» (compara
 // todas; el estado de hoy no predice las fechas del viaje).
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { get, post } from '../api';
 import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
 import { ErrorState, Loading, Empty } from '../components/States';
@@ -57,25 +57,37 @@ export function ComparePage() {
   const trips = useResource(() => get<{ trips: Trip[] }>('/api/trips').catch(() => ({ trips: [] as Trip[] })), []);
   const trip = trips.data?.trips.find((t) => t.id === tripId) ?? null;
   // Transporte del coste desde la salida elegida arriba. Desde una salida distinta de la del viaje, los peajes guardados
-  // no valen: quedan pendientes salvo que se indiquen aquí para esa salida.
+  // no valen: se indican por recorrido (esta salida → cada estación) y el que falta queda pendiente. Los de una salida
+  // no pasan a otra: van con la salida (y, en el origen personalizado, con su punto).
   const tripOrigin = trip?.originId ?? 'tarragona';
   const otherOrigin = !!trip && origin !== tripOrigin;
-  const [fixedTolls, setFixedTolls] = useState<Record<string, number | null>>({});
-  const tolls = origin === 'personal' ? custom?.tollsCentsPerCar ?? null : fixedTolls[origin] ?? null;
-  const setTolls = (v: number | null) => (origin === 'personal' ? custom && setCustomOrigin({ ...custom, tollsCentsPerCar: v }) : setFixedTolls((t) => ({ ...t, [origin]: v })));
+  const originKey = origin === 'personal' ? (custom ? `personal:${custom.lat},${custom.lon}` : 'personal') : origin;
+  const [fixedTolls, setFixedTolls] = useState<Record<string, Record<string, number | null>>>({});
+  const tollsByArea = useMemo(() => (origin === 'personal' ? custom?.tollsByArea ?? {} : fixedTolls[origin] ?? {}), [origin, custom, fixedTolls]);
+  const setAreaTolls = (areaId: string, v: number | null) => (origin === 'personal'
+    ? custom && setCustomOrigin({ ...custom, tollsByArea: { ...custom.tollsByArea, [areaId]: v } })
+    : setFixedTolls((t) => ({ ...t, [origin]: { ...t[origin], [areaId]: v } })));
+  const givenTolls = Object.fromEntries(Object.entries(tollsByArea).filter(([, v]) => v != null).sort(([a], [b]) => a.localeCompare(b)));
   const roadsKey = customRoutes ? `${custom!.lat},${custom!.lon},${custom!.checkedOn}` : '';
   // Los costes van ligados a la selección que los pidió (viaje, versión, salida, rutas y peajes): al cambiarla no se
   // reutilizan los anteriores; hasta que llegue la respuesta nueva (o si falla) el coste queda pendiente.
-  const costKey = !trip || (origin === 'personal' && !customRoutes) ? null : JSON.stringify([trip.id, trip.version, origin, roadsKey, tolls]);
+  const costKey = !trip || (origin === 'personal' && !customRoutes) ? null : JSON.stringify([trip.id, trip.version, origin, roadsKey, otherOrigin ? givenTolls : null]);
   const costs = useKeyedResource(costKey, () => {
     if (!trip) return Promise.resolve(null);
     const path = `/api/trips/${trip.id}/cost-comparison`;
     if (origin === 'personal') {
       if (!custom || !customRoutes) return Promise.resolve(null);
-      return post<{ options: CostByAreaInput[] }>(path, { roads: Object.fromEntries(custom.routes.map((r) => [r.areaId, r.roadKm])), tollsCentsPerCar: tolls });
+      return post<CostResponse>(path, { roads: Object.fromEntries(custom.routes.map((r) => [r.areaId, r.roadKm])), tollsByArea: givenTolls });
     }
-    return otherOrigin ? post<{ options: CostByAreaInput[] }>(path, { originId: origin, tollsCentsPerCar: tolls }) : get<{ options: CostByAreaInput[] }>(path);
+    return otherOrigin ? post<CostResponse>(path, { originId: origin, tollsByArea: givenTolls }) : get<CostResponse>(path);
   });
+  // Estaciones de las candidaturas del viaje (para pedir sus peajes): se conservan mientras se recalcula, por viaje.
+  const [tollAreasBy, setTollAreasBy] = useState<Record<string, TollArea[]>>({});
+  const freshTollAreas = costs.data?.transport?.tollAreas;
+  useEffect(() => {
+    if (trip && freshTollAreas?.length) setTollAreasBy((m) => ({ ...m, [trip.id]: freshTollAreas.map(({ areaId, name }) => ({ areaId, name })) }));
+  }, [trip?.id, freshTollAreas]);
+  const tollAreas = trip ? tollAreasBy[trip.id] ?? freshTollAreas ?? null : null;
   const costByArea = useMemo(() => {
     if (!trip || !costs.data || !catalog.data) return null;
     const parentOf = new Map(catalog.data.links.map((l) => [l.child_id, l.parent_id]));
@@ -166,7 +178,7 @@ export function ComparePage() {
         </div>
         {origin === 'personal' && <OriginPicker key={custom ? `${custom.lat},${custom.lon}` : 'none'} origin={custom} />}
         <CostContext trip={trip} missing={tripMissing} loading={costs.loading} error={costs.error} active={costActive} anyCandidates={!!costs.data?.options.length}
-          transport={otherOrigin ? { originName, tolls, setTolls, ready: origin !== 'personal' || !!customRoutes } : null} hasTrips={(trips.data?.trips.length ?? 0) > 0} />
+          transport={otherOrigin ? { originName, contextKey: `${trip!.id}|${originKey}`, areas: tollAreas, tolls: tollsByArea, setAreaTolls, ready: origin !== 'personal' || !!customRoutes } : null} hasTrips={(trips.data?.trips.length ?? 0) > 0} />
         <details className="weights">
           <summary>Pesos de la puntuación</summary>
           <div className="weights-grid">
@@ -239,7 +251,16 @@ export function ComparePage() {
 }
 
 /** Contexto del criterio de coste: viaje elegido, condiciones comparadas y qué falta para activarlo. */
-type TransportInfo = { originName: string; tolls: number | null; setTolls: (v: number | null) => void; ready: boolean };
+type TollArea = { areaId: string; name: string };
+type CostResponse = { options: CostByAreaInput[]; transport?: { tolls: 'trip' | 'per_route'; tollAreas: (TollArea & { given: boolean })[] } };
+type TransportInfo = {
+  originName: string; ready: boolean;
+  /** Viaje y salida: al cambiar, los campos se rehacen con los importes de ese contexto (nunca los del anterior). */
+  contextKey: string;
+  /** Estaciones con candidaturas; null mientras no se conocen. */
+  areas: TollArea[] | null;
+  tolls: Record<string, number | null>; setAreaTolls: (areaId: string, v: number | null) => void;
+};
 function CostContext({ trip, missing, loading, error, active, anyCandidates, transport, hasTrips }: {
   trip: Trip | null; missing: string[]; loading: boolean; error: string | null; active: boolean; anyCandidates: boolean; hasTrips: boolean;
   /** Salida distinta de la del viaje: el transporte se calcula desde ella y sus peajes se indican aparte. */
@@ -260,7 +281,7 @@ function CostContext({ trip, missing, loading, error, active, anyCandidates, tra
     <div className="notice stack-s" role="status" aria-label="Coste del viaje">
       <p><strong>Coste por persona de «{trip.name}»</strong>: {cond}.</p>
       <p className="small">Cada estación usa la candidatura con presupuesto completo más barata para esas mismas condiciones: alojamiento o paquete, forfait si no va incluido, alquiler, transporte y compra del viaje. Si falta alguna partida, el coste queda pendiente.</p>
-      {transport && <TransportTolls t={transport} />}
+      {transport && <TransportTolls key={transport.contextKey} t={transport} />}
       {loading && <p className="small muted">Calculando costes…</p>}
       {error && <p className="small text-warn">No se pudieron calcular los costes: {error} El coste queda pendiente: no se usan importes de otra selección.</p>}
       {!active && !loading && !error && (
@@ -270,25 +291,40 @@ function CostContext({ trip, missing, loading, error, active, anyCandidates, tra
   );
 }
 
-/** Peajes desde una salida distinta de la del viaje: los guardados no se dan por buenos; se pueden indicar aquí. */
+/**
+ * Peajes desde una salida distinta de la del viaje, uno por recorrido (esta salida → cada estación con candidaturas):
+ * los guardados no se dan por buenos y el de una estación nunca se usa para otra. Sin dato, ese coste queda pendiente.
+ */
 function TransportTolls({ t }: { t: TransportInfo }) {
-  const [text, setText] = useState(centsToInput(t.tolls));
-  const [bad, setBad] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(t.tolls).map(([k, v]) => [k, centsToInput(v)])));
+  const [bad, setBad] = useState<string[]>([]);
   if (!t.ready) return <p className="small muted">El transporte se calculará desde tu origen cuando confirmes el punto de salida.</p>;
-  const apply = () => {
-    const v = parseEuros(text);
-    setBad(v != null && Number.isNaN(v));
-    if (v == null || !Number.isNaN(v)) { if (v !== t.tolls) t.setTolls(v); }
+  const applyOne = (areaId: string) => {
+    const v = parseEuros(drafts[areaId] ?? '');
+    const invalid = v != null && Number.isNaN(v);
+    setBad((b) => (invalid ? [...new Set([...b, areaId])] : b.filter((x) => x !== areaId)));
+    if (!invalid && v !== (t.tolls[areaId] ?? null)) t.setAreaTolls(areaId, v);
   };
+  const areas = t.areas ?? [];
+  const given = areas.filter((a) => t.tolls[a.areaId] != null).length;
   return (
     <div className="stack-s">
-      <p className="small">Transporte desde <strong>{t.originName}</strong>, no desde la salida del viaje. Los peajes guardados en el viaje no se aplican a esta salida: {t.tolls != null ? 'se usan los que has indicado.' : 'quedan pendientes hasta que los indiques (0 si no hay).'}</p>
-      <form className="field field-inline" onSubmit={(e) => { e.preventDefault(); apply(); }}>
-        <label htmlFor="cmp-tolls">Peajes por coche, ida y vuelta (€)</label>
-        <input id="cmp-tolls" type="text" inputMode="decimal" value={text} aria-invalid={bad || undefined} onChange={(e) => setText(e.target.value)} onBlur={apply} />
-        <button type="submit" className="btn btn-secondary btn-small">Aplicar</button>
-      </form>
-      {bad && <p className="small text-warn">Escribe un importe como 24,50 o déjalo vacío.</p>}
+      <p className="small">Transporte desde <strong>{t.originName}</strong>, no desde la salida del viaje. Los peajes guardados en el viaje no se aplican a esta salida: indica los de cada recorrido (0 si no hay). Los que no indiques quedan pendientes.</p>
+      {t.areas == null ? <p className="small muted">Buscando las estaciones de las candidaturas…</p> : areas.length > 0 && (
+        <form className="stack-s" aria-label="Peajes por recorrido" onSubmit={(e) => { e.preventDefault(); areas.forEach((a) => applyOne(a.areaId)); }}>
+          <p className="small">{given === areas.length ? 'Peajes indicados en todos los recorridos.' : `Peajes indicados en ${given} de ${plural(areas.length, 'recorrido', 'recorridos')}.`}</p>
+          {areas.map((a) => (
+            <div key={a.areaId} className="field field-inline">
+              <label htmlFor={`cmp-tolls-${a.areaId}`}>Peajes por coche hasta {a.name}, ida y vuelta (€)</label>
+              <input id={`cmp-tolls-${a.areaId}`} type="text" inputMode="decimal" value={drafts[a.areaId] ?? ''} aria-invalid={bad.includes(a.areaId) || undefined}
+                aria-describedby={`cmp-tolls-${a.areaId}-st`} onChange={(e) => setDrafts((d) => ({ ...d, [a.areaId]: e.target.value }))} onBlur={() => applyOne(a.areaId)} />
+              <span id={`cmp-tolls-${a.areaId}-st`} className="small muted">{t.tolls[a.areaId] != null ? 'indicado' : 'pendiente'}</span>
+            </div>
+          ))}
+          <div><button type="submit" className="btn btn-secondary btn-small">Aplicar peajes</button></div>
+          {bad.length > 0 && <p className="small text-warn">Escribe importes como 24,50 o déjalos vacíos.</p>}
+        </form>
+      )}
     </div>
   );
 }

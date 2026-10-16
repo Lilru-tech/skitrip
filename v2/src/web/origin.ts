@@ -9,8 +9,8 @@ export interface CustomOrigin {
   label: string; lat: number; lon: number;
   /** Rutas calculadas para este punto (se reutilizan sin volver a consultar al proveedor). */
   routes: CustomRoute[]; checkedOn: string; attribution: string;
-  /** Peajes por coche (ida y vuelta) indicados por la persona para esta salida; null = no indicados. */
-  tollsCentsPerCar: number | null;
+  /** Peajes por coche (ida y vuelta) desde este punto a cada estación, indicados por la persona; sin entrada = pendientes. */
+  tollsByArea: Record<string, number | null>;
   remembered: boolean;
 }
 
@@ -24,8 +24,11 @@ function load(): CustomOrigin | null {
     if (!raw) return null;
     const o = JSON.parse(raw) as CustomOrigin;
     if (!Number.isFinite(o?.lat) || !Number.isFinite(o?.lon) || !Array.isArray(o.routes)) return null;
-    if (Date.now() - Date.parse(o.checkedOn) > MAX_AGE_DAYS * 86400_000) return { ...o, routes: [], remembered: true };
-    return { ...o, remembered: true };
+    // Peajes solo por recorrido; un dato antiguo de peaje único no se traslada a ninguna estación.
+    const tollsByArea = o.tollsByArea && typeof o.tollsByArea === 'object' ? o.tollsByArea : {};
+    const { tollsCentsPerCar: _old, ...rest } = o as CustomOrigin & { tollsCentsPerCar?: unknown };
+    if (Date.now() - Date.parse(o.checkedOn) > MAX_AGE_DAYS * 86400_000) return { ...rest, tollsByArea, routes: [], remembered: true };
+    return { ...rest, tollsByArea, remembered: true };
   } catch {
     return null;
   }
