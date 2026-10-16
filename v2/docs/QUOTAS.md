@@ -13,7 +13,7 @@ Fecha: 01/10/2026 (tabla de sentencias regenerada ese día). Rama `rebuild/v2`. 
 | CPU por petición del Worker | 10 ms | Ver «CPU» más abajo. |
 | Filas leídas / escritas al día | 5 M / 100.000 | Uso previsto para 10–20 personas muy por debajo. |
 
-No se recomienda ni se necesita el plan de pago: **las 125 rutas del Worker** quedan en 19 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
+No se recomienda ni se necesita el plan de pago: **las 126 rutas del Worker** quedan en 19 sentencias o menos con los volúmenes medidos (ver abajo qué no se ha medido).
 
 ## Sentencias medidas por ruta
 
@@ -134,6 +134,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /legacy/availability/mine` | 2 | 150 días |
 | `GET /me/prefs` | 2 | — |
 | `GET /notifications` | 2 | — |
+| `GET /notifications/unread` | 2 | 100 avisos sin leer |
 | `GET /products/:pid/open-prices (sin EAN)` | 2 | — |
 | `GET /products?q=` | 2 | 30 productos |
 | `GET /receipts` | 2 | 10 tickets |
@@ -386,6 +387,12 @@ Importación de la hoja (5.000 filas, un SHA-256 por fila): no medida en Cloudfl
 El 15/10/2026, con tres sondeos de CPU completos, uno acotado, recorridos de producción, publicaciones e ingestas, la vigilancia contó 1.941.127 filas leídas en 24 h (run 38724014999, aviso aislado por encima de 1 M). Es la ventana acumulada de 24 h, no lo que lee una petición: las consultas y las filas por ruta están en «Catálogo público y lecturas de D1». Con los índices de la migración 0015, las cuatro consultas que leían el 81 % pasan a leer cientos de filas por ejecución.
 
 Con las pruebas del 03/10/2026 (dos recorridos de producción, el sondeo y los recolectores), las filas leídas en 24 h fueron 1.097.029 de 5.000.000 (vigilancia, run 37138208453). La vigilancia avisa por encima del 20 %. Las escrituras fueron 38.259 de 100.000.
+
+### Campana de avisos (consumo estimado)
+
+La campana pide solo el recuento (`GET /notifications/unread`: sesión + un `COUNT` sobre el índice `notifications_user`, que lee únicamente las filas sin leer). Consulta cada 60 s **solo con la pestaña visible**, al volver a ella o recuperar el foco, al navegar y tras acciones propias; con la pestaña oculta no consulta nada.
+
+Estimación para 20 personas con la web visible 2 h al día cada una: 20 × 120 = 2.400 peticiones/día (2,4 % de las 100.000 peticiones diarias de Workers Free) y unas 2 × 2.400 ≈ 4.800 sentencias. Las filas leídas son las del perfil más las sin leer (normalmente menos de 10): del orden de 25.000 filas/día, un 0,5 % de los 5 M. Con 8 h visibles al día serían 9.600 peticiones (9,6 %). No escribe nada.
 
 ## Qué queda pendiente en Free
 

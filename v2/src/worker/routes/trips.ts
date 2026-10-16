@@ -6,6 +6,7 @@ import { areFriends, audit, isBlocked, requireTripEditor, requireTripMember, req
 import { ApiError, badRequest, conflict, forbidden, newId, notFound, now, parseBody } from '../http';
 import { rateLimit } from '../ratelimit';
 import { zCents, zDate, zId, zName } from '../schemas';
+import { closeNotice, tripInvitationNotice } from '../notices';
 
 export const tripRoutes = new Hono<AppEnv>();
 
@@ -127,12 +128,17 @@ tripRoutes.post('/invitations/:invId/:action{accept|decline}', async (c) => {
   const t = now();
   if (inv.status !== 'pending') throw conflict('Esta invitación ya no está pendiente.', 'invitation_closed');
   if (inv.expires_at <= t) {
-    await c.env.DB.prepare(`UPDATE trip_invitations SET status = 'expired' WHERE id = ?1`).bind(inv.id).run();
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE trip_invitations SET status = 'expired' WHERE id = ?1`).bind(inv.id),
+      closeNotice(c.env.DB, user.id, 'trip_invitation', inv.id, t),
+    ]);
     throw conflict('La invitación ha caducado.', 'invitation_expired');
   }
   const accept = c.req.param('action') === 'accept';
-  const upd = await c.env.DB.prepare(`UPDATE trip_invitations SET status = ?1, responded_at = ?2 WHERE id = ?3 AND status = 'pending'`)
-    .bind(accept ? 'accepted' : 'declined', t, inv.id).run();
+  const [upd] = await c.env.DB.batch([
+    c.env.DB.prepare(`UPDATE trip_invitations SET status = ?1, responded_at = ?2 WHERE id = ?3 AND status = 'pending'`).bind(accept ? 'accepted' : 'declined', t, inv.id),
+    closeNotice(c.env.DB, user.id, 'trip_invitation', inv.id, t),
+  ]);
   if (!upd.meta.changes) throw conflict('Esta invitación ya no está pendiente.', 'invitation_closed');
   if (accept) await joinTrip(c.env.DB, inv.trip_id, user.id, t);
   return c.json({ ok: true, tripId: accept ? inv.trip_id : null });
@@ -251,9 +257,13 @@ tripRoutes.post('/:id/invitations', async (c) => {
       throw notFound('Amistad');
     }
     if (await tripRole(c.env.DB, id, body.userId)) throw conflict('Esa persona ya es miembro del viaje.', 'already_member');
-    await c.env.DB.prepare(
-      `INSERT INTO trip_invitations (id, trip_id, inviter_id, invitee_id, status, expires_at, created_at) VALUES (?1, ?2, ?3, ?4, 'pending', ?5, ?6)`,
-    ).bind(invId, id, user.id, body.userId, t + 14 * 86400_000, t).run().catch((e) => {
+    // Invitación y aviso al destinatario en una sola transacción: un reintento choca con la invitación pendiente.
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        `INSERT INTO trip_invitations (id, trip_id, inviter_id, invitee_id, status, expires_at, created_at) VALUES (?1, ?2, ?3, ?4, 'pending', ?5, ?6)`,
+      ).bind(invId, id, user.id, body.userId, t + 14 * 86400_000, t),
+      tripInvitationNotice(c.env.DB, body.userId, id, invId, user.id, t),
+    ]).catch((e) => {
       if (/UNIQUE/.test(String(e))) throw conflict('Ya hay una invitación pendiente para esa persona.', 'invitation_pending');
       throw e;
     });
@@ -272,10 +282,12 @@ tripRoutes.post('/:id/invitations/:invId/revoke', async (c) => {
   const user = c.get('user');
   const id = c.req.param('id');
   const role = await requireTripMember(c.env.DB, id, user.id);
-  const inv = await c.env.DB.prepare('SELECT inviter_id FROM trip_invitations WHERE id = ?1 AND trip_id = ?2').bind(c.req.param('invId'), id).first<{ inviter_id: string }>();
+  const inv = await c.env.DB.prepare('SELECT inviter_id, invitee_id FROM trip_invitations WHERE id = ?1 AND trip_id = ?2').bind(c.req.param('invId'), id).first<{ inviter_id: string; invitee_id: string | null }>();
   if (!inv) throw notFound('Invitación');
   if (role === 'member' && inv.inviter_id !== user.id) throw forbidden();
-  await c.env.DB.prepare(`UPDATE trip_invitations SET status = 'revoked', responded_at = ?1 WHERE id = ?2 AND status = 'pending'`).bind(now(), c.req.param('invId')).run();
+  const t = now();
+  const revoke = c.env.DB.prepare(`UPDATE trip_invitations SET status = 'revoked', responded_at = ?1 WHERE id = ?2 AND status = 'pending'`).bind(t, c.req.param('invId'));
+  await c.env.DB.batch(inv.invitee_id ? [revoke, closeNotice(c.env.DB, inv.invitee_id, 'trip_invitation', c.req.param('invId'), t)] : [revoke]);
   return c.json({ ok: true });
 });
 

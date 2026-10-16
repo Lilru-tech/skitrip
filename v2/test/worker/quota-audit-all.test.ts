@@ -295,6 +295,7 @@ describe('auditoría de consultas: resto de rutas', () => {
     expect(oUnread.length).toBe(100);
     expect(m1Unread.length).toBe(60);
     await m('GET /notifications', '100 avisos sin leer (se devuelven 50)', api(o.token, 'GET', '/api/notifications'));
+    await m('GET /notifications/unread', '100 avisos sin leer', api(o.token, 'GET', '/api/notifications/unread'));
     const rd1 = await m('POST /notifications/read', '60 avisos sin leer, todos', api(m1.token, 'POST', '/api/notifications/read', { ids: m1Unread }));
     expect(rd1.json.updated).toBe(60);
     const rd2 = await m('POST /notifications/read (100 ids)', '100 IDs (máximo), todos sin leer', api(o.token, 'POST', '/api/notifications/read', { ids: oUnread }));
