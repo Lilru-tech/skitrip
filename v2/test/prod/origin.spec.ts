@@ -46,7 +46,7 @@ test('producción: origen personalizado con Geoapify real desde un punto públic
   await expect(picker.getByRole('radio', { checked: true })).toHaveAccessibleName(/Reus/);
   const routesResp = page.waitForResponse((r) => r.url() === `${API}/api/geo/routes`);
   await picker.getByRole('button', { name: 'Calcular distancias desde aquí' }).click();
-  const routes = (await (await routesResp).json()) as { routes: { areaId: string; accessName: string; roadKm: number | null; durationMin: number | null; lastLeg: string | null; access?: { confidence: string } }[]; credits: number };
+  const routes = (await (await routesResp).json()) as { routes: { areaId: string; accessName: string; roadKm: number | null; durationMin: number | null; durationDoubtful?: boolean; lastLeg: string | null; access?: { confidence: string } }[]; credits: number };
   await expect(picker).toContainText('Salida desde:');
   expect(page.url()).not.toMatch(/Mercadal|41\.1|1\.10/);
 
@@ -58,7 +58,7 @@ test('producción: origen personalizado con Geoapify real desde un punto públic
   const off: string[] = [];
   for (const r of routes.routes) {
     const t = fixed.get(r.areaId)?.route?.roadKm ?? null;
-    lines.push(`${fixed.get(r.areaId)?.name ?? r.areaId}: ${r.roadKm ?? '—'} km, ${r.durationMin ?? '—'} min desde Reus · ${t ?? '—'} km desde Tarragona · llegada «${r.accessName}» (${r.access?.confidence ?? '?'})${r.lastLeg ? ' · último tramo en cremallera' : ''}`);
+    lines.push(`${fixed.get(r.areaId)?.name ?? r.areaId}: ${r.roadKm ?? '—'} km, ${r.durationMin ?? '—'} min desde Reus · ${t ?? '—'} km desde Tarragona · llegada «${r.accessName}» (${r.access?.confidence ?? '?'})${r.lastLeg ? ' · último tramo en cremallera' : ''}${r.durationDoubtful ? ' · tiempo dudoso frente a OSRM' : ''}`);
     if (r.roadKm == null) off.push(`${r.areaId}: sin distancia`);
     else if (t != null && Math.abs(r.roadKm - t) >= Math.max(40, t * 0.2)) off.push(`${r.areaId}: Reus ${r.roadKm} km frente a Tarragona ${t} km`);
   }
@@ -67,5 +67,9 @@ test('producción: origen personalizado con Geoapify real desde un punto públic
   expect(routes.routes.find((r) => r.areaId === 'vall-de-nuria')?.lastLeg).toBe('rack_railway');
   const st1 = await apiAs(token, 'GET', '/api/geo/status');
   expect(st1.json.user.used).toBe(1 + routes.credits);
-  console.log(`Créditos gastados por esta comprobación: ${st1.json.user.used} (1 búsqueda + ${routes.credits} destinos)`);
+  const spent = st1.json.user.used;
+  // El total global de después incluye lo de antes más lo de esta comprobación (y lo que otra persona gaste a la vez).
+  expect(st1.json.global.used).toBeGreaterThanOrEqual(st0.json.global.used + spent);
+  console.log(`Créditos gastados por esta comprobación: ${spent} (1 búsqueda + ${routes.credits} destinos)`);
+  console.log(`Créditos globales de hoy: ${st0.json.global.used} antes + ${spent} de esta comprobación = ${st0.json.global.used + spent}; el Worker marca ${st1.json.global.used}/${st1.json.global.cap} después`);
 });

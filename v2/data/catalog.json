@@ -482,12 +482,12 @@
   {
    "origin": "tarragona",
    "area": "port-aine",
-   "access_name": "(acceso principal, sin especificar)",
-   "road_km": 225,
-   "duration_min": null,
-   "source": "legacy_hardcode",
-   "checked_on": null,
-   "notes": "Distancia heredada sin verificar: la consulta a OSRM del 01/10/2026 no se pudo completar (límite de peticiones)."
+   "access_name": "(Port Ainé 2000, base; punto aproximado)",
+   "road_km": 216,
+   "duration_min": 220,
+   "source": "OSRM (OpenStreetMap), router.project-osrm.org",
+   "checked_on": "2026-10-16",
+   "notes": "Ruta hasta la base Cota 2000 por Rialp y la carretera de acceso a Port Ainé (unos 14 km). En invierno se aparca en los aparcamientos escalonados de esa carretera (Cota 1650, Riu Sec, Rabasta, Roní, Jet Cim, La Font), a pocos km de la base. Sustituye a la distancia heredada de 225 km sin verificar."
   },
   {
    "origin": "tarragona",
