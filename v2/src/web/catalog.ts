@@ -8,7 +8,7 @@ export interface Snow {
   rank?: { openKm: number | null; excluded: null | 'sin_dato' | 'antiguo' | 'parte_antiguo' | 'dudoso' | 'estado_desconocido' | 'sin_km'; label: string | null };
   sources?: number;
 }
-export interface Route { accessName: string; roadKm: number | null; durationMin: number | null; durationDoubtful?: boolean; tollCents: number | null; source: string; checkedOn: string | null; validated: boolean; notes: string | null }
+export interface Route { accessName: string; roadKm: number | null; durationMin: number | null; tollCents: number | null; source: string; checkedOn: string | null; validated: boolean; notes: string | null }
 export interface CatalogArea {
   id: string; name: string; kind: 'resort' | 'sector' | 'domain'; country: string; region: string | null; lat: number | null; lon: number | null;
   officialTotalKm: number | null; totalKmSource: string | null; vibe: number | null; apres: number | null; notes: string | null; officialUrl: string | null;
