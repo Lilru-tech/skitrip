@@ -35,17 +35,28 @@ describe('accesos de las estaciones comparadas', () => {
       expect(['contrasted', 'single_source', 'approximate'], id).toContain(a.confidence);
       // Las de varias fuentes citan al menos dos páginas; ninguna «contrastada» se apoya en una sola.
       if (a.confidence === 'contrasted') expect(a.source.split(' · ').length, id).toBeGreaterThanOrEqual(2);
-      // El punto está cerca (menos de ~10 km) de la estación o de alguna estación miembro del dominio en el catálogo.
-      // (El punto central del dominio Formigal-Panticosa en el catálogo está desplazado unos 30 km: no sirve de destino.)
-      const near = [id, ...(catalog as any).links.filter((l: any) => l.parent === id).map((l: any) => l.child)]
-        .map((x) => (catalog as any).areas.find((y: any) => y.id === x))
-        .map((p: any) => Math.hypot(a.lat - p.lat, (a.lon - p.lon) * Math.cos((a.lat * Math.PI) / 180)) * 111);
-      expect(Math.min(...near), id).toBeLessThan(10);
+      // El punto de llegada está cerca (menos de 10 km) del punto de la propia estación en el catálogo, que es el que
+      // usan las rutas guardadas desde Tarragona y Sabadell. (Formigal-Panticosa estuvo desplazado unos 30 km hasta el 16/10/2026.)
+      const own = (catalog as any).areas.find((y: any) => y.id === id);
+      expect(Math.hypot(a.lat - own.lat, (a.lon - own.lon) * Math.cos((a.lat * Math.PI) / 180)) * 111, id).toBeLessThan(10);
     }
     expect(by.get('vall-de-nuria')).toMatchObject({ mode: 'rack_railway', confidence: 'contrasted' });
     expect(by.get('vall-de-nuria').note).toMatch(/No incluye la subida en cremallera de Queralbs a Núria/);
     expect(by.get('port-aine')).toMatchObject({ confidence: 'approximate' });
     expect(by.get('port-aine').note).toMatch(/Rabasta/);
+  });
+
+  it('Formigal-Panticosa: punto del catálogo en Formigal-Sextas y rutas guardadas recalculadas hacia él', () => {
+    const area = (catalog as any).areas.find((a: any) => a.id === 'formigal-panticosa');
+    const formigal = (catalog as any).areas.find((a: any) => a.id === 'formigal');
+    // Menos de 1,5 km del pueblo de Formigal: el punto antiguo (42.744, 0.055) estaba a más de 30 km.
+    expect(Math.hypot(area.lat - formigal.lat, (area.lon - formigal.lon) * Math.cos((area.lat * Math.PI) / 180)) * 111).toBeLessThan(1.5);
+    const routes = (catalog as any).routes.filter((r: any) => r.area === 'formigal-panticosa');
+    expect(Object.fromEntries(routes.map((r: any) => [r.origin, [r.road_km, r.duration_min, r.checked_on]]))).toEqual({
+      tarragona: [292, 223, '2026-10-16'], sabadell: [338, 250, '2026-10-16'],
+    });
+    // El nombre entre paréntesis hace que la interfaz lo presente como punto sin confirmar.
+    for (const r of routes) expect(r.access_name).toMatch(/^\(Formigal, aparcamiento de Sextas; punto de una sola fuente\)$/);
   });
 
   it('las rutas dicen qué punto es de una sola fuente o aproximado, y explican el cremallera', async () => {

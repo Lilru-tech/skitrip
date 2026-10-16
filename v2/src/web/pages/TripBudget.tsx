@@ -15,11 +15,11 @@ import type { TripDetail } from '../types';
 import type { BudgetComponent, BudgetResult } from '../../core/budget';
 
 interface BudgetParams {
-  version: number; fuel_cents_per_litre: number | null; litres_per_100km_x10: number | null; tolls_cents_per_car: number | null; parking_cents_per_car: number | null;
+  version: number; fuel_cents_per_litre: number | null; litres_per_100km_x10: number | null; tolls_cents_per_car: number | null; parking_cents_per_car: number | null; railway_cents_per_person: number | null;
   forfait_cents_per_day: number | null; rental_cents_per_day: number | null; skiers: number | null; renters: number | null; groceries_cents: number | null; chosen_candidate_id: string | null;
 }
 interface DestinationCost {
-  areaId: string; areaName: string; forfaitCentsPerDay: number | null; rentalCentsPerDay: number | null; tollsCentsPerCar: number | null; parkingCentsPerCar: number | null;
+  areaId: string; areaName: string; forfaitCentsPerDay: number | null; rentalCentsPerDay: number | null; tollsCentsPerCar: number | null; parkingCentsPerCar: number | null; railwayCentsPerPerson: number | null;
   kind: 'confirmed' | 'estimate'; sourceNote: string | null; checkedOn: string | null; version: number;
 }
 interface BudgetResponse { params: BudgetParams; destinationCosts: DestinationCost[]; result: BudgetResult; input: { people: number | null; nights: number | null; skiDays: number | null; cars: number | null; roadKmOneWay: number | null } }
@@ -63,12 +63,12 @@ export function TripBudgetPage({ tripId }: { tripId: string }) {
   return <TripShell tripId={tripId} tab="presupuesto" title="Presupuesto">{(d) => <Budget tripId={tripId} detail={d} />}</TripShell>;
 }
 
-type Form = Record<'fuel' | 'litres' | 'tolls' | 'parking' | 'forfait' | 'rental' | 'skiers' | 'renters' | 'groceries' | 'candidate', string>;
+type Form = Record<'fuel' | 'litres' | 'tolls' | 'parking' | 'railway' | 'forfait' | 'rental' | 'skiers' | 'renters' | 'groceries' | 'candidate', string>;
 
 function toForm(p: BudgetParams): Form {
   return {
     fuel: centsToInput(p.fuel_cents_per_litre), litres: p.litres_per_100km_x10 != null ? (p.litres_per_100km_x10 / 10).toString().replace('.', ',') : '',
-    tolls: centsToInput(p.tolls_cents_per_car), parking: centsToInput(p.parking_cents_per_car), forfait: centsToInput(p.forfait_cents_per_day),
+    tolls: centsToInput(p.tolls_cents_per_car), parking: centsToInput(p.parking_cents_per_car), railway: centsToInput(p.railway_cents_per_person ?? null), forfait: centsToInput(p.forfait_cents_per_day),
     rental: centsToInput(p.rental_cents_per_day), skiers: p.skiers?.toString() ?? '', renters: p.renters?.toString() ?? '', groceries: centsToInput(p.groceries_cents),
     candidate: p.chosen_candidate_id ?? '',
   };
@@ -99,7 +99,7 @@ function Budget({ tripId, detail }: { tripId: string; detail: TripDetail }) {
       if (litres != null && (!Number.isFinite(litres) || litres < 1 || litres > 30)) throw new Error('Consumo: entre 1 y 30 l/100 km.');
       body = {
         version: params.version, fuelCentsPerLitre: money(form.fuel, 'Combustible'), litresPer100kmX10: litres == null ? null : Math.round(litres * 10),
-        tollsCentsPerCar: money(form.tolls, 'Peajes'), parkingCentsPerCar: money(form.parking, 'Parking'), forfaitCentsPerDay: money(form.forfait, 'Forfait'),
+        tollsCentsPerCar: money(form.tolls, 'Peajes'), parkingCentsPerCar: money(form.parking, 'Parking'), railwayCentsPerPerson: money(form.railway, 'Cremallera'), forfaitCentsPerDay: money(form.forfait, 'Forfait'),
         rentalCentsPerDay: money(form.rental, 'Alquiler'), skiers: intv(form.skiers, 'Esquiadores'), renters: intv(form.renters, 'Alquilan'),
         groceriesCents: money(form.groceries, 'Compra'), chosenCandidateId: form.candidate || null,
       };
@@ -179,6 +179,7 @@ function Budget({ tripId, detail }: { tripId: string; detail: TripDetail }) {
             <Field label="Consumo (l/100 km)" inputMode="decimal" value={form.litres} onChange={(e) => setForm({ ...form, litres: e.target.value })} />
             <Field label="Peajes por coche, ida y vuelta (€)" inputMode="decimal" value={form.tolls} onChange={(e) => setForm({ ...form, tolls: e.target.value })} />
             <Field label="Parking por coche, estancia (€)" inputMode="decimal" value={form.parking} onChange={(e) => setForm({ ...form, parking: e.target.value })} />
+            <Field label="Cremallera por persona, toda la estancia (€)" inputMode="decimal" value={form.railway} onChange={(e) => setForm({ ...form, railway: e.target.value })} hint="Solo destinos sin acceso en coche (Vall de Núria). Si dormís abajo, una ida y vuelta por día. 0 si vuestro forfait ya lo incluye. Vacío = pendiente." />
             <Field label="Forfait por día y persona (€)" inputMode="decimal" value={form.forfait} onChange={(e) => setForm({ ...form, forfait: e.target.value })} hint="Del destino del viaje. Otras estaciones: «Costes por estación»." />
             <Field label="Alquiler por día y persona (€)" inputMode="decimal" value={form.rental} onChange={(e) => setForm({ ...form, rental: e.target.value })} />
             <Field label="Esquiadores" type="number" min={0} value={form.skiers} onChange={(e) => setForm({ ...form, skiers: e.target.value })} hint="Vacío = todas las personas" />
@@ -271,7 +272,7 @@ function CostComparison({ tripId, version }: { tripId: string; version: number }
   );
 }
 
-type CostForm = { forfait: string; rental: string; tolls: string; parking: string; kind: 'confirmed' | 'estimate'; source: string; checkedOn: string };
+type CostForm = { forfait: string; rental: string; tolls: string; parking: string; railway: string; kind: 'confirmed' | 'estimate'; source: string; checkedOn: string };
 
 /**
  * Forfait, alquiler, peajes y parking por estación, con procedencia y fecha. Los del destino del viaje entran en su
@@ -296,7 +297,7 @@ function DestinationCosts({ tripId, canEdit, tripAreaId, costs, candidateAreas, 
     setErr(null);
     setEdit({ areaId, version: c?.version ?? 0, form: {
       forfait: centsToInput(c?.forfaitCentsPerDay ?? null), rental: centsToInput(c?.rentalCentsPerDay ?? null), tolls: centsToInput(c?.tollsCentsPerCar ?? null),
-      parking: centsToInput(c?.parkingCentsPerCar ?? null), kind: c?.kind ?? 'confirmed', source: c?.sourceNote ?? '', checkedOn: c?.checkedOn ?? '' } });
+      parking: centsToInput(c?.parkingCentsPerCar ?? null), railway: centsToInput(c?.railwayCentsPerPerson ?? null), kind: c?.kind ?? 'confirmed', source: c?.sourceNote ?? '', checkedOn: c?.checkedOn ?? '' } });
   };
   const save = async () => {
     if (!edit) return;
@@ -306,7 +307,7 @@ function DestinationCosts({ tripId, canEdit, tripAreaId, costs, candidateAreas, 
     try {
       if (f.checkedOn && !/^\d{4}-\d{2}-\d{2}$/.test(f.checkedOn)) throw new Error('Fecha: usa el selector de fecha.');
       body = { version: edit.version, forfaitCentsPerDay: money(f.forfait, 'Forfait'), rentalCentsPerDay: money(f.rental, 'Alquiler'), tollsCentsPerCar: money(f.tolls, 'Peajes'),
-        parkingCentsPerCar: money(f.parking, 'Parking'), kind: f.kind, sourceNote: f.source.trim() || null, checkedOn: f.checkedOn || null };
+        parkingCentsPerCar: money(f.parking, 'Parking'), railwayCentsPerPerson: money(f.railway, 'Cremallera'), kind: f.kind, sourceNote: f.source.trim() || null, checkedOn: f.checkedOn || null };
     } catch (e) { setErr((e as Error).message); return; }
     setBusy(true); setErr(null);
     try {
@@ -336,7 +337,7 @@ function DestinationCosts({ tripId, canEdit, tripAreaId, costs, candidateAreas, 
                   {c && <span className={`tag ${c.kind === 'estimate' ? 'tag-estimate' : 'tag-ok'}`}>{c.kind === 'estimate' ? 'estimación' : 'confirmado'}</span>}</div>
                 {c ? (
                   <>
-                    <p className="small">Forfait {value(c.forfaitCentsPerDay, 'por día y persona')} · Alquiler {value(c.rentalCentsPerDay, 'por día y persona')} · Peajes {value(c.tollsCentsPerCar, 'por coche')} · Parking {value(c.parkingCentsPerCar, 'por coche')}</p>
+                    <p className="small">Forfait {value(c.forfaitCentsPerDay, 'por día y persona')} · Alquiler {value(c.rentalCentsPerDay, 'por día y persona')} · Peajes {value(c.tollsCentsPerCar, 'por coche')} · Parking {value(c.parkingCentsPerCar, 'por coche')}{c.railwayCentsPerPerson != null ? <> · Cremallera {value(c.railwayCentsPerPerson, 'por persona, toda la estancia')}</> : null}</p>
                     <p className="small muted">{c.sourceNote ?? 'Sin fuente'}{c.checkedOn ? ` · ${c.checkedOn.split('-').reverse().join('/')}` : ''}</p>
                   </>
                 ) : <p className="small muted">{id === tripAreaId ? 'Sin costes propios: se usan los parámetros comunes del viaje.' : 'Sin costes: en la comparación quedan pendientes.'}</p>}
@@ -360,6 +361,7 @@ function DestinationCosts({ tripId, canEdit, tripAreaId, costs, candidateAreas, 
             <Field label="Alquiler por día y persona (€)" inputMode="decimal" value={edit.form.rental} onChange={(e) => setEdit({ ...edit, form: { ...edit.form, rental: e.target.value } })} />
             <Field label="Peajes por coche, ida y vuelta (€)" inputMode="decimal" value={edit.form.tolls} onChange={(e) => setEdit({ ...edit, form: { ...edit.form, tolls: e.target.value } })} />
             <Field label="Parking por coche, estancia (€)" inputMode="decimal" value={edit.form.parking} onChange={(e) => setEdit({ ...edit, form: { ...edit.form, parking: e.target.value } })} />
+            <Field label="Cremallera por persona, toda la estancia (€)" inputMode="decimal" value={edit.form.railway} onChange={(e) => setEdit({ ...edit, form: { ...edit.form, railway: e.target.value } })} hint="Solo estaciones sin acceso en coche (Vall de Núria). Si dormís abajo, una ida y vuelta por día." />
             <SelectField label="Tipo de importe" value={edit.form.kind} onChange={(e) => setEdit({ ...edit, form: { ...edit.form, kind: e.target.value as CostForm['kind'] } })}>
               <option value="confirmed">Precio confirmado</option>
               <option value="estimate">Estimación (no completa el presupuesto)</option>

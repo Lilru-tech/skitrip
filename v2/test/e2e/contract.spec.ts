@@ -208,3 +208,34 @@ test('búsquedas: la capacidad real se muestra antes de crear, con texto honesto
   await expect(card).toContainText('menores de 9 años');
   await expectNoHorizontalOverflow(page, `candidaturas con estimación (${info.project.name})`);
 });
+
+test('presupuesto en un destino con cremallera: partida pendiente hasta indicar su precio, y entonces se suma', async ({ page, request }, info) => {
+  const { token } = await loggedIn(page, request, 'crem');
+  const start = future(75), end = future(77);
+  const { trip } = await apiAs(request, token, 'POST', '/api/trips', {
+    name: 'Viaje con cremallera', startDate: start, endDate: end, participantsPlanned: 2, rooms: 1, areaId: 'e2e-cerrada', skiDays: 2,
+  });
+  const { id: cid } = await apiAs(request, token, 'POST', `/api/trips/${trip.id}/candidates`, {
+    title: 'Hotel abajo', modality: 'lodging', amountCents: 40000, unit: 'per_stay', priceKind: 'user_quote', areaId: 'e2e-cerrada',
+    checkIn: start, checkOut: end, adults: 2, childrenAges: [], rooms: 1, forfaitIncluded: 'no',
+  });
+  const b0 = await apiAs(request, token, 'GET', `/api/trips/${trip.id}/budget`);
+  await apiAs(request, token, 'PUT', `/api/trips/${trip.id}/budget`, { version: b0.params.version, chosenCandidateId: cid });
+
+  await page.goto(`/#/viajes/${trip.id}/presupuesto`);
+  const railway = page.locator('[data-component="railway"]');
+  await expect(railway).toHaveAttribute('data-status', 'pending');
+  await expect(railway).toContainText('Cremallera Épsilon (sintético)');
+  await expect(railway).toContainText('No consta que el forfait o el paquete de esta opción lo incluyan');
+  await expect(page.getByTestId('budget-incomplete')).toContainText('Cremallera');
+
+  await page.getByRole('button', { name: 'Editar parámetros' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Parámetros del presupuesto' });
+  await dialog.getByLabel('Cremallera por persona, toda la estancia (€)').fill('31');
+  await dialog.getByRole('button', { name: 'Guardar' }).click();
+  await waitToast(page, 'Presupuesto guardado.');
+  await expect(railway).toHaveAttribute('data-status', 'known');
+  await expect(railway).toContainText('62,00 €');
+  await expect(page.getByTestId('budget-incomplete')).not.toContainText('Cremallera');
+  await expectNoHorizontalOverflow(page, `presupuesto con cremallera (${info.project.name})`);
+});

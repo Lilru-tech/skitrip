@@ -182,3 +182,46 @@ describe('revisión final 6 · escenario hipotético por candidatura', () => {
     expect(r.components.find((c) => c.key === 'lodging')!.comparison!.status).toBe('incompatible');
   });
 });
+
+describe('cremallera (destino sin acceso en coche)', () => {
+  const nuria = { ...base, railway: { accessName: 'Queralbs', included: 'unknown' as const } };
+  const rw = (r: ReturnType<typeof computeBudget>) => r.components.find((c) => c.key === 'railway');
+  it('sin destino de cremallera no aparece la partida', () => {
+    expect(rw(computeBudget(base))).toBeUndefined();
+  });
+  it('si no consta incluido y no hay precio, es una partida pendiente: el presupuesto no está completo ni da total por persona', () => {
+    const r = computeBudget(nuria);
+    expect(rw(r)).toMatchObject({ status: 'pending', totalCents: null });
+    expect(rw(r)!.note).toMatch(/No consta que el forfait o el paquete de esta opción lo incluyan/);
+    expect(r.complete).toBe(false);
+    expect(r.perPersonCents).toBeNull();
+    expect(r.pending).toContain('Cremallera');
+  });
+  it('con precio se suma por persona (toda la estancia)', () => {
+    const r = computeBudget({ ...nuria, railwayCentsPerPerson: 3100 });
+    expect(rw(r)).toMatchObject({ status: 'known', totalCents: 3100 * 4 });
+    expect(r.complete).toBe(true);
+    expect(r.knownSubtotalCents).toBe(computeBudget({ ...base }).knownSubtotalCents + 3100 * 4);
+  });
+  it('incluido en el forfait o paquete de esta opción y todos esquían: no se suma otra vez, aunque haya precio', () => {
+    const r = computeBudget({ ...nuria, railway: { accessName: 'Queralbs', included: 'yes' }, railwayCentsPerPerson: 3100 });
+    expect(rw(r)).toMatchObject({ status: 'not_applicable', totalCents: null });
+    expect(r.complete).toBe(true);
+    expect(r.knownSubtotalCents).toBe(computeBudget(base).knownSubtotalCents);
+  });
+  it('incluido, pero hay quien no esquía: solo se cuenta a quien no tiene forfait', () => {
+    const r = computeBudget({ ...nuria, skiers: 3, railway: { accessName: 'Queralbs', included: 'yes' }, railwayCentsPerPerson: 3100 });
+    expect(rw(r)).toMatchObject({ status: 'known', totalCents: 3100 });
+    expect(computeBudget({ ...nuria, skiers: 3, railway: { accessName: 'Queralbs', included: 'yes' } }).complete).toBe(false);
+  });
+  it('«no incluido» con precio suma a todos; sin precio sigue pendiente', () => {
+    expect(rw(computeBudget({ ...nuria, railway: { accessName: 'Queralbs', included: 'no' }, railwayCentsPerPerson: 3100 }))!.totalCents).toBe(3100 * 4);
+    expect(rw(computeBudget({ ...nuria, railway: { accessName: 'Queralbs', included: 'no' } }))!.status).toBe('pending');
+  });
+  it('en el escenario de otra estación, el precio común del viaje no se toma como confirmado', () => {
+    const { input } = candidateScenario({ ...nuria, railwayCentsPerPerson: 3100 }, 'vall-de-nuria');
+    const r = computeBudget(input);
+    expect(rw(r)!.status).toBe('pending');
+    expect(r.complete).toBe(false);
+  });
+});

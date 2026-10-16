@@ -23,6 +23,13 @@ export interface BudgetInput {
   rentalCentsPerDay: number | null;
   groceriesCents: number | null;
   /**
+   * Tramo obligatorio sin coche hasta la estación (cremallera de Vall de Núria). Sin él no hay partida. `included`: si el
+   * forfait o paquete de la opción lo incluye para quien esquía (lo dice la candidatura; 'unknown' = no consta).
+   */
+  railway?: { accessName: string; included: 'yes' | 'no' | 'unknown' } | null;
+  /** Billete del cremallera, por persona para toda la estancia. null = sin dato. */
+  railwayCentsPerPerson?: number | null;
+  /**
    * Partidas que dependen del destino y cuyo importe guardado NO está confirmado para el destino calculado (escenario
    * hipotético de otra estación). Quedan pendientes con esta nota salvo que no apliquen (sin coches, forfait incluido…).
    */
@@ -33,8 +40,8 @@ export interface BudgetInput {
   estimatedCosts?: DestinationCost[];
 }
 
-/** Partidas cuyo precio depende de la estación: forfait, peajes, parking y alquiler. */
-export const DESTINATION_COSTS = ['tolls', 'parking', 'forfait', 'rental'] as const;
+/** Partidas cuyo precio depende de la estación: forfait, peajes, parking, alquiler y cremallera (solo si hace falta). */
+export const DESTINATION_COSTS = ['tolls', 'parking', 'forfait', 'rental', 'railway'] as const;
 export type DestinationCost = (typeof DESTINATION_COSTS)[number];
 
 export interface TripConditions {
@@ -119,7 +126,7 @@ export function compareQuote(i: Pick<BudgetInput, 'nights' | 'skiDays'> & { trip
 /** known = cotización válida para el grupo; estimated = estimación manual deliberada (se suma aparte). */
 export type ComponentStatus = 'known' | 'estimated' | 'pending' | 'not_applicable';
 export interface BudgetComponent {
-  key: 'transport' | 'tolls' | 'parking' | 'lodging' | 'forfait' | 'rental' | 'groceries';
+  key: 'transport' | 'tolls' | 'parking' | 'lodging' | 'forfait' | 'rental' | 'railway' | 'groceries';
   label: string;
   status: ComponentStatus;
   totalCents: number | null;
@@ -215,6 +222,22 @@ export function computeBudget(i: BudgetInput): BudgetResult {
   else if (i.rentalCentsPerDay == null || i.renters == null || i.skiDays == null) pending('rental', 'Alquiler de material', 'Falta precio por día, días o nº de personas que alquilan.');
   else c.push({ key: 'rental', label: 'Alquiler de material', status: costStatus(i, 'rental'), totalCents: i.rentalCentsPerDay * i.renters * i.skiDays, note: `${eur(i.rentalCentsPerDay)} × ${i.renters} × ${i.skiDays} día(s).${src(i, 'rental')}` });
 
+  // Cremallera (estación sin acceso en coche): partida obligatoria. Pendiente sin precio, salvo para quien la tenga
+  // incluida en su forfait o paquete (dicho expresamente por la opción); así no se cuenta dos veces.
+  if (i.railway) {
+    const r = i.railway;
+    const covered = r.included === 'yes';
+    const riders = i.people == null ? null : covered ? (i.skiers == null ? null : Math.max(0, i.people - i.skiers)) : i.people;
+    const price = i.railwayCentsPerPerson ?? null;
+    if (riders === 0) c.push({ key: 'railway', label: 'Cremallera', status: 'not_applicable', totalCents: null, note: `Incluido en el forfait o paquete de esta opción para todo el grupo (${r.accessName}).` });
+    else if (i.unconfirmed?.railway) pending('railway', 'Cremallera', `No se llega en coche: hace falta el cremallera (${r.accessName}). ${i.unconfirmed.railway}`);
+    else if (price == null || riders == null) {
+      const why = r.included === 'unknown' ? ' No consta que el forfait o el paquete de esta opción lo incluyan.' : '';
+      pending('railway', 'Cremallera', `No se llega en coche: hace falta el cremallera (${r.accessName}).${why} Falta el precio por persona para toda la estancia${riders == null ? ' o el nº de personas' : ''}.`);
+    } else c.push({ key: 'railway', label: 'Cremallera', status: costStatus(i, 'railway'), totalCents: price * riders,
+      note: `${eur(price)} por persona (toda la estancia) × ${riders} persona(s)${covered ? ' que no esquían (a quien esquía se lo incluye el forfait o paquete)' : ''}.${src(i, 'railway')}` });
+  }
+
   if (i.groceriesCents == null) pending('groceries', 'Compra', 'Sin estimación de la compra.');
   else c.push({ key: 'groceries', label: 'Compra', status: 'known', totalCents: i.groceriesCents, note: 'Estimación del grupo.' });
 
@@ -259,8 +282,8 @@ export function candidateScenario(i: BudgetInput, candidateAreaId: string | null
 
 type CostSet = Partial<Record<DestinationCost, number | null>>;
 export interface DestinationCostRow extends CostSet { kind: 'confirmed' | 'estimate'; sourceNote: string | null; checkedOn: string | null }
-const FIELD: Record<DestinationCost, 'tollsCentsPerCar' | 'parkingCentsPerCar' | 'forfaitCentsPerDay' | 'rentalCentsPerDay'> =
-  { tolls: 'tollsCentsPerCar', parking: 'parkingCentsPerCar', forfait: 'forfaitCentsPerDay', rental: 'rentalCentsPerDay' };
+const FIELD: Record<DestinationCost, 'tollsCentsPerCar' | 'parkingCentsPerCar' | 'forfaitCentsPerDay' | 'rentalCentsPerDay' | 'railwayCentsPerPerson'> =
+  { tolls: 'tollsCentsPerCar', parking: 'parkingCentsPerCar', forfait: 'forfaitCentsPerDay', rental: 'rentalCentsPerDay', railway: 'railwayCentsPerPerson' };
 
 /**
  * Importes de forfait, alquiler, peajes y parking para calcular en el destino `costArea`, con su procedencia:
