@@ -300,7 +300,7 @@ const COST_LABEL = { forfait: 'forfait', rental: 'alquiler', tolls: 'peajes', pa
 type RouteRow = { road_km: number | null; source: string; validated: number; notes: string | null } | null;
 
 /** scenario: coste de una candidatura en SU destino (hipótesis que no modifica el viaje). Sin él, destino real y validación estricta. */
-function budgetWith({ t, b, members, shopping, destBy }: BudgetCtx, cand: any | null, route: RouteRow, scenario?: { areaLabel: (id: string) => string }) {
+function budgetWith({ t, b, members, shopping, destBy }: BudgetCtx, cand: any | null, route: RouteRow, scenario?: { areaLabel: (id: string) => string; tolls?: { cents: number | null } }) {
   const people = t.participants_planned ?? members ?? null;
   const tripKids: number[] = JSON.parse(t.children_ages || '[]');
   const groceries = b.groceries_cents ?? (shopping.complete ? shopping.knownCents : null);
@@ -324,6 +324,12 @@ function budgetWith({ t, b, members, shopping, destBy }: BudgetCtx, cand: any | 
   const resolved = costArea
     ? resolveDestinationCosts(input, { costArea, tripArea: t.area_id, candidate: candOwn, candidateNote: cand?.costs_note, destination: destBy.get(costArea)?.row ?? null, areaLabel })
     : { input, confirmedForArea: [] };
+  // Desde otra salida, los peajes guardados no se aplican: los indicados para esa salida o pendientes.
+  if (scenario?.tolls) {
+    const given = scenario.tolls.cents != null;
+    resolved.input = { ...resolved.input, tollsCentsPerCar: scenario.tolls.cents, costSources: { ...resolved.input.costSources, tolls: given ? '(indicados para esta salida)' : undefined } };
+    resolved.confirmedForArea = [...resolved.confirmedForArea.filter((k) => k !== 'tolls'), ...(given ? ['tolls' as const] : [])];
+  }
   const sc = scenario ? candidateScenario(resolved.input, cand?.area_id ?? null, areaLabel, resolved.confirmedForArea) : { input: resolved.input, hypothetical: false };
   const result = computeBudget(sc.input);
   if (sc.hypothetical) {
@@ -351,34 +357,65 @@ async function budgetFor(db: D1Database, tripId: string) {
  * Coste completo por persona de cada candidatura (alojamiento o paquete) con el resto de partidas del viaje. Las
  * completas se ordenan por coste; las incompletas no tienen posición y muestran lo que falta. Consultas fijas.
  */
-planRoutes.get('/:id/cost-comparison', async (c) => {
-  const tripId = c.req.param('id');
-  const db = c.env.DB;
-  await requireTripMember(db, tripId, c.get('user').id);
+planRoutes.get('/:id/cost-comparison', async (c) => c.json(await costComparison(c.env.DB, c.req.param('id'), c.get('user').id)));
+
+/**
+ * La misma comparación con el transporte desde otra salida: un origen fijo (`originId`) o el origen personalizado
+ * (`roads`: km por carretera por estación, calculados en el navegador con /api/geo/routes). Los peajes guardados
+ * corresponden a la salida del viaje: desde otra salida no se dan por buenos. Se indican por recorrido
+ * (`tollsByArea`: estación de destino → peajes por coche desde esta salida); la estación sin dato queda con los peajes
+ * pendientes y nunca toma los de otra. No modifica el viaje ni guarda la salida.
+ */
+planRoutes.post('/:id/cost-comparison', async (c) => {
+  const b = await parseBody(c, z.object({
+    originId: zId.optional(),
+    roads: z.record(zId, z.number().positive().max(5000).nullable()).refine((r) => Object.keys(r).length <= 60, 'demasiadas estaciones').optional(),
+    tollsByArea: z.record(zId, zCents.nullable()).refine((r) => Object.keys(r).length <= 60, 'demasiadas estaciones').optional(),
+  }).refine((x) => !(x.originId && x.roads), 'originId o roads, no ambos'));
+  return c.json(await costComparison(c.env.DB, c.req.param('id'), c.get('user').id, b));
+});
+
+type TransportOverride = { originId?: string; roads?: Record<string, number | null>; tollsByArea?: Record<string, number | null> };
+async function costComparison(db: D1Database, tripId: string, me: string, over?: TransportOverride) {
+  await requireTripMember(db, tripId, me);
   const ctx = await budgetContext(db, tripId);
+  const tripOrigin = ctx.t.origin_id ?? 'tarragona';
+  const originId = over?.originId ?? tripOrigin;
+  // Otra salida: sus rutas sustituyen a las del viaje y los peajes guardados (del viaje o de cada estación) no valen.
+  const otherOrigin = !!over?.roads || originId !== tripOrigin;
   const { results: cands } = await db.prepare('SELECT * FROM trip_candidates WHERE trip_id = ?1 ORDER BY created_at LIMIT 50').bind(tripId).all<any>();
   const areas = [...new Set([ctx.t.area_id, ...cands.map((x) => x.area_id)].filter(Boolean))];
   const [{ results: routes }, { results: names }] = await Promise.all([
-    db.prepare(`SELECT area_id, road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id IN (SELECT value FROM json_each(?2))`)
-      .bind(ctx.t.origin_id ?? 'tarragona', JSON.stringify(areas)).all<any>(),
+    over?.roads ? Promise.resolve({ results: [] as any[] })
+      : db.prepare(`SELECT area_id, road_km, source, validated, notes FROM routes WHERE origin_id = ?1 AND area_id IN (SELECT value FROM json_each(?2))`)
+        .bind(originId, JSON.stringify(areas)).all<any>(),
     db.prepare('SELECT id, name FROM areas WHERE id IN (SELECT value FROM json_each(?1))').bind(JSON.stringify(areas)).all<{ id: string; name: string }>(),
   ]);
-  const routeBy = new Map(routes.map((r) => [r.area_id, r]));
+  const routeBy = new Map<string, RouteRow>(over?.roads
+    ? Object.entries(over.roads).map(([id, km]) => [id, { road_km: km, source: 'Geoapify (origen personalizado)', validated: 0, notes: 'distancia desde tu origen personalizado' }])
+    : routes.map((r) => [r.area_id, r]));
   const nameBy = new Map(names.map((a) => [a.id, a.name]));
   const areaLabel = (id: string) => nameBy.get(id) ?? id;
+  // Peajes de cada recorrido (esta salida → estación de la candidatura): solo los indicados para esa estación.
+  const tollsFor = (areaId: string | null) => (otherOrigin ? { cents: areaId ? over?.tollsByArea?.[areaId] ?? null : null } : undefined);
   const options = cands.map((cand) => {
     // Cada candidatura se calcula en su propio destino (hipótesis) sin tocar el viaje; su ruta es la de su estación.
     const areaId = cand.area_id ?? ctx.t.area_id;
     const route = areaId ? routeBy.get(areaId) ?? null : null;
-    const b = budgetWith(ctx, cand, route, { areaLabel });
+    const b = budgetWith(ctx, cand, route, { areaLabel, tolls: tollsFor(areaId) });
     return { id: cand.id, title: cand.title, areaId, roadKm: route?.road_km ?? null, roadValidated: !!route?.validated, hypothetical: b.hypothetical, budget: b.result,
       modality: cand.modality as string | null, forfaitIncluded: cand.forfait_included as string | null };
   });
-  return c.json({
+  return {
     options: rankCosts(options).map((r) => { const o = options.find((x) => x.id === r.id)!; return { ...r, hypothetical: o.hypothetical, warnings: o.budget.warnings, modality: o.modality, forfaitIncluded: o.forfaitIncluded }; }),
+    transport: {
+      originId: over?.roads ? 'personal' : originId, tripOriginId: tripOrigin, tolls: otherOrigin ? 'per_route' : 'trip',
+      /** Estaciones de las candidaturas y si sus peajes desde esta salida están indicados (solo desde otra salida). */
+      tollAreas: otherOrigin ? [...new Set(options.map((o) => o.areaId).filter(Boolean) as string[])].map((id) => ({ areaId: id, name: areaLabel(id), given: over?.tollsByArea?.[id] != null })) : [],
+    },
     note: 'Coste completo por persona con transporte, forfait, alquiler y compra del viaje. Un presupuesto incompleto no tiene posición: nunca se muestra como el más barato.',
-  });
-});
+  };
+}
 
 planRoutes.get('/:id/budget', async (c) => {
   const tripId = c.req.param('id');

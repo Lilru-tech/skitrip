@@ -174,3 +174,49 @@ test('build de Pages: ticket en PDF leído en el navegador (sin subirlo) y PDF s
   expect(w.sameOriginApi).toEqual([]);
   expect(w.failed).toEqual([]);
 });
+
+// Mapa del origen personalizado en el build publicado: Leaflet se carga bajo demanda desde /skitrip/assets, las teselas
+// de OpenStreetMap llevan como Referer solo el origen del sitio (la página usa no-referrer) y sin datos privados, con
+// la atribución visible y sin violar la CSP. Las teselas se sirven aquí con una imagen local: el contenedor de pruebas
+// no sale a tile.openstreetmap.org, así que la respuesta real de OSM no se comprueba en esta prueba.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+test('build de Pages: mapa con teselas de OSM, Referer solo con el origen y error útil si no cargan', async ({ page, request }, info) => {
+  const w = await watch(page);
+  const tileReqs: { url: string; referer: string | undefined }[] = [];
+  await page.route('https://tile.openstreetmap.org/**', async (r) => {
+    tileReqs.push({ url: r.request().url(), referer: (await r.request().allHeaders())['referer'] });
+    await r.fulfill({ status: 200, contentType: 'image/png', headers: { 'cache-control': 'max-age=604800' }, body: PNG });
+  });
+  const u = makeUser('pgm');
+  await createUserViaApi(request, u);
+  await login(page, u);
+  await page.goto(`${PAGES_URL}#/comparar?origen=personal`);
+  const chunk = page.waitForResponse((r) => /\/skitrip\/assets\/MapPicker[^/]*\.js$/.test(r.url()));
+  await page.getByRole('button', { name: 'Elegir un punto en el mapa' }).click();
+  expect((await chunk).status()).toBe(200);
+  const map = page.getByTestId('origin-map');
+  await expect(map.locator('img.leaflet-tile-loaded').first()).toBeVisible();
+  await expect(map.getByRole('link', { name: 'OpenStreetMap' })).toBeVisible();
+  expect(tileReqs.length).toBeGreaterThan(0);
+  for (const t of tileReqs) {
+    expect(t.referer).toBe('http://localhost:4173/');
+    expect(t.url).toMatch(/^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/);
+  }
+  // Marcar un punto no envía nada a OSM ni a la API: las teselas no cambian de forma y la URL no lleva el punto.
+  await map.click();
+  await expect(page.getByText(/Elegido: Punto del mapa/)).toBeVisible();
+  expect(page.url()).not.toMatch(/4[01]\.\d|lat|lon/);
+  for (const t of tileReqs) expect(t.referer).toBe('http://localhost:4173/');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expectNoHorizontalOverflow(page, `mapa Pages (${info.project.name})`);
+  expect(await w.violations()).toEqual([]);
+  expect(w.failed).toEqual([]);
+
+  // Si las teselas no cargan (bloqueo, red, límite de OSM): mensaje útil y la búsqueda por dirección sigue disponible.
+  await page.unroute('https://tile.openstreetmap.org/**');
+  await page.route('https://tile.openstreetmap.org/**', (r) => r.abort('blockedbyclient'));
+  await page.reload();
+  await page.getByRole('button', { name: 'Elegir un punto en el mapa' }).click();
+  await expect(page.getByRole('alert')).toContainText('No se han podido cargar las imágenes del mapa de OpenStreetMap');
+  await expect(page.getByLabel('Dirección o municipio de salida')).toBeVisible();
+});

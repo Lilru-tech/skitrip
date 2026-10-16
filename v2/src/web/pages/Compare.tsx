@@ -2,11 +2,11 @@
 // actualidad del dato, dominios con sus estaciones miembro (sin contar dos veces) y puntuación con pesos editables.
 // Dos contextos: «Esquiar ahora» (solo recomienda estaciones con apertura confirmada) y «Planificar un viaje» (compara
 // todas; el estado de hoy no predice las fechas del viaje).
-import { useMemo, useState } from 'react';
-import { get } from '../api';
+import { useEffect, useMemo, useState } from 'react';
+import { get, post } from '../api';
 import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
 import { ErrorState, Loading, Empty } from '../components/States';
-import { AREA_KIND_LABEL, euros, kmText, MODALITY_LABEL, plural, range } from '../format';
+import { AREA_KIND_LABEL, centsToInput, euros, kmText, MODALITY_LABEL, parseEuros, plural, range } from '../format';
 import { useKeyedResource, useResource } from '../hooks';
 import { Link, setQuery, useLocation, usePageTitle } from '../router';
 import { topLevel, type Catalog, type CatalogArea } from '../catalog';
@@ -14,6 +14,8 @@ import { DEFAULT_WEIGHTS, scoreRows, type Weights } from '../../core/score';
 import { combineStatus, costsByArea, countStatuses, noOpenNotice, RESORT_STATUS_LABEL, resortStatus, snowStateText, tripCostMissing, type AreaCost, type CostByAreaInput, type ResortStatusInfo, type StatusCounts } from '../../core/compare';
 import type { Trip } from '../types';
 import { routeProvenance } from '../../core/legacy';
+import { OriginPicker } from '../components/OriginPicker';
+import { customRouteMap, setCustomOrigin, useCustomOrigin } from '../origin';
 import type { LegacyComment } from '../catalog';
 
 type Mode = 'lodging' | 'lodging_forfait';
@@ -35,10 +37,16 @@ function entryStatus(area: CatalogArea, members: CatalogArea[], nowMs: number): 
 export function ComparePage() {
   usePageTitle('Comparar');
   const { query } = useLocation();
-  const origin = query.get('origen') === 'sabadell' ? 'sabadell' : 'tarragona';
+  const originQ = query.get('origen');
+  const origin = originQ === 'sabadell' || originQ === 'personal' ? originQ : 'tarragona';
+  // Origen personalizado: el catálogo se pide sin rutas propias (base Tarragona) y sus rutas se sustituyen por las
+  // calculadas para el punto elegido; sin punto confirmado no se muestra ninguna distancia como si fuera suya.
+  const custom = useCustomOrigin();
+  const customRoutes = useMemo(() => (origin === 'personal' && custom && custom.routes.length ? customRouteMap(custom) : null), [origin, custom]);
+  const fixedOrigin = origin === 'personal' ? 'tarragona' : origin;
   const mode: Mode = query.get('modalidad') === 'lodging_forfait' ? 'lodging_forfait' : 'lodging';
   const ctx: Context = query.get('contexto') === 'ahora' ? 'ahora' : 'plan';
-  const catalog = useResource(() => get<Catalog>(`/api/public/catalog?origin=${origin}`), [origin]);
+  const catalog = useResource(() => get<Catalog>(`/api/public/catalog?origin=${fixedOrigin}`), [fixedOrigin]);
   const [maxKmText, setMaxKmText] = useState('300');
   const maxKm = Math.max(0, Number(maxKmText) || 0);
   const [weightsBy, setWeightsBy] = useState(INITIAL_WEIGHTS);
@@ -48,10 +56,38 @@ export function ComparePage() {
   const tripId = query.get('viaje');
   const trips = useResource(() => get<{ trips: Trip[] }>('/api/trips').catch(() => ({ trips: [] as Trip[] })), []);
   const trip = trips.data?.trips.find((t) => t.id === tripId) ?? null;
-  // Los costes van ligados a la selección que los pidió (viaje, versión y salida): al cambiarla no se reutilizan los
-  // anteriores; hasta que llegue la respuesta nueva (o si falla) el coste queda pendiente.
-  const costKey = trip ? JSON.stringify([trip.id, trip.version, origin]) : null;
-  const costs = useKeyedResource(costKey, () => get<{ options: CostByAreaInput[] }>(`/api/trips/${trip!.id}/cost-comparison`));
+  // Transporte del coste desde la salida elegida arriba. Desde una salida distinta de la del viaje, los peajes guardados
+  // no valen: se indican por recorrido (esta salida → cada estación) y el que falta queda pendiente. Los de una salida
+  // no pasan a otra: van con la salida (y, en el origen personalizado, con su punto).
+  const tripOrigin = trip?.originId ?? 'tarragona';
+  const otherOrigin = !!trip && origin !== tripOrigin;
+  const originKey = origin === 'personal' ? (custom ? `personal:${custom.lat},${custom.lon}` : 'personal') : origin;
+  const [fixedTolls, setFixedTolls] = useState<Record<string, Record<string, number | null>>>({});
+  const tollsByArea = useMemo(() => (origin === 'personal' ? custom?.tollsByArea ?? {} : fixedTolls[origin] ?? {}), [origin, custom, fixedTolls]);
+  const setAreaTolls = (areaId: string, v: number | null) => (origin === 'personal'
+    ? custom && setCustomOrigin({ ...custom, tollsByArea: { ...custom.tollsByArea, [areaId]: v } })
+    : setFixedTolls((t) => ({ ...t, [origin]: { ...t[origin], [areaId]: v } })));
+  const givenTolls = Object.fromEntries(Object.entries(tollsByArea).filter(([, v]) => v != null).sort(([a], [b]) => a.localeCompare(b)));
+  const roadsKey = customRoutes ? `${custom!.lat},${custom!.lon},${custom!.checkedOn}` : '';
+  // Los costes van ligados a la selección que los pidió (viaje, versión, salida, rutas y peajes): al cambiarla no se
+  // reutilizan los anteriores; hasta que llegue la respuesta nueva (o si falla) el coste queda pendiente.
+  const costKey = !trip || (origin === 'personal' && !customRoutes) ? null : JSON.stringify([trip.id, trip.version, origin, roadsKey, otherOrigin ? givenTolls : null]);
+  const costs = useKeyedResource(costKey, () => {
+    if (!trip) return Promise.resolve(null);
+    const path = `/api/trips/${trip.id}/cost-comparison`;
+    if (origin === 'personal') {
+      if (!custom || !customRoutes) return Promise.resolve(null);
+      return post<CostResponse>(path, { roads: Object.fromEntries(custom.routes.map((r) => [r.areaId, r.roadKm])), tollsByArea: givenTolls });
+    }
+    return otherOrigin ? post<CostResponse>(path, { originId: origin, tollsByArea: givenTolls }) : get<CostResponse>(path);
+  });
+  // Estaciones de las candidaturas del viaje (para pedir sus peajes): se conservan mientras se recalcula, por viaje.
+  const [tollAreasBy, setTollAreasBy] = useState<Record<string, TollArea[]>>({});
+  const freshTollAreas = costs.data?.transport?.tollAreas;
+  useEffect(() => {
+    if (trip && freshTollAreas?.length) setTollAreasBy((m) => ({ ...m, [trip.id]: freshTollAreas.map(({ areaId, name }) => ({ areaId, name })) }));
+  }, [trip?.id, freshTollAreas]);
+  const tollAreas = trip ? tollAreasBy[trip.id] ?? freshTollAreas ?? null : null;
   const costByArea = useMemo(() => {
     if (!trip || !costs.data || !catalog.data) return null;
     const parentOf = new Map(catalog.data.links.map((l) => [l.child_id, l.parent_id]));
@@ -65,7 +101,9 @@ export function ComparePage() {
   const groups = useMemo(() => {
     if (!catalog.data) return null;
     const nowMs = Date.now();
-    const entries = topLevel(catalog.data).map((e) => ({ ...e, status: entryStatus(e.area, e.members, nowMs) }));
+    if (origin === 'personal' && !customRoutes) return null;
+    const withRoute = (a: CatalogArea): CatalogArea => (customRoutes ? { ...a, route: customRoutes.get(a.id) ?? null } : a);
+    const entries = topLevel(catalog.data).map((e) => ({ area: withRoute(e.area), members: e.members.map(withRoute), status: entryStatus(e.area, e.members, nowMs) }));
     const near = entries.filter((e) => e.area.route?.roadKm != null && e.area.route.roadKm <= maxKm);
     const far = entries.filter((e) => e.area.route?.roadKm != null && e.area.route.roadKm > maxKm);
     const noRoute = entries.filter((e) => e.area.route?.roadKm == null);
@@ -83,9 +121,9 @@ export function ComparePage() {
       far, noRoute,
       counts: { all: countStatuses(entries.map((e) => e.status.status)), filtered: countStatuses(near.map((e) => e.status.status)) },
     };
-  }, [catalog.data, maxKm, weights, ctx, costActive, costByArea]);
+  }, [catalog.data, maxKm, weights, ctx, costActive, costByArea, origin, customRoutes]);
 
-  const originName = origin === 'tarragona' ? 'Tarragona' : 'Sabadell';
+  const originName = origin === 'tarragona' ? 'Tarragona' : origin === 'sabadell' ? 'Sabadell' : custom?.label ?? 'tu origen';
   const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
     <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} {...extra} />
   );
@@ -117,6 +155,7 @@ export function ComparePage() {
             <select id="cmp-origin" value={origin} onChange={(e) => setQuery('origen', e.target.value === 'tarragona' ? null : e.target.value)}>
               <option value="tarragona">Tarragona</option>
               <option value="sabadell">Sabadell</option>
+              <option value="personal">{custom ? `Mi origen: ${custom.label.length > 28 ? `${custom.label.slice(0, 27)}…` : custom.label}` : 'Otra dirección o punto del mapa…'}</option>
             </select>
           </div>
           <div className="field field-inline">
@@ -137,7 +176,9 @@ export function ComparePage() {
             </select>
           </div>
         </div>
-        <CostContext trip={trip} missing={tripMissing} loading={costs.loading} error={costs.error} active={costActive} anyCandidates={!!costs.data?.options.length} originId={origin} hasTrips={(trips.data?.trips.length ?? 0) > 0} />
+        {origin === 'personal' && <OriginPicker key={custom ? `${custom.lat},${custom.lon}` : 'none'} origin={custom} />}
+        <CostContext trip={trip} missing={tripMissing} loading={costs.loading} error={costs.error} active={costActive} anyCandidates={!!costs.data?.options.length}
+          transport={otherOrigin ? { originName, contextKey: `${trip!.id}|${originKey}`, areas: tollAreas, tolls: tollsByArea, setAreaTolls, ready: origin !== 'personal' || !!customRoutes } : null} hasTrips={(trips.data?.trips.length ?? 0) > 0} />
         <details className="weights">
           <summary>Pesos de la puntuación</summary>
           <div className="weights-grid">
@@ -156,6 +197,9 @@ export function ComparePage() {
       </section>
 
       {catalog.loading && !catalog.data && <Loading label="Cargando estaciones…" />}
+      {origin === 'personal' && !customRoutes && catalog.data && (
+        <p className="muted">Elige y confirma tu punto de salida para ver las distancias. No se muestran las de Tarragona o Sabadell como si fueran tuyas.</p>
+      )}
       {catalog.error && !catalog.data && <ErrorState message={catalog.error} onRetry={catalog.reload} />}
       {groups && (
         <>
@@ -207,8 +251,20 @@ export function ComparePage() {
 }
 
 /** Contexto del criterio de coste: viaje elegido, condiciones comparadas y qué falta para activarlo. */
-function CostContext({ trip, missing, loading, error, active, anyCandidates, originId, hasTrips }: {
-  trip: Trip | null; missing: string[]; loading: boolean; error: string | null; active: boolean; anyCandidates: boolean; originId: string; hasTrips: boolean;
+type TollArea = { areaId: string; name: string };
+type CostResponse = { options: CostByAreaInput[]; transport?: { tolls: 'trip' | 'per_route'; tollAreas: (TollArea & { given: boolean })[] } };
+type TransportInfo = {
+  originName: string; ready: boolean;
+  /** Viaje y salida: al cambiar, los campos se rehacen con los importes de ese contexto (nunca los del anterior). */
+  contextKey: string;
+  /** Estaciones con candidaturas; null mientras no se conocen. */
+  areas: TollArea[] | null;
+  tolls: Record<string, number | null>; setAreaTolls: (areaId: string, v: number | null) => void;
+};
+function CostContext({ trip, missing, loading, error, active, anyCandidates, transport, hasTrips }: {
+  trip: Trip | null; missing: string[]; loading: boolean; error: string | null; active: boolean; anyCandidates: boolean; hasTrips: boolean;
+  /** Salida distinta de la del viaje: el transporte se calcula desde ella y sus peajes se indican aparte. */
+  transport: TransportInfo | null;
 }) {
   if (!trip) {
     return <p className="muted small">{hasTrips ? 'Elige un viaje para comparar el coste completo por persona en sus fechas y condiciones.' : <>Para comparar costes, <Link to="/viajes">crea un viaje</Link> con fechas, noches y días de esquí y añade candidaturas con precio.</>} Los precios «desde» de las fichas son referencias aparte y no puntúan.</p>;
@@ -225,11 +281,49 @@ function CostContext({ trip, missing, loading, error, active, anyCandidates, ori
     <div className="notice stack-s" role="status" aria-label="Coste del viaje">
       <p><strong>Coste por persona de «{trip.name}»</strong>: {cond}.</p>
       <p className="small">Cada estación usa la candidatura con presupuesto completo más barata para esas mismas condiciones: alojamiento o paquete, forfait si no va incluido, alquiler, transporte y compra del viaje. Si falta alguna partida, el coste queda pendiente.</p>
-      {trip.originId && trip.originId !== originId && <p className="small text-warn">El transporte del coste sale de la salida del viaje, no de la elegida arriba.</p>}
+      {transport && <TransportTolls key={transport.contextKey} t={transport} />}
       {loading && <p className="small muted">Calculando costes…</p>}
       {error && <p className="small text-warn">No se pudieron calcular los costes: {error} El coste queda pendiente: no se usan importes de otra selección.</p>}
       {!active && !loading && !error && (
         <p className="small text-warn">El coste no puntúa todavía: {missing.length ? `al viaje le faltan ${missing.join(', ')}` : anyCandidates ? 'ninguna candidatura tiene el presupuesto completo' : 'el viaje no tiene candidaturas con precio'}. <Link to={missing.length ? `/viajes/${trip.id}` : `/viajes/${trip.id}/presupuesto`}>{missing.length ? 'Completar el viaje' : 'Ver presupuesto'}</Link></p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Peajes desde una salida distinta de la del viaje, uno por recorrido (esta salida → cada estación con candidaturas):
+ * los guardados no se dan por buenos y el de una estación nunca se usa para otra. Sin dato, ese coste queda pendiente.
+ */
+function TransportTolls({ t }: { t: TransportInfo }) {
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(t.tolls).map(([k, v]) => [k, centsToInput(v)])));
+  const [bad, setBad] = useState<string[]>([]);
+  if (!t.ready) return <p className="small muted">El transporte se calculará desde tu origen cuando confirmes el punto de salida.</p>;
+  const applyOne = (areaId: string) => {
+    const v = parseEuros(drafts[areaId] ?? '');
+    const invalid = v != null && Number.isNaN(v);
+    setBad((b) => (invalid ? [...new Set([...b, areaId])] : b.filter((x) => x !== areaId)));
+    if (!invalid && v !== (t.tolls[areaId] ?? null)) t.setAreaTolls(areaId, v);
+  };
+  const areas = t.areas ?? [];
+  const given = areas.filter((a) => t.tolls[a.areaId] != null).length;
+  return (
+    <div className="stack-s">
+      <p className="small">Transporte desde <strong>{t.originName}</strong>, no desde la salida del viaje. Los peajes guardados en el viaje no se aplican a esta salida: indica los de cada recorrido (0 si no hay). Los que no indiques quedan pendientes.</p>
+      {t.areas == null ? <p className="small muted">Buscando las estaciones de las candidaturas…</p> : areas.length > 0 && (
+        <form className="stack-s" aria-label="Peajes por recorrido" onSubmit={(e) => { e.preventDefault(); areas.forEach((a) => applyOne(a.areaId)); }}>
+          <p className="small">{given === areas.length ? 'Peajes indicados en todos los recorridos.' : `Peajes indicados en ${given} de ${plural(areas.length, 'recorrido', 'recorridos')}.`}</p>
+          {areas.map((a) => (
+            <div key={a.areaId} className="field field-inline">
+              <label htmlFor={`cmp-tolls-${a.areaId}`}>Peajes por coche hasta {a.name}, ida y vuelta (€)</label>
+              <input id={`cmp-tolls-${a.areaId}`} type="text" inputMode="decimal" value={drafts[a.areaId] ?? ''} aria-invalid={bad.includes(a.areaId) || undefined}
+                aria-describedby={`cmp-tolls-${a.areaId}-st`} onChange={(e) => setDrafts((d) => ({ ...d, [a.areaId]: e.target.value }))} onBlur={() => applyOne(a.areaId)} />
+              <span id={`cmp-tolls-${a.areaId}-st`} className="small muted">{t.tolls[a.areaId] != null ? 'indicado' : 'pendiente'}</span>
+            </div>
+          ))}
+          <div><button type="submit" className="btn btn-secondary btn-small">Aplicar peajes</button></div>
+          {bad.length > 0 && <p className="small text-warn">Escribe importes como 24,50 o déjalos vacíos.</p>}
+        </form>
       )}
     </div>
   );
@@ -312,7 +406,8 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost 
       {ctx === 'plan' && closed && <p className="small muted">Cerrada hoy; puede estar abierta en las fechas de tu viaje.</p>}
       <dl className="area-facts">
         <div><dt>Distancia</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min aprox.`}</> : `sin distancia desde ${origin}`}
-          {prov?.level === 'legacy' && <span className="small text-warn"> · {prov.label}</span>}</dd></div>
+          {prov?.level === 'legacy' && <span className="small text-warn"> · {prov.label}</span>}
+          {r?.notes && r.source.startsWith('Geoapify') && <span className="small muted"> · {r.notes}</span>}</dd></div>
         <div><dt>Km abiertos</dt><dd>{openKm != null ? `${kmText(openKm)} de ${kmText(snow!.totalKm ?? area.officialTotalKm)}` : status.status === 'unknown' ? 'sin dato vigente' : 'la fuente no publica km abiertos'}
           {closed && openKm === 0 && <span className="muted small"> · 0 km abiertos no significa que no haya nieve</span>}</dd></div>
         {cost !== undefined && <div><dt>Coste por persona</dt><dd><CostText cost={cost} /></dd></div>}
