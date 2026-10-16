@@ -70,7 +70,7 @@ Sin la clave, Comparar ofrece la opción «Otra dirección o punto del mapa…»
 3. En https://dash.cloudflare.com → Workers y Pages → `skitrip` → Settings → Variables and Secrets → Add: tipo **Secret**, nombre `GEOAPIFY_API_KEY`, pegar la clave y guardar (Deploy).
 4. Comprobar: Comparar → «Salida desde» → «Otra dirección o punto del mapa…» ya no dice «aún no está activado».
 
-Los secretos del Worker se conservan en cada publicación (`wrangler deploy` no los borra). Para retirarla: borrar el secreto en esa misma pantalla, o rotar la clave desde Geoapify. Consumo y topes: `QUOTAS.md`, «Origen personalizado».
+Los secretos del Worker se conservan en cada publicación (`wrangler deploy` no los borra). Para retirarla: borrar el secreto en esa misma pantalla, o rotar la clave desde Geoapify. Consumo y topes: `QUOTAS.md`, «Origen personalizado». Puntos de llegada de las rutas y su grado de confirmación: `PUNTOS-DE-LLEGADA.md`.
 
 ## Workflows
 

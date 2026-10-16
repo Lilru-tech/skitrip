@@ -62,8 +62,12 @@ describe('origen personalizado', () => {
     expect(call.targets).toContainEqual({ location: [1.51, 42.31] });
     const by = Object.fromEntries(r.json.routes.map((x: any) => [x.areaId, x]));
     expect(by['g-uno']).toMatchObject({ accessName: 'Aparcamiento de prueba', roadKm: expect.any(Number), durationMin: expect.any(Number) });
-    expect(by['g-uno'].notes).toContain('sin revisar');
-    expect(by['g-dos'].accessName).toBe('(punto de la estación en el catálogo)');
+    expect(by['g-uno'].notes).toContain('aproximado, sin confirmar');
+    expect(by['g-uno'].access).toMatchObject({ confidence: 'approximate' });
+    // Sin acceso conocido: punto central del catálogo, dicho expresamente (no se presenta como acceso confirmado).
+    expect(by['g-dos'].accessName).toBe('(punto central de la estación en el catálogo, no un acceso verificado)');
+    expect(by['g-dos'].access).toMatchObject({ confidence: 'catalog_center' });
+    expect(by['g-dos'].notes).toContain('punto central de la estación en el catálogo');
     expect(by['g-nuria']).toMatchObject({ lastLeg: 'rack_railway' });
     expect(by['g-nuria'].notes).toContain('Sin acceso en coche');
     expect(r.json.credits).toBe(r.json.routes.length);

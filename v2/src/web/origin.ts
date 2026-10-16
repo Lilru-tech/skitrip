@@ -4,7 +4,11 @@
 import { useSyncExternalStore } from 'react';
 import type { Route } from './catalog';
 
-export interface CustomRoute { areaId: string; accessName: string; lastLeg: 'rack_railway' | null; roadKm: number | null; durationMin: number | null; notes: string | null }
+export interface CustomRoute {
+  areaId: string; accessName: string; lastLeg: 'rack_railway' | null; roadKm: number | null; durationMin: number | null; notes: string | null;
+  /** Grado de confirmación del punto de llegada (catalog_center = punto central del catálogo, no un acceso). */
+  access?: { confidence: 'contrasted' | 'single_source' | 'approximate' | 'catalog_center'; source: string | null; checkedOn: string | null };
+}
 export interface CustomOrigin {
   label: string; lat: number; lon: number;
   /** Rutas calculadas para este punto (se reutilizan sin volver a consultar al proveedor). */
