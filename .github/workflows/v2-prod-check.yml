@@ -4,6 +4,8 @@
 #   · smoke (cuentas a-c): registro, acceso, privacidad, amigos, viaje, calendario, compra y gastos.
 #   · calendario (cuentas d-f): amistad, disponibilidades distintas, compartir, coincidencias y detalle, propuesta de
 #     fechas y su uso en el viaje, compartir solo con un viaje, revocación y acceso ajeno rechazado.
+#   · origen (cuenta g, solo si se elige expresamente; no entra en «todos»): origen personalizado con Geoapify y
+#     teselas de OpenStreetMap reales desde un punto público de Reus. Gasta 1 + N créditos de Geoapify (N = 19 hoy).
 #
 # Es manual a propósito: crea cuentas de prueba identificables (prod-check-<ejecución>-<intento>-<letra>@example.com).
 # Al terminar, pase o falle, la prueba borra su viaje y sus cuentas de Firebase, y el paso «Limpieza de D1» borra sus
@@ -18,7 +20,7 @@ on:
       recorrido:
         description: 'Qué recorrido ejecutar'
         type: choice
-        options: [todos, smoke, calendario]
+        options: [todos, smoke, calendario, origen]
         default: todos
 permissions:
   contents: read
@@ -35,13 +37,13 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        spec: ${{ fromJSON(inputs.recorrido == 'smoke' && '["smoke"]' || inputs.recorrido == 'calendario' && '["calendar"]' || '["smoke","calendar"]') }}
+        spec: ${{ fromJSON(inputs.recorrido == 'smoke' && '["smoke"]' || inputs.recorrido == 'calendario' && '["calendar"]' || inputs.recorrido == 'origen' && '["origin"]' || '["smoke","calendar"]') }}
     name: ${{ matrix.spec }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       SPEC: ${{ matrix.spec }}
-      LETTERS: ${{ matrix.spec == 'smoke' && 'a,b,c' || 'd,e,f' }}
+      LETTERS: ${{ matrix.spec == 'smoke' && 'a,b,c' || matrix.spec == 'origin' && 'g' || 'd,e,f' }}
       PROD_URL: https://lilru-tech.github.io/skitrip/
       PROD_API: ${{ vars.VITE_API_BASE_URL }}
       FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
