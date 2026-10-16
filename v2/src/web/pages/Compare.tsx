@@ -405,7 +405,7 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost 
       )}
       {ctx === 'plan' && closed && <p className="small muted">Cerrada hoy; puede estar abierta en las fechas de tu viaje.</p>}
       <dl className="area-facts">
-        <div><dt>Distancia</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min aprox.`}</> : `sin distancia desde ${origin}`}
+        <div><dt>Distancia</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min ${r.durationDoubtful ? '(tiempo dudoso)' : 'aprox.'}`}</> : `sin distancia desde ${origin}`}
           {prov?.level === 'legacy' && <span className="small text-warn"> · {prov.label}</span>}
           {r?.notes && r.source.startsWith('Geoapify') && <span className="small muted"> · {r.notes}</span>}</dd></div>
         <div><dt>Km abiertos</dt><dd>{openKm != null ? `${kmText(openKm)} de ${kmText(snow!.totalKm ?? area.officialTotalKm)}` : status.status === 'unknown' ? 'sin dato vigente' : 'la fuente no publica km abiertos'}

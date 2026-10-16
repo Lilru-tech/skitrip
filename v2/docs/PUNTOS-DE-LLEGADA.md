@@ -39,7 +39,7 @@ Las rutas desde **Tarragona y Sabadell** no cambian: son las curadas en `data/ca
 ## Sin verificar
 
 - **Grandvalira, Baqueira Beret, Espot Esquí, Formigal-Panticosa (Sextas) y Candanchú**: una sola fuente; no se ha encontrado otra que lo confirme.
-- **Port Ainé**: el punto es la base Cota 2000. En invierno se aparca en el nuevo aparcamiento de Rabasta (290 plazas), cuya ubicación exacta no está publicada.
+- **Port Ainé**: el punto es la base Cota 2000. En invierno se aparca en seis aparcamientos escalonados de la carretera de acceso (Cota 1650, Riu Sec, Rabasta, Roní, Jet Cim y La Font, según [pirineu365](https://pirineu365.cat/en/portaine/resort/practical-information/)), cuya ubicación exacta no está publicada. Nota actualizada en la migración 0019.
 - **Vall de Núria desde Ribes de Freser**: la fuente no distingue Ribes-Enllaç de Ribes-Vila; por eso la ruta va a Queralbs (contrastado) y Ribes solo se menciona en la nota.
 - **Formigal-Panticosa en el catálogo**: hasta el 16/10/2026 el punto del dominio en `data/catalog.json` era (42,744; 0,055), a unos 30 km de Formigal y de Panticosa, y las rutas guardadas desde Tarragona (370 km, 334 min) y Sabadell (416 km, 361 min) iban a él. Ahora es el aparcamiento de Sextas (42,77481; −0,37275; [skiresort.com](https://www.skiresort.com/en/ski-resort/formigal/arrival-car/)), a menos de 1,5 km del pueblo de Formigal, y las rutas se han recalculado con OSRM el 16/10/2026: Tarragona 292 km y 223 min; Sabadell 338 km y 250 min. Panticosa queda unos 15 km antes por la misma carretera. Es un punto de una sola fuente y la ruta lo dice.
 
@@ -55,6 +55,17 @@ No se llega en coche. La ruta del origen personalizado termina en el **aparcamie
 - En otra estación que no sea el destino del viaje, el precio común del viaje no se toma como confirmado: queda pendiente salvo que se indique en «Costes por estación» o en la candidatura.
 
 Precios encontrados (16/10/2026, tarifas de la temporada 2025-2026 en [pirineu365.cat](https://pirineu365.cat/en/valldenuria/resort/rates/), sin confirmar en valldenuria.cat): forfait de día **sin** cremallera 23,50 € adulto; «forfait de día + cremallera» 41 € adulto, 31 € infantil; cremallera solo, ida y vuelta, 31 € adulto y 20 € infantil desde Queralbs, y 34 € y 22 € desde Ribes. El billete combinado Skitren (Renfe R3 + cremallera + forfait de un día, 47,70 € adulto en 2025-2026, [lugaresdenieve.com](https://www.lugaresdenieve.com/?q=es%2Fnoticia%2Ffgc-renfe-skitren-trenatura-la-molina-vall-de-nuria)) también lo incluye. Una central de reservas ([centraldereservas.com](https://actividades.centraldereservas.com/d/queralbs/forfait-vall-de-nuria-lstRM8M88)) dice que «todos los forfaits» lo incluyen, pero la tabla de tarifas distingue forfaits con y sin cremallera. Por eso **depende del producto concreto** y la aplicación no lo da por incluido: lo indica cada candidatura.
+
+## Port Ainé: tiempo dudoso desde un origen personalizado
+
+El 16/10/2026, desde la plaza del Mercadal de Reus, Geoapify dio **210 km y 334 min** hasta Port Ainé (ejecución 38886245758). Revisión:
+
+- **Punto de llegada**: base Cota 2000, la dirección de la estación («Estació de Muntanya Cota 2000, Rialp»). OSRM lo ajusta a 12 m de la carretera, al final de la carretera de acceso a Port Ainé: está conectado.
+- **Otro proveedor (OSRM)**, mismo origen y mismo punto: **212 km y 222 min**. La distancia coincide (2 km de diferencia), así que el recorrido es el mismo: Rialp, carretera de Roní (4,6 km) y carretera de acceso a Port Ainé (13,9 km), unos 40 min desde Rialp.
+- **Comparación con las otras 18 estaciones**: con los mismos datos de Reus, el tiempo de Geoapify queda entre 0,71 y 1,13 veces el que da la velocidad media de su ruta OSRM. Port Ainé queda en 1,75 veces.
+- **Causa**: la matriz de Geoapify no devuelve el recorrido ni el tipo de vía, así que no se puede saber qué tramo penaliza. El exceso (unos 110 min) está en el tiempo del proveedor, no en el punto ni en la distancia. No se ha cambiado la coordenada ni el tiempo.
+- **Lo que hace la aplicación**: si el tiempo del proveedor supera en más de 1,4 veces el que da la velocidad media de la ruta OSRM más rápida guardada para esa estación (de 50 km o más), se muestra tal cual, marcado como «tiempo dudoso», con una nota que da la referencia. La distancia (la que se usa para el combustible) no cambia.
+- **Ruta guardada desde Tarragona**: era la distancia heredada de 225 km sin tiempo ni fuente. Ahora es OSRM, 216 km y 220 min hasta el mismo punto (16/10/2026).
 
 ## Cómo actualizar
 
