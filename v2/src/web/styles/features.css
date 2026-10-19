@@ -215,3 +215,6 @@
 .run-fields input { max-width: 8rem; }
 .run-label-dot { margin-left: 6px; vertical-align: middle; }
 .run-admin-card p { margin: 0; }
+/* Valores actuales: palabras enteras (sin cortar «importado»); si no cabe en móvil, la tabla se desplaza dentro de su caja. */
+.run-values th, .run-values td { overflow-wrap: normal; }
+.run-values tbody th { white-space: nowrap; }

@@ -250,7 +250,7 @@ function CurrentValues({ area }: { area: AdminRunArea }) {
     <div className="stack-s">
       <h3>Valores actuales</h3>
       <div className="table-scroll" tabIndex={0} role="region" aria-label="Valores actuales de pistas">
-        <table className="data-table compact">
+        <table className="data-table compact run-values">
           <caption className="visually-hidden">Total y colores: catálogo importado, aportación manual y valor vigente</caption>
           <thead><tr><th scope="col">Campo</th><th scope="col">Catálogo importado</th><th scope="col">Aportación manual</th><th scope="col">Vigente</th></tr></thead>
           <tbody>
