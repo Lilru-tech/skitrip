@@ -21,23 +21,41 @@ export function RunColours({ v, of = null, label }: { v: ByColour; of?: ByColour
   );
 }
 
-/** Catálogo (Planificar): total comparable con su desglose; si no hay, lo publicado con por qué no puntúa. */
+const someColour = (v: ByColour | null | undefined) => !!v && RUN_COLOURS.some((c) => v[c] != null);
+
+/**
+ * Catálogo (Planificar): total comparable con su desglose; si no hay, lo publicado con por qué no puntúa. Un desglose
+ * parcial muestra los colores conocidos y dice «sin dato» en los demás: nunca se inventa el total ni se rellena con ceros.
+ */
 export function CatalogRunsText({ cat, name }: { cat: EntryCatalogRuns; name: string }) {
+  const own = cat.own;
+  const partialLabel = `Colores conocidos de ${name} (desglose parcial)`;
   if (cat.comparableTotal != null) {
+    const partial = cat.via === 'own' && own && !own.breakdownComplete && someColour(own.byColour);
     return (
       <>
         <strong>{cat.comparableTotal}</strong>{cat.via === 'members' && <span className="muted small"> (suma de sus estaciones)</span>}
-        {cat.byColour ? <RunColours v={cat.byColour} label={`Pistas de ${name} por color`} /> : <span className="muted small"> · sin desglose por colores</span>}
+        {cat.byColour ? <RunColours v={cat.byColour} label={`Pistas de ${name} por color`} />
+          : partial ? <><span className="muted small"> · desglose parcial</span><RunColours v={own!.byColour} label={partialLabel} /></>
+          : <span className="muted small"> · sin desglose por colores</span>}
       </>
     );
   }
-  const own = cat.own;
-  if (own?.total == null) return <>Sin dato</>;
+  if (own?.total == null) {
+    if (!someColour(own?.byColour)) return <>Sin dato</>;
+    // Solo colores: se ven, pero sin total no hay cifra que puntúe.
+    return (
+      <>
+        Total sin dato <span className="small muted">· desglose parcial · no puntúa</span>
+        <RunColours v={own!.byColour} label={partialLabel} />
+      </>
+    );
+  }
   // Resumen: la cifra publicada con una advertencia breve; el porqué va en los detalles (RunsIssueDetail).
   return (
     <>
       {plural(own.total, 'pista publicada', 'pistas publicadas')} <span className="small text-warn">· dato por revisar · no puntúa</span>
-      {RUN_COLOURS.some((c) => own.byColour[c] != null) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
+      {someColour(own.byColour) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
     </>
   );
 }

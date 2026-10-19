@@ -226,3 +226,23 @@ export function tripCostMissing(t: { startDate: string | null; endDate: string |
   if (t.skiDays == null) m.push('días de esquí');
   return m;
 }
+
+/**
+ * Qué se puede dibujar con los km abiertos de una serie de observaciones. Un valor desconocido (null) no es un cero:
+ *  - 'chart': hay algún km abierto medido (> 0); el gráfico marca aparte las observaciones sin dato.
+ *  - 'no_data': ninguna observación publica km abiertos; faltan datos, no se afirma que no hubiera km abiertos.
+ *  - 'all_zero': todas las observaciones registran 0 km abiertos.
+ *  - 'zero_and_missing': las que tienen dato registran 0 y el resto no publica km.
+ */
+export type SnowChartState = 'chart' | 'no_data' | 'all_zero' | 'zero_and_missing';
+export function snowChartState(openKm: readonly (number | null | undefined)[]): SnowChartState {
+  const measured = openKm.filter((v): v is number => v != null);
+  if (measured.some((v) => v > 0)) return 'chart';
+  if (!measured.length) return 'no_data';
+  return measured.length === openKm.length ? 'all_zero' : 'zero_and_missing';
+}
+export const SNOW_CHART_STATE_TEXT: Record<Exclude<SnowChartState, 'chart'>, string> = {
+  no_data: 'Faltan datos para dibujar el gráfico: ninguna observación de los últimos 90 días publica km abiertos.',
+  all_zero: 'Sin gráfico: todas las observaciones de los últimos 90 días registran 0 km abiertos.',
+  zero_and_missing: 'Sin gráfico: las observaciones con dato registran 0 km abiertos y las demás no publican km.',
+};

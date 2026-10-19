@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { get } from '../api';
 import { Freshness, ReportAge, ReportDate, StatusBadge } from '../components/Badges';
-import { resortStatus } from '../../core/compare';
+import { resortStatus, SNOW_CHART_STATE_TEXT, snowChartState } from '../../core/compare';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
 import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, healthText, instant, isLegitimateAbsence, kmText, numDate, OP_STATUS_LABEL, PRICE_KIND_LABEL, PROVIDER_LABEL, RUN_STATUS_LABEL, SNOW_QUALITY_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
@@ -17,7 +17,7 @@ import { legacyAnomalyText, routeProvenance } from '../../core/legacy';
 import { SnowKm } from './Compare';
 import { entryCatalogRuns, runCatalogView, runsNow, RUN_CATALOG_ISSUE_LABEL } from '../../core/runs';
 import { runEntry, type RunCatalog } from '../catalog';
-import { CatalogRunsText, NowRunsText, RunColours, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
+import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Forfait = 'yes' | 'no' | 'unknown';
 const FORFAIT_LABEL: Record<Forfait, string> = { no: 'Solo alojamiento', yes: 'Alojamiento + forfait', unknown: 'Forfait sin confirmar' };
@@ -42,6 +42,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
   const items = offers.items.filter((o) => o.forfaitIncluded === mode);
   const offerSources = sources.filter((s) => s.kind === 'offers' && s.url);
   const legacyCount = legacy.snow.length + legacy.hotel.length;
+  const chartState = snowChartState(snow.slice(-90).map((x) => x.openKm));
   const firstRoute = d.data!.routes?.[0] ?? null;
   const firstProv = firstRoute ? routeProvenance(firstRoute) : null;
 
@@ -77,8 +78,8 @@ export function AreaPage({ areaId }: { areaId: string }) {
             {firstProv?.level === 'legacy' && <span className="small text-warn"> · {firstProv.label}</span>}</> : 'sin ruta registrada'}</dd></div>
         </dl>
         {latest && latest.quality !== 'ok' && <p className="notice notice-warn small">Dato con avisos: {latest.qualityNote ?? SNOW_QUALITY_LABEL[latest.quality] ?? latest.quality}. No puntúa en Comparar.</p>}
-        {snow.length > 1 && (snow.some((x) => (x.openKm ?? 0) > 0) ? <SnowChart snow={snow} /> : (
-          <p className="small muted" data-testid="snow-chart-empty">Sin km abiertos en las observaciones de los últimos 90 días: no hay gráfico que mostrar. <button type="button" className="btn-link" onClick={openSnowHistory}>Ver el historial de nieve</button></p>
+        {snow.length > 1 && (chartState === 'chart' ? <SnowChart snow={snow} /> : (
+          <p className="small muted" data-testid="snow-chart-empty">{SNOW_CHART_STATE_TEXT[chartState]} <button type="button" className="btn-link" onClick={openSnowHistory}>Ver el historial de nieve</button></p>
         ))}
         <details className="area-more">
           <summary>Ver detalles<span className="visually-hidden"> del estado actual de {area.name}</span></summary>
@@ -353,8 +354,7 @@ function RunsSection({ areaId, name, runs, memberRuns, memberNames, latest }: {
     <section className="panel stack" aria-labelledby="a-runs">
       <h2 id="a-runs">Pistas y variedad</h2>
       <dl className="area-facts">
-        <div><dt>Para planificar</dt><dd>Número de pistas: <CatalogRunsText cat={cat} name={name} />
-          {cat.comparableTotal != null && own && own.total != null && !own.breakdownComplete && someColour(own) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}</dd></div>
+        <div><dt>Para planificar</dt><dd>Número de pistas: <CatalogRunsText cat={cat} name={name} /></dd></div>
         <div><dt>Esquiar ahora</dt><dd>Pistas abiertas: <NowRunsText now={now} name={name} catalogTotal={cat.comparableTotal ?? own?.total ?? null} reportDate={latest?.sourceDate} /></dd></div>
       </dl>
       <details className="area-more">
@@ -378,6 +378,3 @@ function RunsSection({ areaId, name, runs, memberRuns, memberNames, latest }: {
     </section>
   );
 }
-
-/** Hay algún color publicado sin que el desglose esté completo (se muestran los que hay, sin completar el resto). */
-const someColour = (v: NonNullable<ReturnType<typeof runCatalogView>>) => Object.values(v.byColour).some((n) => n != null);
