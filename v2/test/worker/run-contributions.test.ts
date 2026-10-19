@@ -4,9 +4,12 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import catalog from '../../data/catalog.json';
 import { runCatalogSql } from '../../tools/run-catalog-sql';
+import { todayMadrid } from '../../src/core/dates';
+import { currentSeasonStart, seasonLabel } from '../../src/core/runs-manual';
 import { api, seedCatalog, signup } from './helpers';
 
-const runCatalog = (catalog as any).run_catalog as any[];
+// Ax 3 Domaines con temporada declarada (el catálogo real no la indica): solo con la misma temporada se completan huecos.
+const runCatalog = ((catalog as any).run_catalog as any[]).map((r) => (r.area === 'ax-3-domaines' ? { ...r, season: '2026-27' } : r));
 const pub = async (path: string) => (await SELF.fetch(`http://localhost${path}`)).json<any>();
 const importRuns = async (entries: any[], label = 'prueba') => { await env.DB.batch(runCatalogSql(entries, { at: Date.now(), label }).map((s) => env.DB.prepare(s))); };
 const areaRuns = async (id: string) => (await pub('/api/public/catalog')).areas.find((a: any) => a.id === id).runs;
@@ -113,6 +116,24 @@ describe('aportaciones', () => {
     expect(d.memberRuns.map((m: any) => [m.areaId, m.total]).sort()).toEqual([['astun', 57], ['candanchu', 57]]);
   });
 
+  it('temporada: una cifra importada sin temporada no desplaza una aportación documentada de la temporada actual', async () => {
+    const now = seasonLabel(currentSeasonStart(todayMadrid()));
+    const gv = runCatalog.find((x) => x.area === 'grandvalira');
+    expect([gv.season, gv.total]).toEqual([null, 142]);
+    const r = await api(admin.token, 'PUT', '/api/admin/runs/grandvalira', body({ total: 140, season: now, reason: 'Ficha de la temporada actual' }));
+    expect(r.json.resolved).toMatchObject({ state: 'applied', notes: ['sustituye_sin_temporada'] });
+    expect(await areaRuns('grandvalira')).toMatchObject({ total: 140, green: null, origin: 'manual', superseded: { total: 142 } });
+    // Una temporada posterior a la actual no se acepta.
+    const future = await api(admin.token, 'PUT', '/api/admin/runs/grandvalira', body({ expectedVersion: 1, total: 140, season: seasonLabel(currentSeasonStart(todayMadrid()) + 1) }));
+    expect(future.status).toBe(422);
+  });
+
+  it('colores parciales sin total: se guardan y se muestran tal cual, sin total inventado ni ceros, y no puntúan', async () => {
+    const r = await api(admin.token, 'PUT', '/api/admin/runs/cerler', body({ green: 10, reason: 'Solo verdes publicadas' }));
+    expect(r.status).toBe(200);
+    expect(await areaRuns('cerler')).toMatchObject({ total: null, green: 10, blue: null, red: null, black: null, origin: 'manual' });
+  });
+
   it('dos administradores a la vez: el segundo recibe un conflicto en lugar de sobrescribir', async () => {
     const first = await api(admin.token, 'PUT', '/api/admin/runs/javalambre', body({ total: 12, reason: 'Primero' }));
     expect(first.status).toBe(200);
@@ -133,11 +154,11 @@ describe('aportaciones', () => {
     expect((await api(admin.token, 'POST', '/api/admin/runs/javalambre/withdraw', { expectedVersion: 3, reason: 'Otra vez' })).status).toBe(409);
     expect((await api(admin.token, 'POST', '/api/admin/runs/javalambre/restore', { expectedVersion: 2, reason: 'Versión vieja' })).status).toBe(409);
     // Mientras está retirada llega un dato automático válido (no se anota: la retirada no interviene); al restaurar,
-    // prevalece el automático.
+    // prevalece el automático. Ninguna de las dos declara temporada: no se mezclan y se explica.
     await importRuns(runCatalog.map((x) => (x.area === 'javalambre' ? { ...x, total: 16, comparable: true } : x)));
     const r = await api(admin2.token, 'POST', '/api/admin/runs/javalambre/restore', { expectedVersion: 3, reason: 'La fuente era buena' });
     expect(r.status).toBe(200);
-    expect(r.json.resolved).toMatchObject({ state: 'not_applied', notes: ['automatica_prevalece'] });
+    expect(r.json.resolved).toMatchObject({ state: 'not_applied', notes: ['vigencia_desconocida'] });
     expect((await areaRuns('javalambre')).total).toBe(16);
     const h = await api(admin.token, 'GET', '/api/admin/runs/javalambre/history');
     expect(h.json.history.map((x: any) => [x.action, x.actor, x.reason])).toEqual([

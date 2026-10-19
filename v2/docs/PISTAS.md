@@ -120,16 +120,22 @@ Reimportar sin cambios no anota nada ni borra nada.
 Una única regla decide la cifra efectiva (`resolveRunCatalog`, `src/core/runs-manual.ts`). El Worker la aplica al
 servir el catálogo y la ficha, así que fichas, Comparar, dominios y puntuación usan la misma cifra:
 
-1. Si la cifra importada es válida (enteros, desglose coherente, comparable) y no consta que sea de una temporada
-   anterior a la de la aportación, **prevalece la importada**. La aportación solo completa los campos que faltan (un
-   color o el total), si la combinación cuadra y la aportación no está marcada como no comparable. Si no cuadra, no se
-   mezcla: se muestra lo importado y queda pendiente.
-2. Si la cifra importada falta, no es fiable (discrepancia pendiente, desglose que no cuadra) o es de una temporada
-   anterior, la aportación la **sustituye entera**: nunca se mezclan colores y totales de fuentes o temporadas
-   distintas. La ficha dice qué cifra importada se sustituye.
-3. La temporada se compara por año de inicio («2026-27», o la fecha de la fuente: julio o después abre temporada). Si
-   alguna de las dos no consta, no se puede decir que la importada sea antigua y prevalece la importada.
-4. Una aportación retirada no cuenta. Restaurarla vuelve a pasar por las mismas reglas: si mientras tanto llegó un dato
+La temporada solo se compara cuando **las dos fuentes la declaran** («2026-27»). No se deduce de la fecha de
+publicación, porque un documento de septiembre puede describir la temporada anterior, y «desconocida» nunca cuenta como
+«la misma».
+
+1. Cifra importada válida (enteros, desglose coherente, comparable) y de la **misma temporada** que la aportación:
+   **prevalece la importada**. La aportación solo completa los campos que faltan (un color o el total), si la
+   combinación cuadra y la aportación no está marcada como no comparable. Si no cuadra, no se mezcla: se muestra lo
+   importado y queda pendiente.
+2. Cifra importada válida de una temporada **posterior**: prevalece la importada y la aportación no se aplica.
+3. Cifra importada que falta, no es fiable (discrepancia pendiente, desglose que no cuadra), es de una temporada
+   **anterior**, o **no indica temporada frente a una aportación documentada de la temporada actual**: la aportación la
+   **sustituye entera**. La ficha dice qué cifra importada se sustituye.
+4. Cifra importada válida con temporada desconocida en cualquier otro caso (aportación sin temporada o de una temporada
+   pasada): prevalece la importada, pero **no se combinan** sus campos con los de la aportación. Las dos quedan por
+   separado y la vista previa de administración explica que falta acreditar la temporada.
+5. Una aportación retirada no cuenta. Restaurarla vuelve a pasar por las mismas reglas: si mientras tanto llegó un dato
    automático válido, prevalece el automático y la aportación queda guardada sin aplicar.
 
 Las cifras manuales se muestran como «Aportación manual de administración» con su referencia, la temporada o fecha de la
@@ -140,11 +146,15 @@ una discrepancia; el motivo, la autoría y el historial solo los ve administraci
 Validación (en el navegador y en el servidor, `validateManualDraft`): enteros de 0 en adelante; vacío = sin dato, 0 =
 cero confirmado; al menos una cifra; desglose completo = total, parcial ≤ total; no se deducen pistas de km ni de
 porcentajes ni se suman colores para inventar un total; fuente o referencia comprobable (https o cita) y motivo;
-temporada «2026-27»; fecha de la fuente no futura. Si la cifra importada tiene una discrepancia pendiente (Astún +
+temporada «2026-27» no posterior a la actual; fecha de la fuente no futura. Si la cifra importada tiene una discrepancia pendiente (Astún +
 Candanchú, Font-Romeu, Les Angles), la aportación solo puede marcarse comparable con una explicación con evidencia
 (30 caracteres como mínimo), que queda registrada y se publica en los detalles. Sin ella, se puede guardar como no
 comparable. Las reglas de dominios no cambian: una cifra propia del dominio no se suma con sus estaciones y una
 discrepancia no se sustituye por la suma de las estaciones.
+
+Se pueden guardar datos parciales: por ejemplo, solo 10 verdes sin total, o un total de 40 con solo las verdes. Se
+muestran los valores conocidos como desglose parcial y el resto como «sin dato»; nunca se inventa el total ni se rellena
+con ceros. Sin total no puntúa en «Variedad de pistas».
 
 Una aportación por área (no hay duplicados). Cada escritura lleva la versión que se editó: si otro administrador guardó
 antes, la API responde 409 y no sobrescribe. El historial guarda quién, cuándo, la acción, los valores anteriores y
