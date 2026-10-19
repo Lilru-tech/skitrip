@@ -34,7 +34,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /geo/search` | 4 | — |
 | `GET /geo/status` | 2 | — |
 | `PUT /trips/:id/expenses/:eid` | 11 | 8 beneficiarios |
-| `GET /public/areas/:id` | 10 | — (incluye las rutas desde cada origen) |
+| `GET /public/areas/:id` | 11 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones) |
 | `POST /trips/:id/scenarios` | 9 | — |
 | `POST /shopping-lists/:lid/copy` | 9 | 299 decisiones: 150 altas, sumas y omisiones |
 | `POST /receipts/confirm` | 8 | 10 líneas asociadas |
@@ -49,7 +49,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /trips/invitations/accept-link` | 7 | 8 miembros |
 | `GET /admin/health` | 6 | capturas, fuentes y áreas del catálogo |
 | `GET /availability/trip/:id` | 5 | 8 miembros × 150 días |
-| `GET /public/catalog` | 6 | 24 áreas |
+| `GET /public/catalog` | 7 | 24 áreas (incluye `area_runs`, una fila por área) |
 | `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
 | `POST /friends/blocks` | 6 | 38 amigos |

@@ -1,0 +1,771 @@
+{
+ "note": "Listados individuales oficiales usados para contar pistas (src/core/runs.ts countRunList). Cada pista con el identificador publicado por la estación; «kind» marca lo que no es pista alpina y no cuenta. No se deduce identidad por parecido de nombre.",
+ "lists": [
+  {
+   "area": "astun",
+   "source": "https://tienda.astuncandanchu.com/partenieve/pistas",
+   "sourceDate": "2026-09-15",
+   "checkedOn": "2026-10-19",
+   "idKind": "número oficial del parte",
+   "runs": [
+    {
+     "id": "1",
+     "name": "Debutantes",
+     "colour": "green"
+    },
+    {
+     "id": "2",
+     "name": "Ballon",
+     "colour": "green"
+    },
+    {
+     "id": "3",
+     "name": "Trineos",
+     "colour": "green",
+     "kind": "sledge"
+    },
+    {
+     "id": "4",
+     "name": "Prado Blanco",
+     "colour": "green"
+    },
+    {
+     "id": "5",
+     "name": "Manantiales",
+     "colour": "blue"
+    },
+    {
+     "id": "6",
+     "name": "Tascal",
+     "colour": "blue"
+    },
+    {
+     "id": "7",
+     "name": "Pista Salida",
+     "colour": "blue"
+    },
+    {
+     "id": "8",
+     "name": "Toboganes",
+     "colour": "blue"
+    },
+    {
+     "id": "9",
+     "name": "Pradera",
+     "colour": "blue"
+    },
+    {
+     "id": "10",
+     "name": "Enlace Sarrios",
+     "colour": "blue"
+    },
+    {
+     "id": "11",
+     "name": "Tubo Sarrios",
+     "colour": "blue"
+    },
+    {
+     "id": "12",
+     "name": "Tubo Prado Blanco",
+     "colour": "blue"
+    },
+    {
+     "id": "13",
+     "name": "Diagonal PB",
+     "colour": "blue"
+    },
+    {
+     "id": "14",
+     "name": "Slalom Infantil",
+     "colour": "blue"
+    },
+    {
+     "id": "15",
+     "name": "Balsas",
+     "colour": "blue"
+    },
+    {
+     "id": "16",
+     "name": "Perdiz Blanca",
+     "colour": "blue"
+    },
+    {
+     "id": "17",
+     "name": "Sarrios",
+     "colour": "blue"
+    },
+    {
+     "id": "18",
+     "name": "Las Mugas",
+     "colour": "blue"
+    },
+    {
+     "id": "19",
+     "name": "Snow Park",
+     "colour": "blue",
+     "kind": "snowpark"
+    },
+    {
+     "id": "20",
+     "name": "Cursillos",
+     "colour": "blue"
+    },
+    {
+     "id": "21",
+     "name": "Águilas",
+     "colour": "blue"
+    },
+    {
+     "id": "22",
+     "name": "Enlace Canal Roya",
+     "colour": "blue"
+    },
+    {
+     "id": "23",
+     "name": "Enlace Anayet",
+     "colour": "blue"
+    },
+    {
+     "id": "24",
+     "name": "Pastores",
+     "colour": "red"
+    },
+    {
+     "id": "25",
+     "name": "Arándanos",
+     "colour": "red"
+    },
+    {
+     "id": "26",
+     "name": "Monje",
+     "colour": "red"
+    },
+    {
+     "id": "27",
+     "name": "La Raca",
+     "colour": "red"
+    },
+    {
+     "id": "28",
+     "name": "Las Marmotas",
+     "colour": "red"
+    },
+    {
+     "id": "29",
+     "name": "La Secreta",
+     "colour": "red"
+    },
+    {
+     "id": "30",
+     "name": "Slalom",
+     "colour": "red"
+    },
+    {
+     "id": "31",
+     "name": "Trompetas",
+     "colour": "red"
+    },
+    {
+     "id": "32",
+     "name": "Tritón",
+     "colour": "red"
+    },
+    {
+     "id": "33",
+     "name": "Aranones",
+     "colour": "red"
+    },
+    {
+     "id": "34",
+     "name": "Gamusino",
+     "colour": "red"
+    },
+    {
+     "id": "35",
+     "name": "Maribeles",
+     "colour": "red"
+    },
+    {
+     "id": "36",
+     "name": "Narcisos",
+     "colour": "red"
+    },
+    {
+     "id": "37",
+     "name": "Anayet",
+     "colour": "red"
+    },
+    {
+     "id": "38",
+     "name": "Bucardo",
+     "colour": "red"
+    },
+    {
+     "id": "39",
+     "name": "Lirios",
+     "colour": "red"
+    },
+    {
+     "id": "40",
+     "name": "Canal Roya",
+     "colour": "red"
+    },
+    {
+     "id": "41",
+     "name": "Muros",
+     "colour": "red"
+    },
+    {
+     "id": "42",
+     "name": "La Rabosa",
+     "colour": "red"
+    },
+    {
+     "id": "43",
+     "name": "Olímpica",
+     "colour": "black"
+    },
+    {
+     "id": "44",
+     "name": "Somport",
+     "colour": "black"
+    },
+    {
+     "id": "45",
+     "name": "Mirlo",
+     "colour": "black"
+    },
+    {
+     "id": "46",
+     "name": "Paniquesa",
+     "colour": "black"
+    },
+    {
+     "id": "47",
+     "name": "Trampolín",
+     "colour": "black"
+    },
+    {
+     "id": "48",
+     "name": "Las Lomas",
+     "colour": "black"
+    },
+    {
+     "id": "49",
+     "name": "Edelweis",
+     "colour": "black"
+    },
+    {
+     "id": "50",
+     "name": "Guixas",
+     "colour": "black"
+    },
+    {
+     "id": "51",
+     "name": "Tubos",
+     "colour": "black"
+    },
+    {
+     "id": "52",
+     "name": "Escalar",
+     "colour": "black"
+    },
+    {
+     "id": "53",
+     "name": "Pala del Pister",
+     "colour": "black"
+    },
+    {
+     "id": "54",
+     "name": "Truchas",
+     "colour": "black"
+    },
+    {
+     "id": "55",
+     "name": "Malacara",
+     "colour": "black"
+    },
+    {
+     "id": "56",
+     "name": "Don Simón",
+     "colour": "black"
+    },
+    {
+     "id": "57",
+     "name": "Ibones",
+     "colour": "black"
+    },
+    {
+     "id": "58",
+     "name": "Parapente",
+     "colour": "black"
+    },
+    {
+     "id": "59",
+     "name": "Llanos de Sol",
+     "colour": "black"
+    }
+   ]
+  },
+  {
+   "area": "candanchu",
+   "source": "https://tienda.astuncandanchu.com/partenieve/pistas",
+   "sourceDate": "2026-09-15",
+   "checkedOn": "2026-10-19",
+   "idKind": "número oficial del parte",
+   "runs": [
+    {
+     "id": "1",
+     "name": "Pista Grande I",
+     "colour": "green"
+    },
+    {
+     "id": "2",
+     "name": "Pista Grande II",
+     "colour": "green"
+    },
+    {
+     "id": "3",
+     "name": "Pista Grande III",
+     "colour": "green"
+    },
+    {
+     "id": "4",
+     "name": "Debutantes III",
+     "colour": "green"
+    },
+    {
+     "id": "5",
+     "name": "Debutantes I",
+     "colour": "green"
+    },
+    {
+     "id": "6",
+     "name": "Debutantes II",
+     "colour": "green"
+    },
+    {
+     "id": "7",
+     "name": "Ciudad de Piedra",
+     "colour": "green"
+    },
+    {
+     "id": "8",
+     "name": "Príncipe de Asturias I",
+     "colour": "green"
+    },
+    {
+     "id": "9",
+     "name": "Príncipe de Asturias II",
+     "colour": "green"
+    },
+    {
+     "id": "10",
+     "name": "Llano grande",
+     "colour": "green"
+    },
+    {
+     "id": "11",
+     "name": "Cinta II",
+     "colour": "green"
+    },
+    {
+     "id": "12",
+     "name": "Debutantes Alto",
+     "colour": "green"
+    },
+    {
+     "id": "13",
+     "name": "Olla-B12",
+     "colour": "blue"
+    },
+    {
+     "id": "14",
+     "name": "B12 (Aralar)",
+     "colour": "blue"
+    },
+    {
+     "id": "15",
+     "name": "B-20 (Puente)",
+     "colour": "blue"
+    },
+    {
+     "id": "16",
+     "name": "Diagonal B12-Río",
+     "colour": "blue"
+    },
+    {
+     "id": "17",
+     "name": "El Bucardo",
+     "colour": "blue"
+    },
+    {
+     "id": "18",
+     "name": "Regreso",
+     "colour": "blue"
+    },
+    {
+     "id": "19",
+     "name": "Pista del Nido",
+     "colour": "blue"
+    },
+    {
+     "id": "20",
+     "name": "Rinconada",
+     "colour": "blue"
+    },
+    {
+     "id": "21",
+     "name": "Pista Fácil",
+     "colour": "blue"
+    },
+    {
+     "id": "22",
+     "name": "Zapatilla",
+     "colour": "blue"
+    },
+    {
+     "id": "23",
+     "name": "Enlace I",
+     "colour": "blue"
+    },
+    {
+     "id": "24",
+     "name": "Rey Juan Carlos",
+     "colour": "blue"
+    },
+    {
+     "id": "25",
+     "name": "Usones",
+     "colour": "blue"
+    },
+    {
+     "id": "26",
+     "name": "Enlace pista fácil",
+     "colour": "blue"
+    },
+    {
+     "id": "27",
+     "name": "Tubo Olla",
+     "colour": "red"
+    },
+    {
+     "id": "28",
+     "name": "Stadio Slalom",
+     "colour": "red"
+    },
+    {
+     "id": "29",
+     "name": "Alto Aragón_superior",
+     "colour": "red"
+    },
+    {
+     "id": "30",
+     "name": "Alto Aragón_inferior",
+     "colour": "red"
+    },
+    {
+     "id": "31",
+     "name": "Aralar II",
+     "colour": "red"
+    },
+    {
+     "id": "32",
+     "name": "Slalom",
+     "colour": "red"
+    },
+    {
+     "id": "33",
+     "name": "Aludes",
+     "colour": "red"
+    },
+    {
+     "id": "34",
+     "name": "Standard",
+     "colour": "red"
+    },
+    {
+     "id": "35",
+     "name": "Tubo Tobazo",
+     "colour": "red"
+    },
+    {
+     "id": "36",
+     "name": "Tobazo",
+     "colour": "red"
+    },
+    {
+     "id": "37",
+     "name": "Sarrios",
+     "colour": "red"
+    },
+    {
+     "id": "38",
+     "name": "Lomas",
+     "colour": "red"
+    },
+    {
+     "id": "39",
+     "name": "Paso Tortiellas",
+     "colour": "red"
+    },
+    {
+     "id": "40",
+     "name": "Candanchú Esquí Club",
+     "colour": "red"
+    },
+    {
+     "id": "41",
+     "name": "Ángulo Tuca",
+     "colour": "red"
+    },
+    {
+     "id": "42",
+     "name": "Central Tuca II",
+     "colour": "red"
+    },
+    {
+     "id": "43",
+     "name": "Cornisas",
+     "colour": "red"
+    },
+    {
+     "id": "44",
+     "name": "Marmotas",
+     "colour": "red"
+    },
+    {
+     "id": "45",
+     "name": "Tubo Kaduff",
+     "colour": "black"
+    },
+    {
+     "id": "46",
+     "name": "Carabineros",
+     "colour": "black"
+    },
+    {
+     "id": "47",
+     "name": "Navarros",
+     "colour": "black"
+    },
+    {
+     "id": "48",
+     "name": "Tubo Tuca 2",
+     "colour": "black"
+    },
+    {
+     "id": "49",
+     "name": "Quebrantahuesos",
+     "colour": "black"
+    },
+    {
+     "id": "50",
+     "name": "Mariposas",
+     "colour": "black"
+    },
+    {
+     "id": "51",
+     "name": "Crestas",
+     "colour": "black"
+    },
+    {
+     "id": "52",
+     "name": "Paso Pastor",
+     "colour": "black"
+    },
+    {
+     "id": "53",
+     "name": "Mirador del Aspe",
+     "colour": "black"
+    },
+    {
+     "id": "54",
+     "name": "Lisos",
+     "colour": "black"
+    },
+    {
+     "id": "55",
+     "name": "Baches",
+     "colour": "black"
+    },
+    {
+     "id": "56",
+     "name": "Pala del Solano",
+     "colour": "black"
+    },
+    {
+     "id": "57",
+     "name": "Cascada",
+     "colour": "black"
+    }
+   ]
+  },
+  {
+   "area": "port-del-comte",
+   "source": "https://www.portdelcomte.net/pistes/",
+   "sourceDate": "2026-04-05",
+   "checkedOn": "2026-10-19",
+   "idKind": "nombre publicado (la estación no publica números)",
+   "runs": [
+    {
+     "id": "LA SERP",
+     "name": "LA SERP",
+     "colour": "blue"
+    },
+    {
+     "id": "EL TUB COMA",
+     "name": "EL TUB COMA",
+     "colour": "black"
+    },
+    {
+     "id": "LA NOVA",
+     "name": "LA NOVA",
+     "colour": "green"
+    },
+    {
+     "id": "LA QUEROL",
+     "name": "LA QUEROL",
+     "colour": "black"
+    },
+    {
+     "id": "LA DIAGONAL",
+     "name": "LA DIAGONAL",
+     "colour": "blue"
+    },
+    {
+     "id": "JARDI DE NEU",
+     "name": "JARDI DE NEU",
+     "colour": "green"
+    },
+    {
+     "id": "EL DONADO II",
+     "name": "EL DONADO II",
+     "colour": "green"
+    },
+    {
+     "id": "LA DRECERA",
+     "name": "LA DRECERA",
+     "colour": "blue"
+    },
+    {
+     "id": "ELS DEBUTANTS",
+     "name": "ELS DEBUTANTS",
+     "colour": "green"
+    },
+    {
+     "id": "TUBBYS",
+     "name": "TUBBYS",
+     "colour": null,
+     "kind": "sledge"
+    },
+    {
+     "id": "DEBUTANT",
+     "name": "DEBUTANT",
+     "colour": "green"
+    },
+    {
+     "id": "LA SANT GRAU",
+     "name": "LA SANT GRAU",
+     "colour": "black"
+    },
+    {
+     "id": "EL DONADO I",
+     "name": "EL DONADO I",
+     "colour": "green"
+    },
+    {
+     "id": "BOIXERA",
+     "name": "BOIXERA",
+     "colour": "green"
+    },
+    {
+     "id": "LA RASA COMA",
+     "name": "LA RASA COMA",
+     "colour": "blue"
+    },
+    {
+     "id": "LA DRETA",
+     "name": "LA DRETA",
+     "colour": "red"
+    },
+    {
+     "id": "RASA SUCRE",
+     "name": "RASA SUCRE",
+     "colour": "blue"
+    },
+    {
+     "id": "L'OBAGA",
+     "name": "L'OBAGA",
+     "colour": "red"
+    },
+    {
+     "id": "LA PELADA",
+     "name": "LA PELADA",
+     "colour": "red"
+    },
+    {
+     "id": "LA PLETA",
+     "name": "LA PLETA",
+     "colour": "red"
+    },
+    {
+     "id": "ELS GALLS",
+     "name": "ELS GALLS",
+     "colour": "blue"
+    },
+    {
+     "id": "EL LLOP",
+     "name": "EL LLOP",
+     "colour": "red"
+    },
+    {
+     "id": "EL BOSQUET",
+     "name": "EL BOSQUET",
+     "colour": null,
+     "kind": "freeride"
+    },
+    {
+     "id": "EL PI VELL",
+     "name": "EL PI VELL",
+     "colour": "blue"
+    },
+    {
+     "id": "EL FORAT",
+     "name": "EL FORAT",
+     "colour": "blue"
+    },
+    {
+     "id": "LA BÒFIA",
+     "name": "LA BÒFIA",
+     "colour": "red"
+    },
+    {
+     "id": "COMA DELS MARRANS",
+     "name": "COMA DELS MARRANS",
+     "colour": "blue"
+    },
+    {
+     "id": "LA RASA BÒFIA",
+     "name": "LA RASA BÒFIA",
+     "colour": "red"
+    },
+    {
+     "id": "L'ORRI",
+     "name": "L'ORRI",
+     "colour": "red"
+    },
+    {
+     "id": "LA GINEBROSA",
+     "name": "LA GINEBROSA",
+     "colour": "blue"
+    },
+    {
+     "id": "SOLEI",
+     "name": "SOLEI",
+     "colour": "blue"
+    }
+   ]
+  }
+ ]
+}

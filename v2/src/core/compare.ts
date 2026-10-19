@@ -26,6 +26,16 @@ const reportFuture = (s: SnowCandidate, nowMs: number) => !!s.sourceDate && s.so
 const fresh = (s: SnowCandidate, nowMs: number) => captured(s, nowMs) && !reportOld(s, nowMs);
 const reliable = (s: SnowCandidate, nowMs: number) => s.quality === 'ok' && s.opStatus !== 'unknown' && !reportFuture(s, nowMs);
 
+/** Por qué un parte no es vigente para puntuar (captura, fecha del parte, calidad, estado), o null si lo es. */
+export function reportExclusion(s: Pick<SnowCandidate, 'observedAt' | 'opStatus' | 'quality' | 'sourceDate'>, nowMs: number): 'antiguo' | 'parte_antiguo' | 'dudoso' | 'estado_desconocido' | null {
+  const c = { ...s, sourceId: '', priority: 0, openKm: null };
+  if (!captured(c, nowMs)) return 'antiguo';
+  if (reportOld(c, nowMs)) return 'parte_antiguo';
+  if (s.quality !== 'ok' || reportFuture(c, nowMs)) return 'dudoso';
+  if (s.opStatus === 'unknown') return 'estado_desconocido';
+  return null;
+}
+
 /**
  * Una observación por área, siempre la misma para los mismos datos: primero recientes y fiables por prioridad de
  * fuente (menor = preferente), luego más reciente e id de fuente; si no hay ninguna reciente y fiable, la más reciente
