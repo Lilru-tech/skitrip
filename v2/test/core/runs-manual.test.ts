@@ -12,6 +12,11 @@ const manual = (areaId: string, o: Partial<ManualRunContribution> = {}): ManualR
   areaId, total: null, green: null, blue: null, red: null, black: null, comparable: true, resolution: null, season: null, sourceDate: null,
   sourceRef: 'https://example.invalid/ficha', enteredOn: '2026-10-19', status: 'active', version: 1, ...o,
 });
+// Misma temporada declarada por las dos fuentes: el único caso en que se combinan campos.
+const S = '2026-27';
+const TODAY = '2026-10-19';
+const ax = (): RunCatalogEntry => ({ ...real('ax-3-domaines'), season: S });
+const axManual = (o: Partial<ManualRunContribution>) => manual('ax-3-domaines', { season: S, ...o });
 const draft = (o: Partial<ManualDraft> = {}): ManualDraft => ({
   total: null, green: null, blue: null, red: null, black: null, comparable: true, resolution: null, season: null, sourceDate: null,
   sourceRef: 'https://example.invalid/ficha', reason: 'Ficha 2026-27', ...o,
@@ -19,41 +24,41 @@ const draft = (o: Partial<ManualDraft> = {}): ManualDraft => ({
 
 describe('resolución del dato efectivo', () => {
   it('completa los colores que faltan sin tocar el total importado, y la cifra mixta puntúa con su desglose', () => {
-    const ax = real('ax-3-domaines');
-    expect([ax.total, ax.green]).toEqual([38, null]);
-    const r = resolveRunCatalog(ax, manual('ax-3-domaines', { green: 10, blue: 12, red: 11, black: 5 }));
+    const imp = ax();
+    expect([imp.total, imp.green]).toEqual([38, null]);
+    const r = resolveRunCatalog(imp, axManual({ green: 10, blue: 12, red: 11, black: 5 }), TODAY);
     expect(r.state).toBe('applied');
-    expect(r.entry).toMatchObject({ total: 38, green: 10, blue: 12, red: 11, black: 5, origin: 'mixed', basis: 'aggregate', comparable: true, sourceUrl: ax.sourceUrl });
+    expect(r.entry).toMatchObject({ total: 38, green: 10, blue: 12, red: 11, black: 5, origin: 'mixed', basis: 'aggregate', comparable: true, sourceUrl: imp.sourceUrl });
     expect(r.fieldOrigin).toEqual({ total: 'catalog', green: 'manual', blue: 'manual', red: 'manual', black: 'manual' });
     expect(r.entry!.manual!.fields).toEqual(['green', 'blue', 'red', 'black']);
     expect(entryCatalogRuns(r.entry)).toMatchObject({ comparableTotal: 38, byColour: { green: 10, blue: 12, red: 11, black: 5 } });
   });
 
   it('un desglose parcial completa lo que se sabe y deja el resto sin dato (nunca se rellena con ceros)', () => {
-    const r = resolveRunCatalog(real('ax-3-domaines'), manual('ax-3-domaines', { black: 5 }));
+    const r = resolveRunCatalog(ax(), axManual({ black: 5 }), TODAY);
     expect(r.entry).toMatchObject({ total: 38, green: null, blue: null, red: null, black: 5 });
     expect(runCatalogView(r.entry)!.breakdownComplete).toBe(false);
     expect(entryCatalogRuns(r.entry).byColour).toBeNull();
   });
 
   it('cero es cero confirmado y se aplica; ausente no es cero', () => {
-    const r = resolveRunCatalog(real('ax-3-domaines'), manual('ax-3-domaines', { green: 0, blue: 20, red: 13, black: 5 }));
+    const r = resolveRunCatalog(ax(), axManual({ green: 0, blue: 20, red: 13, black: 5 }), TODAY);
     expect(r.entry).toMatchObject({ green: 0, blue: 20 });
     expect(runCatalogView(r.entry)!.breakdownComplete).toBe(true);
   });
 
   it('si la combinación con el total importado no cuadra, no se mezcla: se muestra lo importado y se explica', () => {
-    const full = resolveRunCatalog(real('ax-3-domaines'), manual('ax-3-domaines', { green: 10, blue: 10, red: 10, black: 10 }));
+    const full = resolveRunCatalog(ax(), axManual({ green: 10, blue: 10, red: 10, black: 10 }), TODAY);
     expect(full.state).toBe('not_applied');
     expect(full.notes).toContain('combinacion_incoherente');
     expect(full.entry).toMatchObject({ total: 38, green: null, origin: 'catalog' });
-    const over = resolveRunCatalog(real('ax-3-domaines'), manual('ax-3-domaines', { red: 39 }));
+    const over = resolveRunCatalog(ax(), axManual({ red: 39 }), TODAY);
     expect(over.notes).toContain('combinacion_incoherente');
   });
 
-  it('una cifra importada válida prevalece sobre una manual distinta; la manual se conserva y se dice', () => {
-    const gv = real('grandvalira');
-    const r = resolveRunCatalog(gv, manual('grandvalira', { total: 140 }));
+  it('una cifra importada válida de la misma temporada prevalece sobre una manual distinta; la manual se conserva y se dice', () => {
+    const gv = { ...real('grandvalira'), season: S };
+    const r = resolveRunCatalog(gv, manual('grandvalira', { total: 140, season: S }), TODAY);
     expect(r.state).toBe('not_applied');
     expect(r.overridden).toEqual(['total']);
     expect(r.notes).toEqual(['automatica_prevalece']);
@@ -88,25 +93,64 @@ describe('resolución del dato efectivo', () => {
     expect(entryCatalogRuns(solved.entry, members)).toMatchObject({ comparableTotal: 114, via: 'own', pendingDiscrepancy: false });
   });
 
-  it('temporadas: una importada anterior no desplaza la manual; una manual anterior no desplaza la importada; sin temporada prevalece la importada', () => {
+  it('temporadas conocidas: una importada anterior no desplaza la manual; una manual anterior no desplaza la importada', () => {
     const pdc = real('port-del-comte');
     expect(pdc.season).toBe('2025-26');
-    const newer = resolveRunCatalog(pdc, manual('port-del-comte', { total: 30, season: '2026-27' }));
+    const newer = resolveRunCatalog(pdc, manual('port-del-comte', { total: 30, season: '2026-27' }), TODAY);
     expect(newer.notes).toEqual(['sustituye_antiguo']);
     expect(newer.entry).toMatchObject({ total: 30, green: null, origin: 'manual' });
-    const older = resolveRunCatalog(pdc, manual('port-del-comte', { total: 28, season: '2024-25' }));
+    const older = resolveRunCatalog(pdc, manual('port-del-comte', { total: 28, season: '2024-25' }), TODAY);
     expect(older).toMatchObject({ state: 'not_applied', notes: ['temporada_anterior'] });
     expect(older.entry!.total).toBe(29);
-    const unknown = resolveRunCatalog(real('grandvalira'), manual('grandvalira', { total: 150, season: '2026-27' }));
-    expect(unknown.entry!.total).toBe(142);
-    expect(seasonRelation({ season: null, sourceDate: '2026-09-30' }, { season: '2026-27', sourceDate: null })).toBe('same');
-    expect(seasonRelation({ season: null, sourceDate: null }, { season: '2026-27', sourceDate: null })).toBe('unknown');
+    // Una manual anterior con un color que falta tampoco se mezcla con la importada más nueva.
+    const olderPartial = resolveRunCatalog({ ...pdc, black: null }, manual('port-del-comte', { black: 3, season: '2024-25' }), TODAY);
+    expect(olderPartial.entry).toMatchObject({ black: null, origin: 'catalog' });
+  });
+
+  it('temporada desconocida no equivale a la misma: el caso de la revisión (40 sin temporada frente a 50 de 2026-27)', () => {
+    const imp: RunCatalogEntry = { ...real('grandvalira'), total: 40, green: null, blue: null, red: null, black: null, season: null, sourceDate: null };
+    const r = resolveRunCatalog(imp, manual('grandvalira', { total: 50, season: '2026-27' }), TODAY);
+    expect(r.notes).toEqual(['sustituye_sin_temporada']);
+    expect(r.entry).toMatchObject({ total: 50, origin: 'manual' });
+    expect(entryCatalogRuns(r.entry).comparableTotal).toBe(50);
+    // La fecha de publicación no fija la temporada: una ficha de septiembre sin temporada sigue siendo «desconocida».
+    expect(seasonRelation({ season: null }, { season: '2026-27' })).toBe('unknown');
+    const dated = resolveRunCatalog({ ...imp, sourceDate: '2026-09-30' }, manual('grandvalira', { total: 50, season: '2026-27' }), TODAY);
+    expect(dated.entry!.total).toBe(50);
+  });
+
+  it('temporada desconocida en otros casos: prevalece la importada, sin mezclar campos y explicando por qué', () => {
+    const imp: RunCatalogEntry = { ...real('ax-3-domaines'), season: null };
+    // Las dos sin temporada.
+    const both = resolveRunCatalog(imp, manual('ax-3-domaines', { green: 10, blue: 12, red: 11, black: 5 }), TODAY);
+    expect(both).toMatchObject({ state: 'not_applied', notes: ['vigencia_desconocida'] });
+    expect(both.entry).toMatchObject({ total: 38, green: null, origin: 'catalog' });
+    // Manual de una temporada pasada frente a importada sin temporada: no se acredita cuál es vigente.
+    const past = resolveRunCatalog(imp, manual('ax-3-domaines', { total: 40, season: '2025-26' }), TODAY);
+    expect(past).toMatchObject({ state: 'not_applied', notes: ['vigencia_desconocida'] });
+    expect(past.entry!.total).toBe(38);
+    // Importada de temporada conocida frente a manual sin temporada: tampoco se mezclan los colores.
+    const known = resolveRunCatalog({ ...imp, season: S }, manual('ax-3-domaines', { green: 10 }), TODAY);
+    expect(known.notes).toEqual(['vigencia_desconocida']);
+    expect(known.entry).toMatchObject({ green: null, origin: 'catalog' });
+    // Parcial de la temporada actual frente a importada sin temporada: sustituye entera (sin total no puntúa, sus colores sí se ven).
+    const partial = resolveRunCatalog(imp, manual('ax-3-domaines', { green: 10, season: S }), TODAY);
+    expect(partial.entry).toMatchObject({ total: null, green: 10, blue: null, origin: 'manual' });
+    expect(entryCatalogRuns(partial.entry).comparableTotal).toBeNull();
+    expect(runCatalogView(partial.entry)!.byColour.green).toBe(10);
+  });
+
+  it('temporadas iguales con datos parciales: se completa solo el hueco y el resto sigue sin dato', () => {
+    const r = resolveRunCatalog({ ...real('ax-3-domaines'), season: S }, axManual({ green: 10 }), TODAY);
+    expect(r.state).toBe('applied');
+    expect(r.entry).toMatchObject({ total: 38, green: 10, blue: null, red: null, black: null, origin: 'mixed' });
+    expect(entryCatalogRuns(r.entry)).toMatchObject({ comparableTotal: 38, byColour: null });
   });
 
   it('cuando llega después un dato automático válido de la misma temporada, prevalece y la aportación queda conservada sin aplicar', () => {
-    const m = manual('ax-3-domaines', { green: 10, blue: 12, red: 11, black: 5 });
-    const later: RunCatalogEntry = { ...real('ax-3-domaines'), green: 9, blue: 13, red: 11, black: 5 };
-    const r = resolveRunCatalog(later, m);
+    const m = axManual({ green: 10, blue: 12, red: 11, black: 5 });
+    const later: RunCatalogEntry = { ...ax(), green: 9, blue: 13, red: 11, black: 5 };
+    const r = resolveRunCatalog(later, m, TODAY);
     expect(r.state).toBe('not_applied');
     expect(r.entry).toMatchObject({ green: 9, blue: 13, origin: 'catalog' });
     expect(r.overridden).toEqual(['green', 'blue']);
@@ -121,7 +165,7 @@ describe('resolución del dato efectivo', () => {
   });
 
   it('una aportación no comparable no completa una cifra comparable; una retirada no cuenta', () => {
-    expect(resolveRunCatalog(real('ax-3-domaines'), manual('ax-3-domaines', { green: 10, comparable: false })).notes).toContain('no_comparable_no_se_mezcla');
+    expect(resolveRunCatalog(ax(), axManual({ green: 10, comparable: false }), TODAY).notes).toContain('no_comparable_no_se_mezcla');
     const w = resolveRunCatalog(real('baqueira-beret'), manual('baqueira-beret', { total: 110, status: 'withdrawn' }));
     expect(w).toMatchObject({ state: 'withdrawn' });
     expect(w.entry!.total).toBeNull();
@@ -162,6 +206,8 @@ describe('validación de una aportación', () => {
     expect(e).toMatch(/posterior a hoy/);
     expect(validateManualDraft(draft({ total: 10, sourceRef: 'http://inseguro.example/x' }), ctx).join()).toMatch(/https/);
     expect(validateManualDraft(draft({ total: 10, sourceRef: 'Folleto oficial 2026-27, página 4' }), ctx)).toEqual([]);
+    expect(validateManualDraft(draft({ total: 10, season: '2027-28' }), ctx).join()).toMatch(/posterior a la actual \(2026-27\)/);
+    expect(validateManualDraft(draft({ green: 10 }), ctx)).toEqual([]);
   });
   it('una discrepancia pendiente no se vuelve comparable con una casilla: hace falta explicación con evidencia', () => {
     const disc = { imported: real('astun-candanchu'), today: '2026-10-19' };
