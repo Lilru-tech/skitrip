@@ -287,7 +287,7 @@ function Preview({ area, all, preview }: { area: AdminRunArea; all: AdminRunArea
   return (
     <section className="notice stack-s" aria-live="polite" aria-labelledby="run-prev-h">
       <h3 id="run-prev-h">Antes de guardar: lo que verá el usuario</h3>
-      <p>Número de pistas: <CatalogRunsText cat={cat} name={area.name} /></p>
+      <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} /></div>
       {pub && <p className="small">Procedencia: <RunsProvenance r={pub} withLimits /></p>}
       {!willApply && preview.notes.length > 0 && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> {preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
       {willApply && preview.overridden.length > 0 && <p className="text-warn small">En {preview.overridden.map((f) => RUN_FIELD_LABEL[f]).join(', ')} prevalece el catálogo importado; solo se aplica lo que completa.</p>}
