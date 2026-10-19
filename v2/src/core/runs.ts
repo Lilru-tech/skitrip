@@ -78,7 +78,7 @@ export interface RunCatalogEntry {
   green: number | null; blue: number | null; red: number | null; black: number | null;
   /** 'individual' = contado por la estación pista a pista en un listado; 'aggregate' = solo una cifra publicada. */
   basis: 'individual' | 'aggregate';
-  /** false = la fuente mezcla otras cosas que no se pueden separar: se muestra, no puntúa. */
+  /** false = discrepancia pendiente (cifras oficiales que no cuadran o mezclan otras zonas): se muestra, no puntúa. */
   comparable: boolean;
   /** Temporada a la que dice referirse la fuente (p. ej. «2025-26»); null si no lo dice. */
   season: string | null;
@@ -97,7 +97,7 @@ export const RUN_CATALOG_ISSUE_LABEL: Record<RunCatalogIssue, string> = {
   no_entero: 'alguna cifra no es un entero no negativo',
   desglose_no_cuadra: 'el desglose por colores no suma el total publicado',
   desglose_supera_total: 'los colores publicados suman más que el total',
-  no_comparable: 'la fuente mezcla pistas con otras zonas y no se pueden separar',
+  no_comparable: 'discrepancia pendiente: las cifras oficiales no cuadran entre sí o mezclan otras zonas que no se pueden separar',
   sin_total: 'no hay total publicado',
 };
 
