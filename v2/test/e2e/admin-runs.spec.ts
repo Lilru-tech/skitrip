@@ -5,10 +5,11 @@ import { AUTH, BASE, apiAs, createUserViaApi, distinctIp, expectNoHorizontalOver
 // con un catálogo importado válido: la aportación queda guardada pero no se aplica (prevalece el importado), así que lo
 // que ven las demás pruebas no cambia. La D1 de E2E se recrea en cada ejecución.
 const ADMIN = { email: 'admin-e2e@example.test', password: 'admin-e2e-Pass1', uid: 'e2eAdminUid0000000000001', alias: 'admin-e2e' };
-// Temporada de la aportación = la del catálogo importado (o sin indicar si no consta): así prevalece el importado.
+// Temporada de la aportación = la del catálogo importado, o sin indicar si no consta: así prevalece el importado
+// (con la misma temporada, o sin temporada común acreditada, en cuyo caso tampoco se mezclan).
 const MINE: Record<string, { id: string; name: string; total: number; season: string }> = {
   'mobile-360': { id: 'e2e-alfa-norte', name: 'Alfa Norte (sintético)', total: 40, season: '2025-26' },
-  'mobile-390': { id: 'e2e-cerrada', name: 'Épsilon Cerrada (sintético)', total: 25, season: '2026-27' },
+  'mobile-390': { id: 'e2e-cerrada', name: 'Épsilon Cerrada (sintético)', total: 25, season: '' },
   'desktop-1280': { id: 'e2e-lejana', name: 'Gamma Lejana (sintético)', total: 120, season: '' },
 };
 
@@ -21,6 +22,7 @@ async function adminToken(request: APIRequestContext) {
   expect(s.ok()).toBeTruthy();
   return (await s.json()).idToken as string;
 }
+const currentSeason = () => { const d = new Date(); const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${String((y + 1) % 100).padStart(2, '0')}`; };
 const areaCard = (page: Page, name: string) => page.getByRole('list', { name: 'Estaciones y dominios' }).getByRole('listitem').filter({ has: page.getByRole('heading', { name }) });
 
 test('administración de pistas: secciones, filtros, vista previa, validación, conflicto, retirar e historial', async ({ page, request }, info) => {
@@ -57,18 +59,21 @@ test('administración de pistas: secciones, filtros, vista previa, validación, 
   await expect(areaCard(page, 'Beta (sintético)')).toHaveCount(0);
   await expectNoHorizontalOverflow(page, `admin pistas lista (${info.project.name})`);
 
-  // Una estación de dominio sin colores: la vista previa dice cómo quedaría el dominio, sin guardar.
+  // Una estación de dominio sin colores ni temporada importada: la vista previa dice cómo quedaría, sin guardar.
   await areaCard(page, 'Alfa Sur (sintético)').getByRole('link', { name: /Editar pistas/ }).click();
   await page.getByLabel('Pistas verdes').fill('8');
   await page.getByLabel('Pistas azules').fill('10');
   const preview = page.getByRole('region', { name: 'Antes de guardar: lo que verá el usuario' });
   await expect(preview).toContainText('Es una estación de Dominio Alfa (sintético)');
   await expect(preview).toContainText('Dominio Alfa (sintético) puntuaría con 70 pistas (suma de sus estaciones)');
-  await expect(preview).toContainText('completado con una aportación manual (verdes, azules');
-  await page.getByLabel('Pistas rojas').fill('20');
-  // Sin total propio, 8 + 10 + 20 supera el total importado (30): no se mezcla y se avisa antes de guardar.
+  // Sin temporada común acreditada no se combinan los colores con el total importado (30).
   await expect(preview).toContainText('Esta aportación no se aplicará');
-  await expect(preview).toContainText('no cuadra');
+  await expect(preview).toContainText('No consta que el catálogo importado y la aportación sean de la misma temporada');
+  await expect(preview).not.toContainText('completado con una aportación manual');
+  // Documentada en la temporada actual: sustituye entera a la cifra importada sin temporada (sin total, no puntúa).
+  await page.getByLabel('Temporada (si se conoce)').fill(currentSeason());
+  await expect(preview).toContainText('no indica temporada y la aportación es de la temporada actual');
+  await page.getByLabel('Temporada (si se conoce)').fill('');
   await page.getByRole('link', { name: 'Pistas', exact: true }).first().click();
 
   // Discrepancia (Beta): una casilla no basta; hace falta explicación con evidencia.
