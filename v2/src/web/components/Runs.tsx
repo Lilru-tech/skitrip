@@ -33,14 +33,30 @@ export function CatalogRunsText({ cat, name }: { cat: EntryCatalogRuns; name: st
   }
   const own = cat.own;
   if (own?.total == null) return <>Sin dato</>;
-  const why = own.issues.filter((i) => i !== 'sin_total').map((i) => RUN_CATALOG_ISSUE_LABEL[i])[0];
-  // Se conservan las cifras publicadas (total y colores) aunque no puntúen.
+  // Resumen: la cifra publicada con una advertencia breve; el porqué va en los detalles (RunsIssueDetail).
   return (
     <>
-      {own.total} publicadas <span className="small text-warn">· no puntúa: {why}</span>
+      {plural(own.total, 'pista publicada', 'pistas publicadas')} <span className="small text-warn">· dato por revisar · no puntúa</span>
       {RUN_COLOURS.some((c) => own.byColour[c] != null) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
     </>
   );
+}
+
+/**
+ * Detalle de por qué una cifra no puntúa o de dónde sale: discrepancia, desglose que no cuadra, cifra importada
+ * sustituida por una aportación manual y su explicación. Va en «Ver detalles»; el resumen solo dice «dato por revisar».
+ */
+export function RunsIssueDetail({ cat, runs, members = false }: { cat: EntryCatalogRuns; runs: RunCatalog | null | undefined; members?: boolean }) {
+  const why = cat.comparableTotal == null && cat.own ? cat.own.issues.filter((i) => i !== 'sin_total').map((i) => RUN_CATALOG_ISSUE_LABEL[i]) : [];
+  const items = [
+    ...why.map((w) => `No puntúa: ${w}.`),
+    cat.pendingDiscrepancy && members ? 'La cifra propia no se sustituye por la suma de sus estaciones hasta resolver la discrepancia con evidencia.' : null,
+    runs?.limitations ?? null,
+    runs?.manual?.resolution ? `Resolución con evidencia: ${runs.manual.resolution}` : null,
+    runs?.superseded ? `Sustituye a la cifra importada (${runs.superseded.total != null ? plural(runs.superseded.total, 'pista publicada', 'pistas publicadas') : 'sin total'}${runs.superseded.comparable ? '' : ', no comparable'}${runs.superseded.limitations ? `: ${runs.superseded.limitations}` : ''}).` : null,
+  ].filter((x): x is string => !!x);
+  if (!items.length) return null;
+  return <ul className="small muted run-notes">{items.map((t) => <li key={t}>{t}</li>)}</ul>;
 }
 
 /** Parte actual (Esquiar ahora): abiertas frente al total del mismo parte; sin parte vigente nunca se usa el catálogo. */

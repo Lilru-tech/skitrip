@@ -218,3 +218,8 @@
 /* Valores actuales: palabras enteras (sin cortar «importado»); si no cabe en móvil, la tabla se desplaza dentro de su caja. */
 .run-values th, .run-values td { overflow-wrap: normal; }
 .run-values tbody th { white-space: nowrap; }
+
+/* Resumen sencillo: listas de enlaces sin viñetas y notas de «Ver detalles». */
+ul.row-wrap { list-style: none; padding-left: 0; margin: 0; }
+ul.run-notes { padding-left: 1.2em; margin: var(--space-1) 0 0; }
+ul.run-notes > li + li { margin-top: var(--space-1); }

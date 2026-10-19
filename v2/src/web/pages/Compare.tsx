@@ -4,7 +4,7 @@
 // todas; el estado de hoy no predice las fechas del viaje).
 import { useEffect, useMemo, useState } from 'react';
 import { get, post } from '../api';
-import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
+import { Freshness, ReportAge, ReportDate, StatusBadge } from '../components/Badges';
 import { ErrorState, Loading, Empty } from '../components/States';
 import { AREA_KIND_LABEL, centsToInput, euros, kmText, MODALITY_LABEL, parseEuros, plural, range } from '../format';
 import { useKeyedResource, useResource } from '../hooks';
@@ -19,7 +19,7 @@ import { customRouteMap, setCustomOrigin, useCustomOrigin } from '../origin';
 import type { LegacyComment } from '../catalog';
 import { runEntry } from '../catalog';
 import { entryCatalogRuns, entryRunsNow, type EntryCatalogRuns, type RunsNow } from '../../core/runs';
-import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsProvenance } from '../components/Runs';
+import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Mode = 'lodging' | 'lodging_forfait';
 type Context = 'plan' | 'ahora';
@@ -410,8 +410,9 @@ function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx,
   const prov = r ? routeProvenance(r) : null;
   const closed = status.status === 'closed' || status.status === 'off_season';
   const snow = area.snow;
-  // Principal: estado, distancia y km abiertos. Procedencia, fechas y detalles técnicos en el desplegable; las
-  // advertencias que cambian la lectura del dato (ruta antigua, estado desconocido, criterio sin dato) siguen visibles.
+  // Resumen: estado y antigüedad del parte, distancia, pistas (catálogo al planificar, abiertas ahora), coste y
+  // puntuación. Procedencia, fechas de captura, métodos y explicaciones largas en «Ver detalles»; las advertencias que
+  // cambian la lectura del dato (ruta antigua, estado desconocido, parte desactualizado, no puntúa) siguen visibles.
   const openKm = !snow || status.status === 'unknown' ? null : snow.openKm;
   return (
     <li className={`area-card${closed ? ' is-closed' : ''}`}>
@@ -422,13 +423,14 @@ function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx,
       {status.status === 'unknown' && (
         <p className="status-note">Estado desconocido: {status.reason}{status.lastKnown ? ` (último estado publicado: ${status.lastKnown})` : ''}. No se da por cerrada.</p>
       )}
-      {ctx === 'plan' && closed && <p className="small muted">Cerrada hoy; puede estar abierta en las fechas de tu viaje.</p>}
+      {ctx === 'plan' && closed && <p className="small muted">Hoy no abre; puede estar abierta en las fechas de tu viaje.</p>}
       <dl className="area-facts">
+        <div><dt>Parte</dt><dd>{snow ? <ReportAge date={snow.sourceDate} at={snow.observedAt} freshness={snow.freshness} /> : 'Sin parte'}</dd></div>
         <div><dt>Distancia</dt><dd>{r?.roadKm != null ? <>{kmText(r.roadKm)}{r.durationMin != null && ` · ${Math.floor(r.durationMin / 60)} h ${r.durationMin % 60} min aprox.`}</> : `sin distancia desde ${origin}`}
           {prov?.level === 'legacy' && <span className="small text-warn"> · {prov.label}</span>}
           {r?.notes && r.source.startsWith('Geoapify') && <span className="small muted"> · {r.notes}</span>}</dd></div>
-        <div><dt>Km abiertos</dt><dd>{openKm != null ? `${kmText(openKm)} de ${kmText(snow!.totalKm ?? area.officialTotalKm)}` : status.status === 'unknown' ? 'sin dato vigente' : 'la fuente no publica km abiertos'}
-          {closed && openKm === 0 && <span className="muted small"> · 0 km abiertos no significa que no haya nieve</span>}</dd></div>
+        {ctx === 'plan' ? <div><dt>Km de pistas</dt><dd>{kmText(snow?.totalKm ?? area.officialTotalKm)}</dd></div> : <div><dt>Km abiertos</dt><dd>{openKm != null ? `${kmText(openKm)} de ${kmText(snow!.totalKm ?? area.officialTotalKm)}` : status.status === 'unknown' ? 'sin dato vigente' : 'la fuente no publica km abiertos'}
+          {closed && openKm === 0 && <span className="muted small"> · 0 km abiertos no significa que no haya nieve</span>}</dd></div>}
         <div><dt>{ctx === 'ahora' ? 'Pistas abiertas' : 'Número de pistas'}</dt><dd>{ctx === 'ahora'
           ? <NowRunsText now={runs.now} name={area.name} catalogTotal={runs.cat.comparableTotal ?? runs.cat.own?.total ?? null} reportDate={snow?.sourceDate} />
           : <CatalogRunsText cat={runs.cat} name={area.name} />}</dd></div>
@@ -441,20 +443,20 @@ function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx,
         </p>
       )}
       <details className="area-more">
-        <summary>Detalles y procedencia<span className="visually-hidden"> de {area.name}</span></summary>
+        <summary>Ver detalles<span className="visually-hidden"> de {area.name}</span></summary>
         <dl className="area-facts">
           <div><dt>Tipo</dt><dd>{AREA_KIND_LABEL[area.kind] ?? area.kind}</dd></div>
-          <div><dt>Parte de nieve</dt><dd>{snow ? <><SnowKm open={snow.openKm} total={snow.totalKm} opStatus={snow.opStatus} /> <Freshness state={snow.freshness} at={snow.observedAt} /><ReportDate date={snow.sourceDate} />
+          <div><dt>Parte de nieve</dt><dd>{snow ? <><SnowKm open={snow.openKm} total={snow.totalKm} opStatus={snow.opStatus} omitState /> <Freshness state={snow.freshness} at={snow.observedAt} /><ReportDate date={snow.sourceDate} />
             {snow.rank?.excluded && <span className="snow-excluded small">no puntúa en «nieve abierta ahora»: {snow.rank.label ?? snow.rank.excluded}</span>}</> : 'sin dato'}</dd></div>
           <div><dt>Ruta</dt><dd>{r ? <>{r.accessName}{prov && <span className="muted small"> · {prov.label}</span>}</> : 'sin ruta'}</dd></div>
           <div><dt>Km totales</dt><dd>{kmText(area.officialTotalKm)}{area.totalKmSource && area.officialTotalKm != null && <span className="muted small"> ({area.totalKmSource})</span>}</dd></div>
           <div><dt>Pistas y variedad</dt><dd>{area.runs ? <RunsProvenance r={area.runs} /> : runs.cat.via === 'members' ? 'suma de las cifras de sus estaciones (en sus fichas)' : 'sin dato'}
-</dd></div>
+            <RunsIssueDetail cat={runs.cat} runs={area.runs} members={members.length > 0} /></dd></div>
           {score && <div><dt>Puntos por criterio</dt><dd className="small">{score.details.filter((d) => d.weight > 0).map((d) => `${WEIGHT_LABEL[d.key]} ${d.normalized == null ? 'sin dato' : Math.round(d.points * 10) / 10}`).join(' · ')}</dd></div>}
           <div><dt>Ambiente / après</dt><dd>{area.vibe ?? 'sin dato'} / {area.apres ?? 'sin dato'} <span className="muted small">(0–10, subjetivo)</span></dd></div>
         </dl>
         {area.legacySnow && (
-          <p className="legacy-ref small">Referencia legacy ({area.legacySnow.date}): {kmText(area.legacySnow.openKm)} de {kmText(area.legacySnow.totalKm)}. <em>{area.legacySnow.note}</em></p>
+          <p className="legacy-ref small">Referencia del SkiTrip antiguo ({area.legacySnow.date}): {kmText(area.legacySnow.openKm)} de {kmText(area.legacySnow.totalKm)}. <em>{area.legacySnow.note}</em></p>
         )}
       </details>
       {members.length > 0 && (
@@ -491,6 +493,6 @@ function memberText(m: CatalogArea): string {
 }
 
 /** Km abiertos de totales; con el estado, un cierre confirmado se dice como tal (no «sin dato abiertos de sin dato»). */
-export function SnowKm({ open, total, opStatus }: { open: number | null; total: number | null; opStatus?: string }) {
-  return <span>{snowStateText({ opStatus: opStatus ?? 'unknown', openKm: open, totalKm: total }).text}</span>;
+export function SnowKm({ open, total, opStatus, omitState = false }: { open: number | null; total: number | null; opStatus?: string; omitState?: boolean }) {
+  return <span>{snowStateText({ opStatus: opStatus ?? 'unknown', openKm: open, totalKm: total }, omitState).text}</span>;
 }

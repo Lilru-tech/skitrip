@@ -29,13 +29,24 @@ test('planificar muestra el catálogo de pistas; esquiar ahora, las abiertas del
   await page.goto('/#/comparar');
   // Catálogo: el dominio sin cifra propia suma sus estaciones; sin desglose completo no se inventan colores.
   await expect(fact(page, 'Dominio Alfa', 'Número de pistas')).toContainText('70 (suma de sus estaciones) · sin desglose por colores');
-  await expect(fact(page, 'Beta', 'Número de pistas')).toContainText('60 publicadas · no puntúa: el desglose por colores no suma el total publicado');
+  // Resumen breve («dato por revisar · no puntúa»); el porqué, en «Ver detalles».
+  const betaRuns = fact(page, 'Beta', 'Número de pistas');
+  await expect(betaRuns).toContainText('60 pistas publicadas · dato por revisar · no puntúa');
+  await expect(betaRuns).not.toContainText('el desglose por colores');
+  const betaDet = card(page, 'Beta').locator('details.area-more');
+  await expect(betaDet.getByText('No puntúa: el desglose por colores no suma el total publicado.')).toBeHidden();
+  await betaDet.locator('summary').click();
+  await expect(betaDet.getByText('No puntúa: el desglose por colores no suma el total publicado.')).toBeVisible();
   const eps = fact(page, 'Épsilon Cerrada', 'Número de pistas');
   await expect(eps.getByRole('list', { name: /por color/ })).toHaveText(/5 verdes.*8 azules.*8 rojas.*4 negras/);
   await expect(fact(page, 'Delta Sin Ruta', 'Número de pistas')).toHaveText('Sin dato');
   // Procedencia plegada: fuente, fecha del dato y consulta, y que el catálogo no garantiza aperturas.
   const det = card(page, 'Épsilon Cerrada').locator('details.area-more');
-  await det.locator('summary').click();
+  // «Ver detalles» con teclado: el resumen lleva el nombre de la estación para lectores de pantalla.
+  await expect(det.locator('summary')).toHaveText('Ver detalles de Épsilon Cerrada (sintético)');
+  await det.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(det).toHaveAttribute('open', '');
   await expect(det.getByRole('link', { name: /Listado oficial/ })).toHaveAttribute('href', 'https://example.invalid/epsilon-listado');
   await expect(det).toContainText('· contado pista a pista · dato del 01/10/2026 · consultado el 19/10/2026');
   await expect(page.getByText(/el catálogo de cada estación, que no garantiza qué pistas estarán abiertas/)).toBeVisible();
@@ -98,6 +109,11 @@ test('la ficha separa catálogo y parte, con fuente, fechas, plano y las estacio
   await page.goto('/#/estaciones/e2e-alfa-norte');
   const sec = page.getByRole('region', { name: 'Pistas y variedad' });
   await expect(sec).toContainText('Número de pistas: 40');
+  // Procedencia, plano y criterio plegados en «Ver detalles», que se abre con el teclado.
+  await expect(sec.getByRole('link', { name: /Plano oficial de pistas/ })).toBeHidden();
+  await sec.locator('details.area-more > summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(sec.locator('details.area-more')).toHaveAttribute('open', '');
   await expect(sec.getByRole('list', { name: /por color/ })).toHaveText(/10 verdes.*12 azules.*12 rojas.*6 negras/);
   await expect(sec).toContainText('temporada 2025-26 · sin fecha del dato publicada · consultado el 19/10/2026');
   await expect(sec.getByRole('link', { name: /Plano oficial de pistas/ })).toHaveAttribute('href', 'https://example.invalid/alfa-norte-plano.pdf');
@@ -107,13 +123,35 @@ test('la ficha separa catálogo y parte, con fuente, fechas, plano y las estacio
   await page.goto('/#/estaciones/e2e-dominio');
   const dom = page.getByRole('region', { name: 'Pistas y variedad' });
   await expect(dom).toContainText('Número de pistas: 70 (suma de sus estaciones)');
+  await dom.locator('details.area-more > summary').click();
   await expect(dom.getByRole('list', { name: /estaciones de/ })).toContainText('Alfa Norte (sintético): 40 pistas');
   await expect(dom.getByRole('list', { name: /estaciones de/ })).toContainText('el dominio no se suma con ellas');
   await expect(dom).toContainText('Pistas abiertas: 52 abiertas de 70');
 
   await page.goto('/#/estaciones/e2e-beta');
   const beta = page.getByRole('region', { name: 'Pistas y variedad' });
-  await expect(beta).toContainText('60 publicadas · no puntúa');
+  await expect(beta).toContainText('60 pistas publicadas · dato por revisar · no puntúa');
   await expect(beta.getByRole('list', { name: /Colores publicados/ })).toHaveText(/20 verdes.*20 azules.*20 rojas.*10 negras/);
-  await expect(beta).toContainText('se muestran las dos cifras tal como se publican');
+  await beta.locator('details.area-more > summary').click();
+  await expect(beta.locator('details.area-more')).toContainText('No puntúa: el desglose por colores no suma el total publicado.');
+});
+
+test('ficha: un gráfico sin km abiertos se queda en una línea con acceso al historial', async ({ page, request }) => {
+  await loggedIn(page, request);
+  // Épsilon tiene un solo parte (cerrada, sin km): se añade otro igual de ayer, solo en el navegador.
+  await page.route('**/api/public/areas/e2e-cerrada', async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    body.snow = [{ ...body.snow[0], observedAt: body.snow[0].observedAt - 86400_000 }, ...body.snow];
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto('/#/estaciones/e2e-cerrada');
+  const now = page.getByRole('region', { name: 'Estado actual' });
+  await expect(now.locator('figure.snow-chart')).toHaveCount(0);
+  await expect(now.getByTestId('snow-chart-empty')).toContainText('Sin km abiertos en las observaciones de los últimos 90 días');
+  await now.getByRole('button', { name: 'Ver el historial de nieve' }).click();
+  const hist = page.locator('details#a-snow-history');
+  await expect(hist).toHaveAttribute('open', '');
+  await expect(hist.locator('summary')).toBeFocused();
+  await expect(hist.getByRole('table')).toBeVisible();
 });
