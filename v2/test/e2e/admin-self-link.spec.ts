@@ -35,7 +35,7 @@ test('administración: vincular un nombre antiguo a la propia cuenta y a otra cu
 
   await distinctIp(page);
   await loginUI(page, ADMIN);
-  await page.goto('/#/admin');
+  await page.goto('/#/admin?seccion=antiguos');
   const card = page.getByRole('list', { name: 'Nombres de la hoja antigua' }).getByRole('listitem').filter({ hasText: `«${mine}»` });
   await expect(card).toContainText('Sin vincular');
   await card.getByRole('button', { name: `Vincular a una cuenta para «${mine}»` }).click();
@@ -75,7 +75,7 @@ test('administración: vincular un nombre antiguo a la propia cuenta y a otra cu
   await expect(page.locator('main')).toContainText('No se copian a tu calendario hasta que los incorpores');
 
   // 3) Otra cuenta activa, desde el selector de disponibilidad.
-  await page.goto('/#/admin');
+  await page.goto('/#/admin?seccion=antiguos');
   const person = page.getByRole('list', { name: 'Personas de la hoja antigua' }).getByRole('listitem').filter({ hasText: `«${other}»` });
   await person.getByRole('button', { name: 'Asignar a una cuenta' }).click();
   await person.getByLabel('Alias de la cuenta').fill(member.alias);

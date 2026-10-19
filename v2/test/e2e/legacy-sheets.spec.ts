@@ -23,7 +23,7 @@ test('hoja antigua: CSV subido por administración → asignación → la person
 
   await distinctIp(page);
   await loginUI(page, ADMIN);
-  await page.goto('/#/admin');
+  await page.goto('/#/admin?seccion=antiguos');
   const panel = page.getByRole('region', { name: 'Importar la hoja antigua (CSV)' });
   await panel.getByLabel('Pestaña').selectOption('availability');
   await panel.getByLabel('Archivo CSV').setInputFiles({ name: 'disponibilidad.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
