@@ -10,8 +10,11 @@ Consultas hechas el 19/10/2026, fuera de temporada, solo en páginas permitidas 
   (superior e inferior, I, II y III), cuentan por separado: no se fusionan por intuición.
 - No cuentan: remontes, snowparks, zonas o circuitos infantiles, trineos, esquí de fondo, raquetas, rutas o itinerarios
   de montaña, fuera pista o freeride, ni la oferta nocturna de una pista que ya cuenta de día.
-- Un dominio no se suma con sus estaciones. Si tiene cifra propia comparable se usa la suya; si no, la suma de sus
-  estaciones solo cuando todas tienen cifra comparable (cada pista es de una estación).
+- Un dominio no se suma con sus estaciones. Si tiene cifra propia comparable se usa la suya. Si no publica cifra propia
+  (ausencia de información), la suma de sus estaciones solo cuando todas tienen cifra comparable y ninguna se repite
+  (cada pista es de una estación). Si publica una cifra propia que no es fiable (discrepancia pendiente, p. ej.
+  Astún + Candanchú: ficha 110 frente a parte 116), no puntúa y no se sustituye por la suma de sus estaciones (114)
+  hasta resolverla con evidencia; se muestran las cifras y el motivo.
 - Con listado individual se cuenta por el identificador oficial (número del parte); si la estación no publica números,
   por el nombre exacto publicado, y se indica. Un identificador repetido con los mismos datos cuenta una vez; con datos
   distintos el listado no se acepta (`auditRunCatalog`). Con una sola cifra, se presenta como «total publicado».
@@ -21,6 +24,22 @@ Consultas hechas el 19/10/2026, fuera de temporada, solo en páginas permitidas 
   documenta (Grandvalira 142 frente a «140 slopes», Port Ainé 25 frente a «27 slopes» en la descripción).
 - Un dato ausente es «Sin dato», nunca 0. Las abiertas por color no se completan con los porcentajes del catálogo.
   Un cierre confirmado sin cifra da «0 abiertas deducido del cierre», sin colores.
+
+## Recuentos: áreas, dominios y entradas de Comparar
+
+- El catálogo tiene **24 áreas**: 3 dominios (Alp 2500, Formigal-Panticosa, Astún + Candanchú), sus 6 estaciones
+  (La Molina y Masella; Formigal y Panticosa; Astún y Candanchú) y 15 estaciones sin dominio. Comparar muestra
+  **18 entradas**: los 3 dominios (con sus estaciones dentro, no como destinos aparte) y las 15 estaciones sin dominio.
+- **Áreas con cifra: 16** de 24 (las de la tabla con total). **Sin dato: 8** (Baqueira Beret, Cerler, Valdelinares,
+  Javalambre, Formigal-Panticosa, Formigal, Panticosa y Masella).
+- **Áreas con cifra comparable: 13**. Las 3 con cifra que no puntúan son discrepancias pendientes: Astún + Candanchú
+  (ficha 110 frente a parte 116), Font-Romeu (41 frente a 47) y Les Angles (41 frente a 45, con freeride).
+- **Entradas de Comparar que puntúan en Planificar: 10** de 18: Grandvalira, Pal Arinsal, Ordino Arcalís, Port Ainé,
+  Espot, Boí Taüll, Port del Comte, Vall de Núria, Ax 3 Domaines y Alp 2500 (con su cifra propia, 131). La Molina,
+  Astún y Candanchú tienen cifra comparable pero son estaciones de un dominio: se ven en la ficha del dominio y no
+  puntúan como destinos aparte. No puntúan: Astún + Candanchú, Font-Romeu y Les Angles (discrepancia pendiente) y
+  Baqueira, Cerler, Valdelinares, Javalambre y Formigal-Panticosa (sin dato).
+- En Esquiar ahora puntúan solo las entradas con parte vigente que publica abiertas; hoy, fuera de temporada, ninguna.
 
 ## Cobertura por estación
 
@@ -69,6 +88,8 @@ sea de la temporada actual.
 - API de FGC (La Molina, Vall de Núria, Espot, Port Ainé, Boí Taüll): fuera de temporada `skislopes.items` está vacío.
   Comprobar en temporada si lista pistas con color e identificador; hasta entonces solo se leen abiertas y totales.
 - Andorra y Port del Comte: el formato de abiertas por color está visto con 0 abiertas; confirmar con estaciones abiertas.
+  Un parte cuyo total por colores no cuadra con su total (completo que no lo suma o parcial que lo supera) conserva
+  las cifras pero no se usan como denominadores por color, y se explica; las abiertas siguen valiendo si son coherentes.
 - Baqueira Beret y las webs de Aramón (Cerler, Formigal-Panticosa, Valdelinares, Javalambre): no se han podido leer
   (Baqueira rechaza la lectura automática; Aramón no la permite en su robots.txt para la herramienta usada). Masella:
   su robots.txt no respondió, así que no se usa su ficha. Necesitan comprobación manual antes de cargar cifras.
