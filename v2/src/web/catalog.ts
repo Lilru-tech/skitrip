@@ -1,7 +1,15 @@
 // Contratos del catálogo público (src/worker/routes/catalog.ts).
+import type { ByColour, RunCatalogEntry } from '../core/runs';
+
+/** Catálogo de pistas de un área (area_runs): cifras publicadas por la estación, con procedencia y fechas. */
+export type RunCatalog = Omit<RunCatalogEntry, 'areaId'>;
+export const runEntry = (areaId: string, r: RunCatalog | null | undefined): RunCatalogEntry | null => (r ? { areaId, ...r } : null);
+
 export interface Snow {
   observedAt: number; sourceDate: string | null; opStatus: string; openKm: number | null; totalKm: number | null;
   openRuns: number | null; totalRuns: number | null; openLifts: number | null; totalLifts: number | null;
+  /** Abiertas y totales por color del mismo parte, si la fuente los publica. */
+  openRunsByColour?: ByColour | null; totalRunsByColour?: ByColour | null;
   depthMinCm: number | null; depthMaxCm: number | null; quality: string; qualityNote: string | null; sourceId: string;
   freshness: 'fresh' | 'stale' | 'never';
   /** Lo que puede puntuar en «Nieve abierta ahora»; un dato excluido se sigue mostrando con su fecha. */
@@ -13,6 +21,7 @@ export interface CatalogArea {
   id: string; name: string; kind: 'resort' | 'sector' | 'domain'; country: string; region: string | null; lat: number | null; lon: number | null;
   officialTotalKm: number | null; totalKmSource: string | null; vibe: number | null; apres: number | null; notes: string | null; officialUrl: string | null;
   route: Route | null; snow: Snow | null;
+  runs?: RunCatalog | null;
   legacySnow: { date: string; openKm: number | null; totalKm: number | null; anomalies: string[]; note: string } | null;
 }
 export interface Catalog { origin: string; origins: { id: string; name: string }[]; links: { parent_id: string; child_id: string; relation: string }[]; areas: CatalogArea[] }
@@ -41,6 +50,9 @@ export interface AreaDetail {
   legacyComments?: LegacyComment[];
   legacyCommentsNote?: string;
   routes?: AreaRoute[];
+  runs?: RunCatalog | null;
+  /** Catálogo de pistas de las estaciones de un dominio. */
+  memberRuns?: (RunCatalog & { areaId: string })[];
   offers: { note: string; items: AreaOffer[] };
 }
 
