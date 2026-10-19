@@ -85,3 +85,14 @@ INSERT INTO users (id, firebase_uid, alias, alias_norm, email, role, status, tok
 INSERT INTO area_access (area_id, name, lat, lon, mode, note, source) VALUES
   ('e2e-dominio', 'Aparcamiento Alfa (sintético)', 42.305, 1.905, 'car', NULL, 'e2e'),
   ('e2e-cerrada', 'Cremallera Épsilon (sintético)', 42.40, 1.55, 'rack_railway', 'Sin acceso en coche: se sube en cremallera (sintético).', 'e2e');
+
+-- Pistas y variedad (sintético). Catálogo: Alfa Norte con desglose completo, Alfa Sur sin desglose (el dominio no tiene
+-- cifra propia y suma las dos), Beta con un desglose que no cuadra (no puntúa), Épsilon y Gamma con desglose; Delta sin
+-- fila. Parte: el dominio publica abiertas por color en su parte de hace 1 h.
+INSERT INTO area_runs (area_id, total, green, blue, red, black, basis, comparable, season, source_date, checked_on, source_url, map_url, limitations) VALUES
+  ('e2e-alfa-norte', 40, 10, 12, 12, 6, 'aggregate', 1, '2025-26', NULL, '2026-10-19', 'https://example.invalid/alfa-norte-ficha', 'https://example.invalid/alfa-norte-plano.pdf', 'Ficha sintética.'),
+  ('e2e-alfa-sur', 30, NULL, NULL, NULL, NULL, 'aggregate', 1, NULL, NULL, '2026-10-19', 'https://example.invalid/alfa-sur-ficha', NULL, 'Solo una cifra, sin desglose (sintético).'),
+  ('e2e-beta', 60, 20, 20, 20, 10, 'aggregate', 1, NULL, '2026-09-30', '2026-10-19', 'https://example.invalid/beta-ficha', NULL, 'El desglose publicado suma 70 (sintético).'),
+  ('e2e-cerrada', 25, 5, 8, 8, 4, 'individual', 1, NULL, '2026-10-01', '2026-10-19', 'https://example.invalid/epsilon-listado', NULL, NULL),
+  ('e2e-lejana', 120, 30, 40, 30, 20, 'aggregate', 1, NULL, NULL, '2026-10-19', 'https://example.invalid/gamma-ficha', NULL, NULL);
+UPDATE snow_observations SET open_runs = 52, total_runs = 70, open_runs_by_colour = '{"green":15,"blue":18,"red":14,"black":5}', total_runs_by_colour = '{"green":18,"blue":22,"red":20,"black":10}' WHERE id = 'e2e-s1';

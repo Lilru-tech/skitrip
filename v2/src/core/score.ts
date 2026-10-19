@@ -8,26 +8,31 @@ export interface ScoreRow {
   totalKm: number | null;
   openKmNow: number | null;          // condiciones actuales; no predicen un viaje futuro
   vibe: number | null;               // 0–10 subjetivo
+  /** Número de pistas: total comparable del catálogo (Planificar) o abiertas con parte vigente (Esquiar ahora). */
+  runs?: number | null;
 }
-export type Weights = { cost: number; distance: number; size: number; snowNow: number; vibe: number };
-export const DEFAULT_WEIGHTS: Weights = { cost: 0.4, distance: 0.2, size: 0.15, snowNow: 0.15, vibe: 0.1 };
+// «runs» (Variedad de pistas) empieza a 0: con ese peso la puntuación es exactamente la de antes.
+export type Weights = { cost: number; distance: number; size: number; snowNow: number; vibe: number; runs: number };
+export const DEFAULT_WEIGHTS: Weights = { cost: 0.4, distance: 0.2, size: 0.15, snowNow: 0.15, vibe: 0.1, runs: 0 };
 
 export interface ScoreDetail { key: keyof Weights; weight: number; value: number | null; normalized: number | null; points: number }
 export interface Scored { id: string; score: number; coverage: number; details: ScoreDetail[]; missing: (keyof Weights)[] }
 
-function norm(v: number | null, min: number, max: number, higherBetter: boolean): number | null {
+function norm(v: number | null, min: number, max: number, higherBetter: boolean, zeroScoresNothing = false): number | null {
   if (v == null) return null;
+  // Cero pistas no es variedad disponible: aunque todas tengan 0 (o sea la única con dato), no suma puntos.
+  if (zeroScoresNothing && v === 0) return 0;
   if (max === min) return 1;
   const x = (v - min) / (max - min);
   return higherBetter ? x : 1 - x;
 }
 
-export function scoreRows(rows: readonly ScoreRow[], weights: Weights = DEFAULT_WEIGHTS): Scored[] {
+export function scoreRows(rows: readonly ScoreRow[], weights: Omit<Weights, 'runs'> & { runs?: number } = DEFAULT_WEIGHTS): Scored[] {
   const range = (f: (r: ScoreRow) => number | null) => {
     const v = rows.map(f).filter((x): x is number => x != null);
     return v.length ? [Math.min(...v), Math.max(...v)] : [0, 0];
   };
-  const rc = range((r) => r.costPerPersonCents), rd = range((r) => r.roadKm), rs = range((r) => r.totalKm), rn = range((r) => r.openKmNow), rv = range((r) => r.vibe);
+  const rc = range((r) => r.costPerPersonCents), rd = range((r) => r.roadKm), rs = range((r) => r.totalKm), rn = range((r) => r.openKmNow), rv = range((r) => r.vibe), rr = range((r) => r.runs ?? null);
   const totalW = Object.values(weights).reduce((a, b) => a + Math.max(0, b), 0) || 1;
   return rows.map((r) => {
     const parts: [keyof Weights, number | null, number | null][] = [
@@ -36,9 +41,10 @@ export function scoreRows(rows: readonly ScoreRow[], weights: Weights = DEFAULT_
       ['size', r.totalKm, norm(r.totalKm, rs[0], rs[1], true)],
       ['snowNow', r.openKmNow, norm(r.openKmNow, rn[0], rn[1], true)],
       ['vibe', r.vibe, norm(r.vibe, rv[0], rv[1], true)],
+      ['runs', r.runs ?? null, norm(r.runs ?? null, rr[0], rr[1], true, true)],
     ];
     const details = parts.map(([key, value, n]) => {
-      const w = Math.max(0, weights[key]) / totalW;
+      const w = Math.max(0, weights[key] ?? 0) / totalW;
       return { key, weight: w, value, normalized: n, points: n == null ? 0 : n * w * 100 };
     });
     const missing = details.filter((d) => d.normalized == null && d.weight > 0).map((d) => d.key);

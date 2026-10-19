@@ -17,16 +17,27 @@ import { routeProvenance } from '../../core/legacy';
 import { OriginPicker } from '../components/OriginPicker';
 import { customRouteMap, setCustomOrigin, useCustomOrigin } from '../origin';
 import type { LegacyComment } from '../catalog';
+import { runEntry } from '../catalog';
+import { entryCatalogRuns, entryRunsNow, type EntryCatalogRuns, type RunsNow } from '../../core/runs';
+import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsProvenance } from '../components/Runs';
 
 type Mode = 'lodging' | 'lodging_forfait';
 type Context = 'plan' | 'ahora';
 /** Km que puntúan en «Nieve abierta ahora»: solo los del dato elegido si es reciente y fiable (snow.rank), nunca snow.openKm tal cual. */
 const snowRankKm = (a: CatalogArea) => (a.snow?.rank ? a.snow.rank.openKm : null);
-const WEIGHT_LABEL: Record<keyof Weights, string> = { snowNow: 'Nieve abierta ahora', size: 'Km de pistas', distance: 'Cercanía', vibe: 'Ambiente', cost: 'Coste' };
-const SLIDERS: (keyof Weights)[] = ['snowNow', 'size', 'distance', 'vibe'];
+const WEIGHT_LABEL: Record<keyof Weights, string> = { snowNow: 'Nieve abierta ahora', size: 'Km de pistas', distance: 'Cercanía', vibe: 'Ambiente', cost: 'Coste', runs: 'Variedad de pistas' };
+const SLIDERS: (keyof Weights)[] = ['snowNow', 'size', 'runs', 'distance', 'vibe'];
 // El coste solo puntúa con un viaje elegido y presupuestos completos (mismas fechas y condiciones); sin eso, su peso
 // efectivo es 0. Al planificar, la nieve de hoy no puntúa por defecto (no dice nada de las fechas del viaje).
 const INITIAL_WEIGHTS: Record<Context, Weights> = { plan: { ...DEFAULT_WEIGHTS, snowNow: 0 }, ahora: { ...DEFAULT_WEIGHTS } };
+
+/** Pistas de una entrada: catálogo (propio o suma de sus estaciones) y abiertas del parte vigente. */
+function entryRuns(area: CatalogArea, members: CatalogArea[], nowMs: number): { cat: EntryCatalogRuns; now: RunsNow } {
+  return {
+    cat: entryCatalogRuns(runEntry(area.id, area.runs), members.map((m) => runEntry(m.id, m.runs))),
+    now: entryRunsNow(area.snow, area.snow ? [] : members.map((m) => m.snow), nowMs),
+  };
+}
 
 /** Estado de una entrada de primer nivel: su propio parte o, en un dominio sin parte, el de sus estaciones. */
 function entryStatus(area: CatalogArea, members: CatalogArea[], nowMs: number): ResortStatusInfo {
@@ -103,7 +114,7 @@ export function ComparePage() {
     const nowMs = Date.now();
     if (origin === 'personal' && !customRoutes) return null;
     const withRoute = (a: CatalogArea): CatalogArea => (customRoutes ? { ...a, route: customRoutes.get(a.id) ?? null } : a);
-    const entries = topLevel(catalog.data).map((e) => ({ area: withRoute(e.area), members: e.members.map(withRoute), status: entryStatus(e.area, e.members, nowMs) }));
+    const entries = topLevel(catalog.data).map((e) => ({ area: withRoute(e.area), members: e.members.map(withRoute), status: entryStatus(e.area, e.members, nowMs), runs: entryRuns(e.area, e.members, nowMs) }));
     const near = entries.filter((e) => e.area.route?.roadKm != null && e.area.route.roadKm <= maxKm);
     const far = entries.filter((e) => e.area.route?.roadKm != null && e.area.route.roadKm > maxKm);
     const noRoute = entries.filter((e) => e.area.route?.roadKm == null);
@@ -112,6 +123,8 @@ export function ComparePage() {
     const scored = scoreRows(candidates.map((e) => ({
       id: e.area.id, costPerPersonCents: costActive ? costByArea?.get(e.area.id)?.perPersonCents ?? null : null, roadKm: e.area.route?.roadKm ?? null,
       totalKm: e.area.snow?.totalKm ?? e.area.officialTotalKm, openKmNow: snowRankKm(e.area), vibe: e.area.vibe,
+      // Planificar: total comparable del catálogo. Esquiar ahora: abiertas con parte vigente (nunca el catálogo en su lugar).
+      runs: ctx === 'plan' ? e.runs.cat.comparableTotal : e.runs.now.open,
     })), weights);
     const byId = new Map(candidates.map((e) => [e.area.id, e]));
     return {
@@ -124,8 +137,8 @@ export function ComparePage() {
   }, [catalog.data, maxKm, weights, ctx, costActive, costByArea, origin, customRoutes]);
 
   const originName = origin === 'tarragona' ? 'Tarragona' : origin === 'sabadell' ? 'Sabadell' : custom?.label ?? 'tu origen';
-  const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
-    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} {...extra} />
+  const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; runs: { cat: EntryCatalogRuns; now: RunsNow } }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
+    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} runs={e.runs} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} {...extra} />
   );
 
   return (
@@ -146,6 +159,9 @@ export function ComparePage() {
           ? 'Solo se recomiendan estaciones con apertura confirmada por su fuente y dato vigente. Las cerradas o con estado desconocido se listan aparte.'
           : 'Se comparan todas las estaciones, abiertas o no: el estado de hoy no predice cómo estarán en las fechas del viaje. Por eso la nieve de hoy no puntúa por defecto.'}
       </p>
+      <p className="muted small">{ctx === 'ahora'
+        ? 'Pistas abiertas: las del parte vigente frente al total del mismo parte. Sin parte vigente no se muestran las del catálogo en su lugar.'
+        : 'Número de pistas: el catálogo de cada estación, que no garantiza qué pistas estarán abiertas en las fechas del viaje.'} {RUNS_CRITERION}</p>
 
       <section className="panel stack" aria-labelledby="cmp-f">
         <h2 id="cmp-f">Filtros</h2>
@@ -191,6 +207,9 @@ export function ComparePage() {
             ))}
           </div>
           <p className="muted small">Un dato que falta puntúa 0 en ese criterio y se indica: un coste pendiente nunca cuenta como 0 € ni como el más barato. El coste solo puntúa con un viaje elegido y presupuestos completos. El après-ski se muestra, pero todavía no forma parte de la puntuación.</p>
+          <p className="muted small"><strong>Variedad de pistas</strong> empieza a 0. Más pistas suman más puntos; los colores son informativos y no puntúan. {ctx === 'plan'
+            ? 'Al planificar cuenta el número de pistas del catálogo de cada estación, que no garantiza qué estará abierto en las fechas del viaje.'
+            : 'Ahora cuentan las pistas abiertas con un parte vigente; sin parte vigente el criterio queda sin dato.'} Km de pistas y número de pistas miden cosas relacionadas: si subes los dos, el tamaño de la estación pesa más. Ningún otro peso cambia solo.</p>
           <p className="muted small">La <strong>cobertura</strong> dice qué parte de la puntuación se calcula con datos disponibles. No indica si la estación está abierta: eso lo dice su estado.</p>
         </details>
         <p className="muted small">Las ofertas de cada estación se muestran en su ficha en modo «{MODALITY_LABEL[mode]}». Son orientativas, con fechas del proveedor.</p>
@@ -379,8 +398,8 @@ function GeneralTips() {
   );
 }
 
-function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost }: {
-  area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; mode: Mode; origin: string; ctx: Context; rank?: number;
+function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx, cost }: {
+  area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; runs: { cat: EntryCatalogRuns; now: RunsNow }; mode: Mode; origin: string; ctx: Context; rank?: number;
   /** undefined = sin viaje elegido (no se muestra); null = el viaje no tiene candidaturas en esta estación;
    * 'loading' / 'error' = aún no hay costes de la selección actual (nunca se muestran los de otra). */
   cost?: AreaCost | null | 'loading' | 'error';
@@ -410,6 +429,9 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost 
           {r?.notes && r.source.startsWith('Geoapify') && <span className="small muted"> · {r.notes}</span>}</dd></div>
         <div><dt>Km abiertos</dt><dd>{openKm != null ? `${kmText(openKm)} de ${kmText(snow!.totalKm ?? area.officialTotalKm)}` : status.status === 'unknown' ? 'sin dato vigente' : 'la fuente no publica km abiertos'}
           {closed && openKm === 0 && <span className="muted small"> · 0 km abiertos no significa que no haya nieve</span>}</dd></div>
+        <div><dt>{ctx === 'ahora' ? 'Pistas abiertas' : 'Número de pistas'}</dt><dd>{ctx === 'ahora'
+          ? <NowRunsText now={runs.now} name={area.name} catalogTotal={runs.cat.comparableTotal ?? runs.cat.own?.total ?? null} reportDate={snow?.sourceDate} />
+          : <CatalogRunsText cat={runs.cat} name={area.name} />}</dd></div>
         {cost !== undefined && <div><dt>Coste por persona</dt><dd><CostText cost={cost} /></dd></div>}
       </dl>
       {score && (
@@ -426,6 +448,9 @@ function AreaCard({ area, members, status, mode, score, rank, origin, ctx, cost 
             {snow.rank?.excluded && <span className="snow-excluded small">no puntúa en «nieve abierta ahora»: {snow.rank.label ?? snow.rank.excluded}</span>}</> : 'sin dato'}</dd></div>
           <div><dt>Ruta</dt><dd>{r ? <>{r.accessName}{prov && <span className="muted small"> · {prov.label}</span>}</> : 'sin ruta'}</dd></div>
           <div><dt>Km totales</dt><dd>{kmText(area.officialTotalKm)}{area.totalKmSource && area.officialTotalKm != null && <span className="muted small"> ({area.totalKmSource})</span>}</dd></div>
+          <div><dt>Pistas y variedad</dt><dd>{area.runs ? <RunsProvenance r={area.runs} /> : runs.cat.via === 'members' ? 'suma de las cifras de sus estaciones (en sus fichas)' : 'sin dato'}
+</dd></div>
+          {score && <div><dt>Puntos por criterio</dt><dd className="small">{score.details.filter((d) => d.weight > 0).map((d) => `${WEIGHT_LABEL[d.key]} ${d.normalized == null ? 'sin dato' : Math.round(d.points * 10) / 10}`).join(' · ')}</dd></div>}
           <div><dt>Ambiente / après</dt><dd>{area.vibe ?? 'sin dato'} / {area.apres ?? 'sin dato'} <span className="muted small">(0–10, subjetivo)</span></dd></div>
         </dl>
         {area.legacySnow && (
