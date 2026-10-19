@@ -72,8 +72,9 @@ function RunsList({ data, missing }: { data: AdminRuns; missing: string | null }
       <details className="small">
         <summary>Cómo se decide qué cifra vale</summary>
         <ul>
-          <li>Si el catálogo importado tiene una cifra válida (y no consta que sea de una temporada anterior), prevalece. Tu aportación solo completa lo que falta, si cuadra.</li>
-          <li>Si el catálogo importado no tiene cifra, no es fiable o es de una temporada anterior, tu aportación lo sustituye entera, sin mezclar fuentes.</li>
+          <li>Si el catálogo importado tiene una cifra válida de la misma temporada que tu aportación, prevalece. Tu aportación solo completa lo que falta, si cuadra.</li>
+          <li>Si el catálogo importado no tiene cifra, no es fiable, es de una temporada anterior o no indica temporada frente a tu aportación documentada de la temporada actual, tu aportación lo sustituye entera, sin mezclar fuentes.</li>
+          <li>Si no consta que las dos sean de la misma temporada (en otro caso), prevalece el importado y no se mezclan sus cifras. La temporada no se deduce de la fecha del documento.</li>
           <li>Las aportaciones que no se aplican se conservan con su historial. Si llega un dato automático válido, prevalece el automático.</li>
         </ul>
       </details>
@@ -142,7 +143,7 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
   const draft = toDraft(form);
   const errors = validateManualDraft(draft, { imported: area.imported, today });
   const needsResolution = importedNeedsResolution(area.imported);
-  const preview = resolveRunCatalog(area.imported, { ...draft, areaId: area.id, enteredOn: today, status: 'active', version: area.contribution?.version ?? 0 });
+  const preview = resolveRunCatalog(area.imported, { ...draft, areaId: area.id, enteredOn: today, status: 'active', version: area.contribution?.version ?? 0 }, today);
   const c = area.contribution;
 
   const save = async (e: FormEvent) => {
@@ -188,7 +189,7 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
           <div className="field">
             <label htmlFor="run-season">Temporada (si se conoce)</label>
             <input id="run-season" type="text" placeholder="2026-27" value={form.season} onChange={(e) => set('season', e.target.value)} maxLength={7} aria-describedby="run-season-hint" />
-            <p className="field-hint" id="run-season-hint">Sirve para saber si un dato automático es de la misma temporada.</p>
+            <p className="field-hint" id="run-season-hint">La que declara la fuente («2026-27»), no la deducida de su fecha. Solo con la misma temporada se combinan tu aportación y el dato automático.</p>
           </div>
           <div className="field">
             <label htmlFor="run-date">Fecha de la fuente (si la publica)</label>
