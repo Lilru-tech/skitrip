@@ -69,7 +69,9 @@ test('al cambiar de modo la variedad se recalcula con el dato de ese modo', asyn
     const res = await route.fetch();
     const body = await res.json();
     const beta = body.areas.find((a: any) => a.id === 'e2e-beta');
-    beta.snow = { ...beta.snow, observedAt: Date.now() - 3600_000, sourceDate: null, opStatus: 'open', openRuns: 60, totalRuns: 60, quality: 'ok', freshness: 'fresh', rank: { openKm: 40, excluded: null, label: null } };
+    // Totales por color que no cuadran con el total del parte (80 frente a 60): no sirven de denominador.
+    beta.snow = { ...beta.snow, observedAt: Date.now() - 3600_000, sourceDate: null, opStatus: 'open', openRuns: 60, totalRuns: 60, quality: 'ok', freshness: 'fresh', rank: { openKm: 40, excluded: null, label: null },
+      openRunsByColour: { green: 15, blue: 15, red: 15, black: 15 }, totalRunsByColour: { green: 20, blue: 20, red: 20, black: 20 } };
     await route.fulfill({ response: res, json: body });
   });
   await page.goto('/#/comparar?contexto=ahora');
@@ -77,6 +79,10 @@ test('al cambiar de modo la variedad se recalcula con el dato de ese modo', asyn
   const open = page.getByRole('list', { name: 'Estaciones abiertas dentro de la distancia' });
   await expect(open.locator('> li').first()).toContainText('Beta');
   await expect(card(page, 'Beta').locator('.score-line')).toContainText('Puntuación 100');
+  const betaNow = fact(page, 'Beta', 'Pistas abiertas');
+  await expect(betaNow).toContainText('60 abiertas de 60');
+  await expect(betaNow.getByRole('list', { name: /abiertas .* por color/ })).toHaveText(/^15 verdes\s*15 azules\s*15 rojas\s*15 negras$/);
+  await expect(betaNow).toContainText('totales por color no usados: los totales por color suman 80 y el parte publica 60 pistas');
 
   // Planificar: Beta no tiene total comparable (desglose incoherente) y el dominio sí; nada de la puntuación anterior.
   await page.getByRole('link', { name: 'Planificar un viaje' }).click();

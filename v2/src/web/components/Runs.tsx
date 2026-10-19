@@ -33,7 +33,13 @@ export function CatalogRunsText({ cat, name }: { cat: EntryCatalogRuns; name: st
   const own = cat.own;
   if (own?.total == null) return <>Sin dato</>;
   const why = own.issues.filter((i) => i !== 'sin_total').map((i) => RUN_CATALOG_ISSUE_LABEL[i])[0];
-  return <>{own.total} publicadas <span className="small text-warn">· no puntúa: {why}</span></>;
+  // Se conservan las cifras publicadas (total y colores) aunque no puntúen.
+  return (
+    <>
+      {own.total} publicadas <span className="small text-warn">· no puntúa: {why}</span>
+      {RUN_COLOURS.some((c) => own.byColour[c] != null) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
+    </>
+  );
 }
 
 /** Parte actual (Esquiar ahora): abiertas frente al total del mismo parte; sin parte vigente nunca se usa el catálogo. */
@@ -47,6 +53,7 @@ export function NowRunsText({ now, name, catalogTotal, reportDate }: { now: Runs
       <span className="muted small">{reportDate ? ` · parte del ${numDate(reportDate)}` : ' · la fuente no publica fecha de parte'}</span>
       {now.byColour && <RunColours v={now.byColour} of={now.totalByColour} label={`Pistas abiertas de ${name} por color`} />}
       {now.colourIssue && <span className="small text-warn"> · desglose por colores no mostrado: {now.colourIssue}</span>}
+      {now.totalColourIssue && <span className="small text-warn"> · totales por color no usados: {now.totalColourIssue}</span>}
       {now.total == null && cat}
     </>
   );
