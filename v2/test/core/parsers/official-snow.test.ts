@@ -63,9 +63,10 @@ describe('Andorra (plantilla común) con textos reales del 01/10/2026', () => {
 });
 
 describe('Port del Comte con texto real (último parte de la temporada)', () => {
-  it('estación «TANCAT» explícita, km 0,0, 31 pistas y 13 remontes contados por ficha, fecha del parte', () => {
+  it('estación «TANCAT» explícita, km 0,0, 29 pistas alpinas (31 fichas sin trineos ni fuera pista) y 13 remontes, fecha del parte', () => {
     expect(parsePortDelComte(pdc)).toMatchObject({
-      opStatus: 'closed_confirmed', openKm: 0, totalKm: null, openRuns: 0, totalRuns: 31, openLifts: 0, totalLifts: 13, depthMinCm: 0, depthMaxCm: 0, sourceDate: '2026-04-05',
+      opStatus: 'closed_confirmed', openKm: 0, totalKm: null, openRuns: 0, totalRuns: 29,
+      openRunsByColour: { green: 0, blue: 0, red: 0, black: 0 }, totalRunsByColour: { green: 7, blue: 11, red: 8, black: 3 }, openLifts: 0, totalLifts: 13, depthMinCm: 0, depthMaxCm: 0, sourceDate: '2026-04-05',
     });
   });
 });

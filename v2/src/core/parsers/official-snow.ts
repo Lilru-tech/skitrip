@@ -4,10 +4,13 @@
 // primera ejecución en Actions. Un 0 publicado no es «cerrado» salvo que la página lo diga con texto explícito.
 import { parseHtml, textContent } from './html';
 import type { OpStatus } from './snow';
+import { RUN_COLOURS, type ByColour, type RunColour } from '../runs';
 
 export interface OfficialSnow {
   opStatus: OpStatus; openKm: number | null; totalKm: number | null; openRuns: number | null; totalRuns: number | null;
   openLifts: number | null; totalLifts: number | null; depthMinCm: number | null; depthMaxCm: number | null; sourceDate: string | null;
+  /** Abiertas y totales por color del mismo parte, solo si la fuente los publica (un color sin dato es null). */
+  openRunsByColour?: ByColour | null; totalRunsByColour?: ByColour | null;
 }
 
 const toText = (input: string) => (/<[a-z][\s\S]*>/i.test(input) ? textContent(parseHtml(input)) : input).replace(/\s+/g, ' ');
@@ -29,6 +32,17 @@ const pair = (t: string, label: RegExp, kind: PairKind): [number, number] | null
   return Number.isFinite(a) && Number.isFinite(b) && b > 0 && b <= LIMITS[kind] && a >= 0 && a <= b ? [a, b] : null;
 };
 
+const COLOUR_WORD: Record<RunColour, string> = { green: 'verdes?|verdas?', blue: 'azul(?:es)?|blavas?|blaves', red: 'rojas?|vermellas?|vermelles', black: 'negras?|negres' };
+/** «Pistas Verde 3/23»… del parte de las estaciones de Andorra. Sin ningún color publicado, null (no 0). */
+function colourPairs(t: string): { open: ByColour; total: ByColour } | null {
+  const open = {} as ByColour, total = {} as ByColour;
+  for (const c of RUN_COLOURS) {
+    const p = pair(t, new RegExp(`pist[ae]s\\s+(?:${COLOUR_WORD[c]})\\b`), 'runs');
+    open[c] = p?.[0] ?? null; total[c] = p?.[1] ?? null;
+  }
+  return RUN_COLOURS.some((c) => total[c] != null) ? { open, total } : null;
+}
+
 export function parseGrandvalira(input: string): OfficialSnow | null {
   const t = toText(input);
   const km = pair(t, /km esquiables|kil[oó]metros esquiables/, 'km');
@@ -38,12 +52,14 @@ export function parseGrandvalira(input: string): OfficialSnow | null {
   const depth = /espesores de nieve \(cm\)\s*(\d{1,4})\s*-\s*(\d{1,4})/i.exec(t);
   const d = /[úu]ltima actualizaci[oó]n:?\s*(?:[a-záéíóú]{2,4}\.?,?\s*)?(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(t);
   const [openKm, totalKm] = km;
+  const colours = colourPairs(t);
   // Un 0 publicado puede ser fuera de temporada o cierre: sin texto explícito, el estado queda desconocido.
   const opStatus: OpStatus = openKm === 0 ? 'unknown' : openKm >= totalKm ? 'open' : 'partial';
   return {
     opStatus, openKm, totalKm, openRuns: runs?.[0] ?? null, totalRuns: runs?.[1] ?? null, openLifts: lifts?.[0] ?? null, totalLifts: lifts?.[1] ?? null,
     depthMinCm: depth ? Number(depth[1]) : null, depthMaxCm: depth ? Number(depth[2]) : null,
     sourceDate: d ? `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}` : null,
+    openRunsByColour: colours?.open ?? null, totalRunsByColour: colours?.total ?? null,
   };
 }
 
@@ -84,12 +100,14 @@ export function parseAndorra(input: string, sectorNames: readonly string[]): Off
   const depth = /espesores de nieve \(cm\)\s*(\d{1,4})\s*-\s*(\d{1,4})/i.exec(t);
   const d = /[úu]ltima actualizaci[oó]n:?\s*(?:[a-záéíóú]{2,4}\.?,?\s*)?(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(t);
   const sectors = parseAndorraSectors(input, sectorNames);
+  const colours = colourPairs(t);
   const allClosed = sectors.length === sectorNames.length && sectors.every((x) => x.state === 'closed');
   const opStatus: OpStatus = allClosed ? 'closed_confirmed' : (km ? ratio(km[0], km[1]) : ratio(runs?.[0] ?? null, runs?.[1] ?? null)) ?? 'unknown';
   return {
     opStatus, openKm: km?.[0] ?? null, totalKm: km?.[1] ?? null, openRuns: runs?.[0] ?? null, totalRuns: runs?.[1] ?? null,
     openLifts: lifts?.[0] ?? null, totalLifts: lifts?.[1] ?? null, depthMinCm: depth ? Number(depth[1]) : null, depthMaxCm: depth ? Number(depth[2]) : null,
     sourceDate: d ? dmy(d[1], d[2], d[3]) : null,
+    openRunsByColour: colours?.open ?? null, totalRunsByColour: colours?.total ?? null,
   };
 }
 
@@ -105,18 +123,29 @@ export function parsePortDelComte(input: string): OfficialSnow | null {
   const d = /[úu]ltima actualitzaci[oó]:?\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i.exec(t);
   if (!km && !d) return null;
   const openRunsM = /total pistes obertes:?\s*(\d{1,3})/i.exec(t);
-  const runStates = [...t.matchAll(/\bestat:\s*([a-zàèéíòóú]+)/gi)].map((m) => m[1].toLowerCase());
+  // Cada pista: «Estat: OBERT Tipus: blava». Solo cuentan las de color (verda, blava, vermella, negra): «trineus»,
+  // «fora_pista» y cualquier otro tipo no son pistas alpinas. Sin tipos legibles, se cuentan todas las fichas (como antes).
+  const runItems = [...t.matchAll(/\bestat:\s*([a-zàèéíòóú]+)(?:\s+tipus:\s*([a-zàèéíòóú_]+))?/gi)].map((m) => ({ state: m[1].toLowerCase(), type: m[2]?.toLowerCase() ?? null }));
+  const PDC_COLOUR: Record<string, RunColour> = { verda: 'green', blava: 'blue', vermella: 'red', negra: 'black' };
+  const typed = runItems.length > 0 && runItems.every((r) => r.type);
+  const alpine = typed ? runItems.filter((r) => PDC_COLOUR[r.type!]) : runItems;
+  const runStates = alpine.map((r) => r.state);
   const liftStates = [...t.matchAll(/\bestado:\s*([a-zàèéíòóú]+)/gi)].map((m) => m[1].toLowerCase());
   const isOpen = (x: string) => x === 'obert' || x === 'oberta' || x === 'abierto';
+  const byColour = (pick: (r: { state: string }) => boolean) => (typed
+    ? Object.fromEntries(RUN_COLOURS.map((c) => [c, alpine.filter((r) => PDC_COLOUR[r.type!] === c && pick(r)).length])) as ByColour : null);
   const gMax = /gruix m[àa]xim\s*(\d{1,4})\s*cm/i.exec(t);
   const gMin = /gruix m[íi]nim\s*(\d{1,4})\s*cm/i.exec(t);
   const openKm = km ? Number(km[1].replace(',', '.')) : null;
   const closedText = /estaci[oó]\s+tanca(?:t|da)\b/i.test(t);
   const totalRuns = runStates.length || null;
-  const openRuns = openRunsM ? Number(openRunsM[1]) : totalRuns ? runStates.filter(isOpen).length : null;
+  // Con el listado por tipos, las abiertas salen del mismo listado que el total (la cifra «total pistes obertes» de la
+  // página podría incluir trineos o fuera pista); sin él, la cifra publicada.
+  const openRuns = typed ? runStates.filter(isOpen).length : openRunsM ? Number(openRunsM[1]) : totalRuns ? runStates.filter(isOpen).length : null;
   return {
     opStatus: closedText ? 'closed_confirmed' : ratio(openRuns, totalRuns) ?? 'unknown',
     openKm, totalKm: null, openRuns, totalRuns,
+    openRunsByColour: byColour((r) => isOpen(r.state)), totalRunsByColour: byColour(() => true),
     openLifts: liftStates.length ? liftStates.filter(isOpen).length : null, totalLifts: liftStates.length || null,
     depthMinCm: gMin ? Number(gMin[1]) : null, depthMaxCm: gMax ? Number(gMax[1]) : null,
     sourceDate: d ? dmy(d[1], d[2], d[3]) : null,
@@ -199,10 +228,10 @@ export const PIRINEU365_STATIONS = {
 
 /** Adaptadores oficiales por id de la columna `adapter` de sources. */
 export const OFFICIAL_ADAPTERS: Record<string, { version: string; parse: (input: string) => OfficialSnow | null }> = {
-  'grandvalira-official': { version: '1.2.0', parse: (i) => parseAndorra(i, GRANDVALIRA_SECTORS) },
-  'ordino-arcalis-official': { version: '1.1.0', parse: (i) => parseAndorra(i, ARCALIS_SECTORS) },
-  'pal-arinsal-official': { version: '1.1.0', parse: (i) => parseAndorra(i, PAL_ARINSAL_SECTORS) },
-  'port-del-comte-official': { version: '1.0.0', parse: parsePortDelComte },
+  'grandvalira-official': { version: '1.3.0', parse: (i) => parseAndorra(i, GRANDVALIRA_SECTORS) },
+  'ordino-arcalis-official': { version: '1.2.0', parse: (i) => parseAndorra(i, ARCALIS_SECTORS) },
+  'pal-arinsal-official': { version: '1.2.0', parse: (i) => parseAndorra(i, PAL_ARINSAL_SECTORS) },
+  'port-del-comte-official': { version: '1.1.0', parse: parsePortDelComte },
   'aramon-official': { version: '1.1.0', parse: parseAramon },
   'pirineu365-la-molina': { version: '1.1.0', parse: (i) => parsePirineu365Status(i, PIRINEU365_STATIONS['la-molina'][1]) },
   'pirineu365-vall-de-nuria': { version: '1.1.0', parse: (i) => parsePirineu365Status(i, PIRINEU365_STATIONS['vall-de-nuria'][1]) },

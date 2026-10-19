@@ -118,6 +118,9 @@ function runStatements(db: D1Database, r: Run, accepted: number, rejected: numbe
 type RunSummary = { status: string; parts_received: number; parts_total: number; accepted: number; rejected: number; rows_written: number };
 const lastRow = (res: D1Result[]) => (res.at(-1)!.results[0] as RunSummary);
 
+const zRunCount = z.number().int().min(0).max(1000).nullable();
+const zByColour = z.object({ green: zRunCount, blue: zRunCount, red: zRunCount, black: zRunCount });
+
 const zSnowObs = z.object({
   sourceId: zId,
   areaId: zId,
@@ -128,6 +131,9 @@ const zSnowObs = z.object({
   totalKm: z.number().positive().max(1000).nullable(),
   openRuns: z.number().int().min(0).max(1000).nullable().optional(),
   totalRuns: z.number().int().min(0).max(1000).nullable().optional(),
+  // Por color, solo si la fuente lo publica en el mismo parte (un color sin dato va como null, nunca como 0).
+  openRunsByColour: zByColour.nullable().optional(),
+  totalRunsByColour: zByColour.nullable().optional(),
   openLifts: z.number().int().min(0).max(500).nullable().optional(),
   totalLifts: z.number().int().min(0).max(500).nullable().optional(),
   depthMinCm: z.number().int().min(0).max(2000).nullable().optional(),
@@ -158,9 +164,12 @@ ingestRoutes.post('/snow', async (c) => {
     if (o.openKm != null && o.totalKm != null && o.openKm > o.totalKm) { rejected.push({ sourceId: o.sourceId, areaId: o.areaId, reason: 'abiertos > totales' }); continue; }
     const prev = src.prev ? JSON.parse(src.prev) : undefined;
     const q = classifySnow({ openKm: o.openKm, totalKm: o.totalKm, opStatus: o.opStatus }, prev, { catalogTotalKm: src.official_total_km ?? undefined });
-    const hash = await sha256Hex(JSON.stringify([o.sourceId, o.areaId, o.observedAt, o.sourceDate ?? null, o.opStatus, o.openKm, o.totalKm, o.openRuns ?? null, o.totalRuns ?? null, o.openLifts ?? null, o.totalLifts ?? null, o.depthMinCm ?? null, o.depthMaxCm ?? null]));
+    const hash = await sha256Hex(JSON.stringify([o.sourceId, o.areaId, o.observedAt, o.sourceDate ?? null, o.opStatus, o.openKm, o.totalKm, o.openRuns ?? null, o.totalRuns ?? null, o.openLifts ?? null, o.totalLifts ?? null, o.depthMinCm ?? null, o.depthMaxCm ?? null,
+      // Solo si hay desglose por color: el hash de los partes sin él no cambia.
+      ...(o.openRunsByColour || o.totalRunsByColour ? [o.openRunsByColour ?? null, o.totalRunsByColour ?? null] : [])]));
     rows.push({ id: crypto.randomUUID(), ...o, sourceDate: o.sourceDate ?? null, openRuns: o.openRuns ?? null, totalRuns: o.totalRuns ?? null, openLifts: o.openLifts ?? null,
-      totalLifts: o.totalLifts ?? null, depthMinCm: o.depthMinCm ?? null, depthMaxCm: o.depthMaxCm ?? null, quality: q.quality, qualityNote: q.reasons.join('; ') || null, hash });
+      totalLifts: o.totalLifts ?? null, depthMinCm: o.depthMinCm ?? null, depthMaxCm: o.depthMaxCm ?? null,
+      openRunsByColour: o.openRunsByColour ? JSON.stringify(o.openRunsByColour) : null, totalRunsByColour: o.totalRunsByColour ? JSON.stringify(o.totalRunsByColour) : null, quality: q.quality, qualityNote: q.reasons.join('; ') || null, hash });
   }
   const st = runStatements(db, body.run, rows.length, rejected.length, body.health, 'snow_observations');
   const J = (k: string) => `json_extract(value, '$.${k}')`;
@@ -168,9 +177,9 @@ ingestRoutes.post('/snow', async (c) => {
     st.head,
     db.prepare(
       `INSERT OR IGNORE INTO snow_observations (id, area_id, source_id, run_id, observed_at, source_date, op_status, open_km, total_km, open_runs, total_runs, open_lifts, total_lifts,
-         depth_min_cm, depth_max_cm, quality, quality_note, content_hash, extractor)
+         depth_min_cm, depth_max_cm, open_runs_by_colour, total_runs_by_colour, quality, quality_note, content_hash, extractor)
        SELECT ${J('id')}, ${J('areaId')}, ${J('sourceId')}, ?2, ${J('observedAt')}, ${J('sourceDate')}, ${J('opStatus')}, ${J('openKm')}, ${J('totalKm')}, ${J('openRuns')}, ${J('totalRuns')},
-         ${J('openLifts')}, ${J('totalLifts')}, ${J('depthMinCm')}, ${J('depthMaxCm')}, ${J('quality')}, ${J('qualityNote')}, ${J('hash')}, ${J('extractor')}
+         ${J('openLifts')}, ${J('totalLifts')}, ${J('depthMinCm')}, ${J('depthMaxCm')}, ${J('openRunsByColour')}, ${J('totalRunsByColour')}, ${J('quality')}, ${J('qualityNote')}, ${J('hash')}, ${J('extractor')}
        FROM json_each(?1)`,
     ).bind(JSON.stringify(rows), body.run.id),
     ...st.tail,

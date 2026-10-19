@@ -8,6 +8,12 @@ import { CAPABILITIES } from '../../core/capabilities';
 import { addDays, todayMadrid } from '../../core/dates';
 import { pickSnow, SNOW_EXCLUSION_LABEL, snowForRanking } from '../../core/compare';
 
+/** Catálogo de pistas de un área (area_runs) en el contrato público; null si no hay fila. */
+const runsOut = (r: any) => r && ({
+  total: r.total, green: r.green, blue: r.blue, red: r.red, black: r.black, basis: r.basis, comparable: !!r.comparable, season: r.season,
+  sourceDate: r.source_date, checkedOn: r.checked_on, sourceUrl: r.source_url, mapUrl: r.map_url, limitations: r.limitations,
+});
+
 // Datos no personales: catálogo, rutas, nieve y fuentes. Lectura anónima con caché corta.
 export const catalogRoutes = new Hono<AppEnv>();
 
@@ -16,6 +22,7 @@ type AreaRow = { id: string; name: string; kind: string; country: string; region
 const snowOut = (s: any, nowMs: number) => s && ({
   observedAt: s.observed_at, sourceDate: s.source_date, opStatus: s.op_status, openKm: s.open_km, totalKm: s.total_km,
   openRuns: s.open_runs, totalRuns: s.total_runs, openLifts: s.open_lifts, totalLifts: s.total_lifts,
+  openRunsByColour: s.open_runs_by_colour ? JSON.parse(s.open_runs_by_colour) : null, totalRunsByColour: s.total_runs_by_colour ? JSON.parse(s.total_runs_by_colour) : null,
   depthMinCm: s.depth_min_cm, depthMaxCm: s.depth_max_cm, quality: s.quality, qualityNote: s.quality_note, sourceId: s.source_id,
   // Frescura visible: captura reciente y, si la fuente publica fecha de parte, parte de hoy o de ayer (Europe/Madrid).
   freshness: s.source_date && s.source_date < addDays(todayMadrid(nowMs), -1) ? 'stale' : freshness(s.observed_at, STALE_HOURS.snow, nowMs),
@@ -27,7 +34,7 @@ catalogRoutes.get('/catalog', async (c) => {
   const { origin } = parseQuery(c, z.object({ origin: zId.default('tarragona') }));
   const db = c.env.DB;
   const nowMs = Date.now();
-  const [areas, links, routes, origins, snow, legacy] = await db.batch([
+  const [areas, links, routes, origins, snow, legacy, runs] = await db.batch([
     db.prepare('SELECT * FROM areas WHERE active = 1 ORDER BY name'),
     db.prepare('SELECT parent_id, child_id, relation FROM area_links'),
     db.prepare('SELECT area_id, access_name, road_km, duration_min, toll_cents, source, checked_on, validated, notes FROM routes WHERE origin_id = ?1').bind(origin),
@@ -46,7 +53,10 @@ catalogRoutes.get('/catalog', async (c) => {
                 SELECT l.scope_area_id AS area_id, l.obs_date, l.open_km, l.total_km, l.anomalies FROM last
                 CROSS JOIN legacy_snow_observations l ON l.scope_area_id = last.id AND l.obs_date = last.m
                 GROUP BY l.scope_area_id`),
+    // Catálogo de pistas: una fila por área (~24), sin consultas externas.
+    db.prepare('SELECT * FROM area_runs'),
   ]);
+  const runsBy = new Map((runs.results as any[]).map((r) => [r.area_id, r]));
   const routeBy = new Map((routes.results as any[]).map((r) => [r.area_id, r]));
   const candBy = new Map<string, any[]>();
   for (const s of snow.results as any[]) (candBy.get(s.area_id) ?? candBy.set(s.area_id, []).get(s.area_id)!).push(candOf(s));
@@ -71,6 +81,7 @@ catalogRoutes.get('/catalog', async (c) => {
           // «rank»: lo que puede puntuar en «Nieve abierta ahora». Un dato excluido se sigue mostrando con su fecha.
           return { ...snowOut(pick, nowMs), rank: { ...rank, label: rank.excluded ? SNOW_EXCLUSION_LABEL[rank.excluded] : null }, sources: candBy.get(a.id)!.length };
         })(),
+        runs: runsOut(runsBy.get(a.id)) ?? null,
         legacySnow: l ? { date: l.obs_date, openKm: l.open_km, totalKm: l.total_km, anomalies: l.anomalies ? JSON.parse(l.anomalies) : [], note: 'Serie legacy: no verificada; un 0 puede ser un «-» convertido.' } : null,
       };
     }),
@@ -84,7 +95,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
   if (!area) throw notFound('Estación');
   const nowMs = Date.now();
   const since = nowMs - 90 * 86400_000;
-  const [links, sources, snow, legacySnow, legacyHotel, comments, offers, legacyComments, routes] = await db.batch([
+  const [links, sources, snow, legacySnow, legacyHotel, comments, offers, legacyComments, routes, runs] = await db.batch([
     db.prepare(`SELECT l.parent_id, p.name AS parent_name, l.child_id, ch.name AS child_name, l.relation FROM area_links l
                 JOIN areas p ON p.id = l.parent_id JOIN areas ch ON ch.id = l.child_id WHERE l.parent_id = ?1 OR l.child_id = ?1`).bind(id),
     db.prepare(`SELECT s.*, h.last_attempt_at, h.last_success_at, h.last_status, h.reason, h.last_error FROM sources s LEFT JOIN source_health h ON h.source_id = s.id
@@ -109,7 +120,10 @@ catalogRoutes.get('/areas/:id', async (c) => {
     // Cómo llegar desde cada origen, con su procedencia (heredada, calculada o revisada) y sus avisos.
     db.prepare(`SELECT r.origin_id, o.name AS origin_name, r.access_name, r.road_km, r.duration_min, r.toll_cents, r.source, r.checked_on, r.validated, r.notes
                 FROM routes r JOIN origins o ON o.id = r.origin_id WHERE r.area_id = ?1 ORDER BY o.name`).bind(id),
+    // Catálogo de pistas del área y de sus estaciones miembro (un dominio muestra las de cada una).
+    db.prepare(`SELECT * FROM area_runs WHERE area_id = ?1 OR area_id IN (SELECT child_id FROM area_links WHERE parent_id = ?1)`).bind(id),
   ]);
+  const runRows = runs.results as any[];
   c.header('Cache-Control', 'public, max-age=120');
   return c.json({
     area,
@@ -125,6 +139,8 @@ catalogRoutes.get('/areas/:id', async (c) => {
     legacyComments: (legacyComments.results as any[]).map((l) => ({ id: l.id, body: l.body, legacyAuthorName: l.legacy_author_name, dateText: l.created_at_text, linkedAlias: l.linked_alias ?? null })),
     routes: (routes.results as any[]).map((r) => ({ originId: r.origin_id, originName: r.origin_name, accessName: r.access_name, roadKm: r.road_km, durationMin: r.duration_min,
       tollCents: r.toll_cents, source: r.source, checkedOn: r.checked_on, validated: !!r.validated, notes: r.notes })),
+    runs: runsOut(runRows.find((r) => r.area_id === id)) ?? null,
+    memberRuns: runRows.filter((r) => r.area_id !== id).map((r) => ({ areaId: r.area_id, ...runsOut(r) })),
     legacyCommentsNote: 'Comentarios de la hoja antigua. El autor es el nombre escrito en la hoja (texto libre): no identifica una cuenta salvo vinculación explícita de administración.',
     // «modality» es técnica; lo visible es forfaitIncluded: 'unknown' nunca se presenta como «solo alojamiento».
     offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.',
