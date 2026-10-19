@@ -16,6 +16,7 @@ import { shoppingListRoutes } from './routes/shopping-lists';
 import { expenseRoutes } from './routes/expenses';
 import { socialRoutes } from './routes/social';
 import { geoRoutes } from './routes/geo';
+import { runAdminRoutes } from './routes/runs-admin';
 import { purgeGeoUsage } from './geo';
 import { purgeRateLimits } from './ratelimit';
 import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
@@ -138,6 +139,7 @@ app.route('/api', shoppingRoutes);
 app.route('/api', shoppingListRoutes);
 app.route('/api', socialRoutes);
 app.route('/api/geo', geoRoutes);
+app.route('/api/admin/runs', runAdminRoutes);
 
 app.all('/api/*', () => {
   throw new ApiError(404, 'not_found', 'Ruta no encontrada.');

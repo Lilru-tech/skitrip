@@ -34,7 +34,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /geo/search` | 4 | — |
 | `GET /geo/status` | 2 | — |
 | `PUT /trips/:id/expenses/:eid` | 11 | 8 beneficiarios |
-| `GET /public/areas/:id` | 11 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones) |
+| `GET /public/areas/:id` | 12 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones, con sus aportaciones manuales activas) |
 | `POST /trips/:id/scenarios` | 9 | — |
 | `POST /shopping-lists/:lid/copy` | 9 | 299 decisiones: 150 altas, sumas y omisiones |
 | `POST /receipts/confirm` | 8 | 10 líneas asociadas |
@@ -49,7 +49,10 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /trips/invitations/accept-link` | 7 | 8 miembros |
 | `GET /admin/health` | 6 | capturas, fuentes y áreas del catálogo |
 | `GET /availability/trip/:id` | 5 | 8 miembros × 150 días |
-| `GET /public/catalog` | 7 | 24 áreas (incluye `area_runs`, una fila por área) |
+| `GET /public/catalog` | 8 | 24 áreas (incluye `area_runs`, una fila por área, y las aportaciones manuales activas) |
+| `PUT /admin/runs/:areaId` | 7 | aportación nueva o edición (escritura e historial en un mismo batch) |
+| `POST /admin/runs/:areaId/withdraw` · `/restore` | 6 | — |
+| `GET /admin/runs` | 5 | 24 áreas con aportaciones e historial |
 | `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
 | `POST /friends/blocks` | 6 | 38 amigos |
@@ -131,6 +134,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /admin/legacy/comments` | 2 | 500 comentarios legacy |
 | `GET /admin/users` | 2 | 47 cuentas |
 | `GET /admin/users/search` | 2 | 10 cuentas como máximo |
+| `GET /admin/runs/:areaId/history` | 2 | 200 entradas (máximo) |
 | `GET /availability/me` | 2 | 150 días |
 | `GET /availability/shares` | 2 | 1 viaje + amigos |
 | `GET /availability/visible` | 2 | 8 miembros × 150 días |
