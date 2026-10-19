@@ -164,16 +164,20 @@ export interface RunsNow {
   total: number | null;
   /** Abiertas por color del mismo parte; null si no lo publica o no cuadra con las abiertas. */
   byColour: ByColour | null;
-  /** Total por color del mismo parte, si lo publica. */
+  /** Total por color del mismo parte, si lo publica y cuadra con su total; si no, null con el motivo en totalColourIssue. */
   totalByColour: ByColour | null;
+  /** Total por color tal como lo publica el parte, aunque no cuadre (evidencia que se conserva, no se usa como denominador). */
+  reportedTotalByColour: ByColour | null;
   /** 0 abiertas deducido de un cierre confirmado (la fuente no publica la cifra). */
   derivedFromClosure: boolean;
   excluded: RunsNowExclusion | null;
-  /** Discrepancia visible del desglose (se muestra, no se ajusta). */
+  /** Discrepancia visible del desglose de abiertas (se muestra, no se ajusta). */
   colourIssue: string | null;
+  /** Discrepancia visible del total por colores frente al total del parte (se muestra, no se ajusta). */
+  totalColourIssue: string | null;
 }
 
-const NONE: Omit<RunsNow, 'excluded'> = { open: null, total: null, byColour: null, totalByColour: null, derivedFromClosure: false, colourIssue: null };
+const NONE: Omit<RunsNow, 'excluded'> = { open: null, total: null, byColour: null, totalByColour: null, reportedTotalByColour: null, derivedFromClosure: false, colourIssue: null, totalColourIssue: null };
 
 /**
  * Pistas abiertas ahora según el parte elegido, con las mismas reglas de vigencia que «Nieve abierta ahora»: captura
@@ -196,7 +200,19 @@ export function runsNow(s: RunReportInput | null | undefined, nowMs: number, tot
     const v = Object.fromEntries(RUN_COLOURS.map((c) => [c, isCount(src[c]) ? src[c]! : null])) as ByColour;
     return RUN_COLOURS.some((c) => v[c] != null) ? v : null;
   };
-  const totals = cleanColours(totalByColour);
+  const reportedTotals = cleanColours(totalByColour);
+  // El total por colores tiene que cuadrar con el total del mismo parte: completo, suma exacta; parcial, sin superarlo.
+  // Si no cuadra se conserva como evidencia, pero no sirve de denominador.
+  let totals = reportedTotals;
+  let totalColourIssue: string | null = null;
+  if (reportedTotals && total != null) {
+    const given = RUN_COLOURS.map((c) => reportedTotals[c]).filter((v): v is number => v != null);
+    const sum = given.reduce((a, b) => a + b, 0);
+    if ((given.length === 4 && sum !== total) || sum > total) {
+      totalColourIssue = `los totales por color suman ${sum} y el parte publica ${total} pistas`;
+      totals = null;
+    }
+  }
   let byColour = cleanColours(s.openRunsByColour);
   let colourIssue: string | null = null;
   if (byColour) {
@@ -208,7 +224,7 @@ export function runsNow(s: RunReportInput | null | undefined, nowMs: number, tot
       byColour = null;
     }
   }
-  return { open: s.openRuns, total, byColour, totalByColour: totals, derivedFromClosure: false, excluded: null, colourIssue };
+  return { open: s.openRuns, total, byColour, totalByColour: totals, reportedTotalByColour: reportedTotals, derivedFromClosure: false, excluded: null, colourIssue, totalColourIssue };
 }
 
 /** «12 verdes · 20 azules · …» con etiquetas; null si no hay ningún color. Un color sin dato se dice como tal. */
@@ -274,22 +290,34 @@ export function auditRunCatalog(entries: readonly RunCatalogJson[], lists: reado
 export interface EntryCatalogRuns {
   /** Cifra propia del área tal como se publicó (aunque no puntúe). */
   own: RunCatalogView | null;
-  /** Total que puntúa en Planificar: el propio si es comparable; si no, la suma de las estaciones (todas con dato). */
+  /**
+   * Total que puntúa en Planificar: el propio si es fiable; la suma de las estaciones solo si el área no publica cifra
+   * propia (ausencia de información), con todas sus estaciones con total comparable y sin estaciones repetidas.
+   */
   comparableTotal: number | null;
   via: 'own' | 'members' | null;
   /** Desglose del total que puntúa (solo si viene completo de la misma cifra). */
   byColour: ByColour | null;
+  /**
+   * El área publica una cifra propia que no es fiable (fuentes contradictorias, desglose incoherente…): discrepancia
+   * pendiente. No puntúa y no se sustituye por la suma de sus estaciones hasta resolverla con evidencia.
+   */
+  pendingDiscrepancy: boolean;
 }
 
 export function entryCatalogRuns(own: RunCatalogEntry | null | undefined, members: readonly (RunCatalogEntry | null | undefined)[] = []): EntryCatalogRuns {
   const view = runCatalogView(own);
-  if (view?.comparableTotal != null) return { own: view, comparableTotal: view.comparableTotal, via: 'own', byColour: view.breakdownComplete ? view.byColour : null };
+  if (view?.comparableTotal != null) return { own: view, comparableTotal: view.comparableTotal, via: 'own', byColour: view.breakdownComplete ? view.byColour : null, pendingDiscrepancy: false };
+  // Hay cifra propia pero no es fiable: discrepancia, no ausencia. La suma de las estaciones no la resuelve.
+  if (view && view.total != null) return { own: view, comparableTotal: null, via: null, byColour: null, pendingDiscrepancy: true };
+  const ids = members.map((m) => m?.areaId);
+  if (new Set(ids).size !== ids.length) return { own: view, comparableTotal: null, via: null, byColour: null, pendingDiscrepancy: false };
   const mv = members.map((m) => runCatalogView(m));
   const sum = domainRunTotal(mv);
-  if (sum == null) return { own: view, comparableTotal: null, via: null, byColour: null };
+  if (sum == null) return { own: view, comparableTotal: null, via: null, byColour: null, pendingDiscrepancy: false };
   const complete = mv.every((m) => m!.breakdownComplete);
   const byColour = complete ? Object.fromEntries(RUN_COLOURS.map((c) => [c, mv.reduce((s, m) => s + m!.byColour[c]!, 0)])) as ByColour : null;
-  return { own: view, comparableTotal: sum, via: 'members', byColour };
+  return { own: view, comparableTotal: sum, via: 'members', byColour, pendingDiscrepancy: false };
 }
 
 /**
@@ -301,8 +329,8 @@ export function entryRunsNow(ownSnow: (RunReportInput & { totalRunsByColour?: Pa
   if (ownSnow || memberSnows.length === 0) return { ...runsNow(ownSnow, nowMs, ownSnow?.totalRunsByColour ?? null), via: 'own' };
   const parts = memberSnows.map((s) => runsNow(s, nowMs, s?.totalRunsByColour ?? null));
   const bad = parts.find((p) => p.open == null);
-  if (bad) return { ...bad, open: null, total: null, byColour: null, totalByColour: null, derivedFromClosure: false, via: 'members' };
+  if (bad) return { ...bad, open: null, total: null, byColour: null, totalByColour: null, reportedTotalByColour: null, derivedFromClosure: false, via: 'members' };
   const total = parts.every((p) => p.total != null) ? parts.reduce((s, p) => s + p.total!, 0) : null;
-  return { open: parts.reduce((s, p) => s + p.open!, 0), total, byColour: null, totalByColour: null, derivedFromClosure: parts.every((p) => p.derivedFromClosure),
-    excluded: null, colourIssue: null, via: 'members' };
+  return { open: parts.reduce((s, p) => s + p.open!, 0), total, byColour: null, totalByColour: null, reportedTotalByColour: null, derivedFromClosure: parts.every((p) => p.derivedFromClosure),
+    excluded: null, colourIssue: null, totalColourIssue: null, via: 'members' };
 }

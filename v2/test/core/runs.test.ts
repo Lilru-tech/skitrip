@@ -76,12 +76,20 @@ describe('dominios y estaciones', () => {
     const r = entryCatalogRuns(entry({ areaId: 'dom', total: 131, green: 29, blue: 45, red: 45, black: 12 }), [entry({ total: 66, green: 20, blue: 18, red: 22, black: 6 })]);
     expect(r).toMatchObject({ comparableTotal: 131, via: 'own' });
   });
-  it('sin cifra propia comparable, la suma de sus estaciones solo si todas la tienen', () => {
-    const a = entry({ total: 57, green: 3, blue: 18, red: 19, black: 17 }), b = entry({ total: 57, green: 12, blue: 14, red: 18, black: 13 });
-    expect(entryCatalogRuns(entry({ total: 110, green: 14, blue: 31, red: 35, black: 30, comparable: false }), [a, b]))
-      .toMatchObject({ comparableTotal: 114, via: 'members', byColour: { green: 15, blue: 32, red: 37, black: 30 }, own: { total: 110 } });
+  it('sin cifra propia (ausencia), la suma de sus estaciones solo si todas la tienen y sin repetir ninguna', () => {
+    const a = entry({ areaId: 'a', total: 57, green: 3, blue: 18, red: 19, black: 17 }), b = entry({ areaId: 'b', total: 57, green: 12, blue: 14, red: 18, black: 13 });
+    expect(entryCatalogRuns(null, [a, b])).toMatchObject({ comparableTotal: 114, via: 'members', byColour: { green: 15, blue: 32, red: 37, black: 30 }, pendingDiscrepancy: false });
+    expect(entryCatalogRuns(entry({ areaId: 'dom', total: null, green: null, blue: null, red: null, black: null }), [a, b])).toMatchObject({ comparableTotal: 114, via: 'members' });
     expect(entryCatalogRuns(null, [a, null])).toMatchObject({ comparableTotal: null, via: null });
+    expect(entryCatalogRuns(null, [a, a])).toMatchObject({ comparableTotal: null, via: null });
     expect(domainRunTotal([])).toBeNull();
+  });
+  it('una cifra propia no fiable es una discrepancia pendiente: no puntúa y no se sustituye por la suma de sus estaciones', () => {
+    const a = entry({ areaId: 'a', total: 57, green: 3, blue: 18, red: 19, black: 17 }), b = entry({ areaId: 'b', total: 57, green: 12, blue: 14, red: 18, black: 13 });
+    expect(entryCatalogRuns(entry({ areaId: 'dom', total: 110, green: 14, blue: 31, red: 35, black: 30, comparable: false }), [a, b]))
+      .toMatchObject({ comparableTotal: null, via: null, byColour: null, pendingDiscrepancy: true, own: { total: 110, issues: ['no_comparable'] } });
+    // Desglose propio incoherente: también pendiente, aunque las estaciones tengan cifra.
+    expect(entryCatalogRuns(entry({ areaId: 'dom', total: 100, green: 50, blue: 50, red: 50, black: 50 }), [a, b])).toMatchObject({ comparableTotal: null, pendingDiscrepancy: true });
   });
 });
 
@@ -108,6 +116,20 @@ describe('parte actual separado del catálogo', () => {
     expect(r.colourIssue).toMatch(/suman 16/);
     expect(runsNow(report({ openRunsByColour: { green: 12, blue: 8, red: 0, black: 0 } }), NOW, { green: 10, blue: 10, red: 10, black: 10 }).byColour).toBeNull();
   });
+  it('totales por color frente al total del parte: el desglose completo debe sumarlo y uno parcial no superarlo', () => {
+    // Correcto: completo que suma el total y parcial por debajo.
+    const ok = runsNow(report({ openRuns: 10, totalRuns: 20, openRunsByColour: { green: 4, blue: 3, red: 2, black: 1 } }), NOW, { green: 5, blue: 5, red: 5, black: 5 });
+    expect(ok).toMatchObject({ totalByColour: { green: 5, blue: 5, red: 5, black: 5 }, totalColourIssue: null, byColour: { green: 4, blue: 3, red: 2, black: 1 } });
+    expect(runsNow(report({ openRuns: 10, totalRuns: 20 }), NOW, { green: 5, blue: 5, red: null, black: null })).toMatchObject({ totalByColour: { green: 5, blue: 5 }, totalColourIssue: null });
+    // Completo incoherente (20/20/20/20 con 20 totales): no se usan como denominadores, se conservan y se explica.
+    const bad = runsNow(report({ openRuns: 10, totalRuns: 20, openRunsByColour: { green: 4, blue: 3, red: 2, black: 1 } }), NOW, { green: 20, blue: 20, red: 20, black: 20 });
+    expect(bad).toMatchObject({ open: 10, total: 20, totalByColour: null, reportedTotalByColour: { green: 20, blue: 20, red: 20, black: 20 }, byColour: { green: 4, blue: 3, red: 2, black: 1 } });
+    expect(bad.totalColourIssue).toBe('los totales por color suman 80 y el parte publica 20 pistas');
+    // Parcial que supera el total.
+    const over = runsNow(report({ openRuns: 10, totalRuns: 20 }), NOW, { green: 15, blue: 10, red: null, black: null });
+    expect(over).toMatchObject({ open: 10, totalByColour: null, reportedTotalByColour: { green: 15, blue: 10, red: null, black: null } });
+    expect(over.totalColourIssue).toMatch(/suman 25 .* 20 pistas/);
+  });
   it('un dominio sin parte propio suma sus estaciones solo si todas tienen parte vigente', () => {
     expect(entryRunsNow(null, [report(), report({ openRuns: 5, totalRuns: 10 })], NOW)).toMatchObject({ open: 25, total: 50, via: 'members' });
     expect(entryRunsNow(null, [report(), report({ sourceDate: '2027-01-01' })], NOW)).toMatchObject({ open: null, excluded: 'parte_antiguo' });
@@ -124,6 +146,12 @@ describe('datos reales: catálogo, listados y partes oficiales', () => {
   it('la revisión detecta un recuento individual que no coincide con su listado', () => {
     const bad = catalog.run_catalog.map((r: RunCatalogJson) => (r.area === 'astun' ? { ...r, total: 59 } : r));
     expect(auditRunCatalog(bad, lists, new Set(catalog.areas.map((a: { id: string }) => a.id))).errors.join()).toMatch(/astun: el catálogo/);
+  });
+  it('Astún+Candanchú: su ficha (110) contradice el parte (116); no puntúa ni se sustituye por la suma de Astún y Candanchú (114)', () => {
+    const cat = (id: string) => runEntryFromJson(catalog.run_catalog.find((r: RunCatalogJson) => r.area === id)!);
+    const r = entryCatalogRuns(cat('astun-candanchu'), [cat('astun'), cat('candanchu')]);
+    expect(r).toMatchObject({ comparableTotal: null, via: null, pendingDiscrepancy: true, own: { total: 110 } });
+    expect([cat('astun').total, cat('candanchu').total]).toEqual([57, 57]);
   });
   it('Astún: 59 entradas numeradas, sin la 3 (trineos) ni la 19 (snowpark) quedan 57', () => {
     const c = countRunList(lists.find((l) => l.area === 'astun')!.runs);
