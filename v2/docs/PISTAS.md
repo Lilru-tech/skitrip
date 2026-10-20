@@ -122,19 +122,24 @@ servir el catálogo y la ficha, así que fichas, Comparar, dominios y puntuació
 
 La temporada solo se compara cuando **las dos fuentes la declaran** («2026-27»). No se deduce de la fecha de
 publicación, porque un documento de septiembre puede describir la temporada anterior, y «desconocida» nunca cuenta como
-«la misma».
+«la misma». El resultado **no cambia solo porque pase el tiempo**: una cifra sin temporada no recupera la prioridad al
+empezar otra temporada.
 
+0. Aportación de una temporada que **aún no ha empezado** (ficha publicada por adelantado, como mucho la próxima
+   temporada): se guarda, pero no se aplica hasta que empiece; no sustituye los datos de la temporada en curso ni toca
+   los partes de «Esquiar ahora». La fecha de la fuente sigue sin poder ser futura: temporada futura no es fecha futura.
 1. Cifra importada válida (enteros, desglose coherente, comparable) y de la **misma temporada** que la aportación:
    **prevalece la importada**. La aportación solo completa los campos que faltan (un color o el total), si la
    combinación cuadra y la aportación no está marcada como no comparable. Si no cuadra, no se mezcla: se muestra lo
    importado y queda pendiente.
-2. Cifra importada válida de una temporada **posterior**: prevalece la importada y la aportación no se aplica.
+2. Cifra importada válida de una temporada **posterior**: prevalece la importada y la aportación no se aplica; el cambio
+   queda en el historial.
 3. Cifra importada que falta, no es fiable (discrepancia pendiente, desglose que no cuadra), es de una temporada
-   **anterior**, o **no indica temporada frente a una aportación documentada de la temporada actual**: la aportación la
-   **sustituye entera**. La ficha dice qué cifra importada se sustituye.
-4. Cifra importada válida con temporada desconocida en cualquier otro caso (aportación sin temporada o de una temporada
-   pasada): prevalece la importada, pero **no se combinan** sus campos con los de la aportación. Las dos quedan por
-   separado y la vista previa de administración explica que falta acreditar la temporada.
+   **anterior**, o **no indica temporada frente a una aportación con temporada explícita**: la aportación la
+   **sustituye entera**. La ficha dice qué cifra importada se sustituye. Si la temporada de la aportación ya pasó, se
+   mantiene con su temporada y se marca «por revisar» para la temporada en curso; no se presenta como dato de la nueva.
+4. Cifra importada válida y aportación sin temporada, o importada con temporada y aportación sin ella: prevalece la
+   importada, pero **no se combinan** sus campos. Las dos quedan por separado y la vista previa lo explica.
 5. Una aportación retirada no cuenta. Restaurarla vuelve a pasar por las mismas reglas: si mientras tanto llegó un dato
    automático válido, prevalece el automático y la aportación queda guardada sin aplicar.
 
@@ -146,7 +151,7 @@ una discrepancia; el motivo, la autoría y el historial solo los ve administraci
 Validación (en el navegador y en el servidor, `validateManualDraft`): enteros de 0 en adelante; vacío = sin dato, 0 =
 cero confirmado; al menos una cifra; desglose completo = total, parcial ≤ total; no se deducen pistas de km ni de
 porcentajes ni se suman colores para inventar un total; fuente o referencia comprobable (https o cita) y motivo;
-temporada «2026-27» no posterior a la actual; fecha de la fuente no futura. Si la cifra importada tiene una discrepancia pendiente (Astún +
+temporada «2026-27», como mucho la próxima; fecha de la fuente no futura. Si la cifra importada tiene una discrepancia pendiente (Astún +
 Candanchú, Font-Romeu, Les Angles), la aportación solo puede marcarse comparable con una explicación con evidencia
 (30 caracteres como mínimo), que queda registrada y se publica en los detalles. Sin ella, se puede guardar como no
 comparable. Las reglas de dominios no cambian: una cifra propia del dominio no se suma con sus estaciones y una

@@ -125,19 +125,51 @@ describe('resolución del dato efectivo', () => {
     const both = resolveRunCatalog(imp, manual('ax-3-domaines', { green: 10, blue: 12, red: 11, black: 5 }), TODAY);
     expect(both).toMatchObject({ state: 'not_applied', notes: ['vigencia_desconocida'] });
     expect(both.entry).toMatchObject({ total: 38, green: null, origin: 'catalog' });
-    // Manual de una temporada pasada frente a importada sin temporada: no se acredita cuál es vigente.
-    const past = resolveRunCatalog(imp, manual('ax-3-domaines', { total: 40, season: '2025-26' }), TODAY);
-    expect(past).toMatchObject({ state: 'not_applied', notes: ['vigencia_desconocida'] });
-    expect(past.entry!.total).toBe(38);
     // Importada de temporada conocida frente a manual sin temporada: tampoco se mezclan los colores.
     const known = resolveRunCatalog({ ...imp, season: S }, manual('ax-3-domaines', { green: 10 }), TODAY);
     expect(known.notes).toEqual(['vigencia_desconocida']);
     expect(known.entry).toMatchObject({ green: null, origin: 'catalog' });
+    // Manual de una temporada pasada con temporada explícita frente a importada sin temporada: se mantiene, para revisar.
+    const past = resolveRunCatalog(imp, manual('ax-3-domaines', { total: 40, season: '2025-26' }), TODAY);
+    expect(past.notes).toEqual(['sustituye_sin_temporada', 'revisar_temporada']);
+    expect(past.entry).toMatchObject({ total: 40, season: '2025-26', manual: { reviewFor: '2026-27' } });
     // Parcial de la temporada actual frente a importada sin temporada: sustituye entera (sin total no puntúa, sus colores sí se ven).
     const partial = resolveRunCatalog(imp, manual('ax-3-domaines', { green: 10, season: S }), TODAY);
     expect(partial.entry).toMatchObject({ total: null, green: 10, blue: null, origin: 'manual' });
     expect(entryCatalogRuns(partial.entry).comparableTotal).toBeNull();
     expect(runCatalogView(partial.entry)!.byColour.green).toBe(10);
+  });
+
+  it('el paso del tiempo no devuelve la prioridad a una cifra sin temporada (40 sin temporada frente a 50 de 2026-27)', () => {
+    const imp: RunCatalogEntry = { ...real('grandvalira'), total: 40, green: null, blue: null, red: null, black: null, season: null, sourceDate: null };
+    const m = manual('grandvalira', { total: 50, season: '2026-27' });
+    const before = resolveRunCatalog(imp, m, '2027-06-30');
+    const after = resolveRunCatalog(imp, m, '2027-07-01');
+    for (const r of [before, after]) expect(r.entry).toMatchObject({ total: 50, origin: 'manual', season: '2026-27' });
+    expect(before.entry!.manual!.reviewFor).toBeNull();
+    expect(before.notes).toEqual(['sustituye_sin_temporada']);
+    // Con la temporada nueva se mantiene con su temporada explícita y se marca para revisar; no pasa por dato de 2027-28.
+    expect(after.entry!.manual!.reviewFor).toBe('2027-28');
+    expect(after.notes).toEqual(['sustituye_sin_temporada', 'revisar_temporada']);
+    // Una automática que declara una temporada posterior sí la sustituye.
+    const newer = resolveRunCatalog({ ...imp, total: 45, season: '2027-28' }, m, '2027-07-01');
+    expect(newer).toMatchObject({ state: 'not_applied', notes: ['temporada_anterior'] });
+    expect(newer.entry).toMatchObject({ total: 45, origin: 'catalog' });
+  });
+
+  it('una ficha publicada por adelantado se guarda para su temporada y no sustituye los datos de la temporada en curso', () => {
+    const imp: RunCatalogEntry = { ...real('port-del-comte'), season: '2026-27' };
+    const m = manual('port-del-comte', { total: 31, season: '2027-28', sourceDate: '2026-10-15' });
+    const early = resolveRunCatalog(imp, m, '2026-10-20');
+    expect(early).toMatchObject({ state: 'scheduled', notes: ['temporada_futura'] });
+    expect(early.entry).toMatchObject({ total: 29, origin: 'catalog' });
+    expect(resolveRunCatalog(null, m, '2026-10-20')).toMatchObject({ state: 'scheduled', entry: null });
+    // Sin temporada importada tampoco se adelanta.
+    expect(resolveRunCatalog({ ...imp, season: null }, m, '2026-10-20').entry!.total).toBe(29);
+    // Cuando empieza su temporada, sustituye a la importada más antigua.
+    const started = resolveRunCatalog(imp, m, '2027-07-01');
+    expect(started).toMatchObject({ state: 'applied', notes: ['sustituye_antiguo'] });
+    expect(started.entry).toMatchObject({ total: 31, season: '2027-28' });
   });
 
   it('temporadas iguales con datos parciales: se completa solo el hueco y el resto sigue sin dato', () => {
@@ -206,7 +238,10 @@ describe('validación de una aportación', () => {
     expect(e).toMatch(/posterior a hoy/);
     expect(validateManualDraft(draft({ total: 10, sourceRef: 'http://inseguro.example/x' }), ctx).join()).toMatch(/https/);
     expect(validateManualDraft(draft({ total: 10, sourceRef: 'Folleto oficial 2026-27, página 4' }), ctx)).toEqual([]);
-    expect(validateManualDraft(draft({ total: 10, season: '2027-28' }), ctx).join()).toMatch(/posterior a la actual \(2026-27\)/);
+    // Temporada futura (ficha ya publicada) sí; fecha de publicación futura no.
+    expect(validateManualDraft(draft({ total: 10, season: '2027-28', sourceDate: '2026-10-15' }), ctx)).toEqual([]);
+    expect(validateManualDraft(draft({ total: 10, season: '2028-29' }), ctx).join()).toMatch(/Como mucho, la próxima temporada \(2027-28\)/);
+    expect(validateManualDraft(draft({ total: 10, season: '2027-28', sourceDate: '2027-07-01' }), ctx).join()).toMatch(/posterior a hoy/);
     expect(validateManualDraft(draft({ green: 10 }), ctx)).toEqual([]);
   });
   it('una discrepancia pendiente no se vuelve comparable con una casilla: hace falta explicación con evidencia', () => {
