@@ -25,6 +25,10 @@
 //  5. Importado ausente o no fiable (discrepancia pendiente, desglose que no cuadra): la aportación lo sustituye entera.
 //     Nunca se mezclan colores y totales de fuentes cuya temporada común no consta.
 //  6. Una aportación retirada no cuenta; restaurarla vuelve a pasar por estas mismas reglas.
+// Un área puede tener varias aportaciones activas, una por temporada (la vigente y una ficha ya publicada para la
+// próxima). pickManual elige cuál entra en estas reglas: la de la temporada más reciente que ya ha empezado (una con
+// temporada antes que una sin ella); las de temporadas futuras esperan. Guardar, editar o retirar la futura no cambia la
+// cifra vigente; cuando empieza su temporada pasa a ser la elegida y entra en las reglas de prioridad. Ninguna se borra.
 // Las cifras manuales se presentan siempre como «total publicado» (nunca como listado pista a pista verificado) y como
 // aportación manual con su referencia, no como comprobación automática oficial.
 import { todayMadrid } from './dates';
@@ -36,6 +40,8 @@ export const RUN_FIELD_LABEL: Record<RunField, string> = { total: 'total', green
 export type RunValues = Record<RunField, number | null>;
 
 export interface ManualRunContribution extends RunValues {
+  /** Identificador de la aportación (varias por área: una activa por temporada). */
+  id?: number;
   areaId: string;
   /** false = el administrador declara que la cifra no es comparable (mezcla zonas, criterio distinto…). */
   comparable: boolean;
@@ -174,6 +180,52 @@ export function resolveRunCatalog(imp: RunCatalogEntry | null | undefined, man: 
   const reviewFor = manSeason != null && manSeason < now ? seasonLabel(now) : null;
   const notes: ManualNote[] = reviewFor ? [note, 'revisar_temporada'] : [note];
   return { entry: manualEntry(imp, man, given, reviewFor), fieldOrigin: originOf(man, 'manual'), state: 'applied', overridden: [], notes };
+}
+
+/** Papel de cada aportación de un área hoy: la que entra en la regla, las que esperan su temporada y las desplazadas. */
+export type ContributionRole = 'current' | 'scheduled' | 'superseded' | 'withdrawn';
+export const CONTRIBUTION_ROLE_LABEL: Record<ContributionRole, string> = {
+  current: 'Vigente', scheduled: 'Programada', superseded: 'Sustituida por una de temporada posterior', withdrawn: 'Retirada',
+};
+export interface ManualPick<M extends ManualRunContribution = ManualRunContribution> {
+  /** La que entra en resolveRunCatalog (null si ninguna ha empezado). */
+  current: M | null;
+  /** Activas de temporadas que aún no han empezado, de la más próxima a la más lejana. */
+  scheduled: M[];
+  role: (m: M) => ContributionRole;
+}
+
+/**
+ * Elige entre las aportaciones de un área: de las activas cuya temporada ya ha empezado (o que no la declaran), la de
+ * temporada más reciente; una con temporada explícita antes que una sin ella. Las futuras esperan. Solo depende de las
+ * temporadas declaradas y de la temporada en curso, nunca del orden en que se guardaron.
+ */
+export function pickManual<M extends ManualRunContribution>(list: readonly M[], today = todayMadrid()): ManualPick<M> {
+  const now = currentSeasonStart(today);
+  const active = list.filter((m) => m.status === 'active');
+  const scheduled = active.filter((m) => (seasonStart(m.season) ?? -Infinity) > now).sort((a, b) => seasonStart(a.season)! - seasonStart(b.season)!);
+  const started = active.filter((m) => !scheduled.includes(m));
+  const current = started.reduce<M | null>((best, m) => (!best || (seasonStart(m.season) ?? -Infinity) > (seasonStart(best.season) ?? -Infinity) ? m : best), null);
+  return { current, scheduled, role: (m) => (m.status !== 'active' ? 'withdrawn' : m === current ? 'current' : scheduled.includes(m) ? 'scheduled' : 'superseded') };
+}
+
+export interface ResolvedArea extends ResolvedRuns {
+  /** Aportación que entra en la regla (id), si hay. */
+  currentId: number | null;
+  /** Fichas programadas: se aplicarán cuando empiece su temporada. */
+  scheduled: { id: number | null; season: string | null; total: number | null }[];
+}
+
+/** Resolución de un área con todas sus aportaciones (activas y retiradas): pickManual y después resolveRunCatalog. */
+export function resolveArea(imp: RunCatalogEntry | null | undefined, list: readonly ManualRunContribution[], today = todayMadrid()): ResolvedArea {
+  const pick = pickManual(list, today);
+  // Sin vigente: la programada explica por qué no se aplica nada; si no, la retirada más reciente.
+  const shown = pick.current ?? pick.scheduled[0] ?? [...list].sort((a, b) => (b.id ?? 0) - (a.id ?? 0))[0] ?? null;
+  return {
+    ...resolveRunCatalog(imp, shown, today),
+    currentId: pick.current?.id ?? null,
+    scheduled: pick.scheduled.map((m) => ({ id: m.id ?? null, season: m.season, total: m.total })),
+  };
 }
 
 // ---------- Validación de una aportación (navegador y Worker) ----------

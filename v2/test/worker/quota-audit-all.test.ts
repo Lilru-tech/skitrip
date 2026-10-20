@@ -366,12 +366,14 @@ describe('auditoría de consultas: resto de rutas', () => {
       // Pistas: aportación manual con historial de 200 entradas en un área.
       const runBody = { expectedVersion: null, total: 30, green: null, blue: null, red: null, black: null, comparable: true, resolution: null, season: '2026-27', sourceDate: null, sourceRef: 'https://example.invalid/ficha', reason: 'Auditoría' };
       await db.batch(Array.from({ length: 200 }, (_, i) => db.prepare(`INSERT INTO area_run_history (area_id, action, actor_id, at, reason, version) VALUES (?1, 'update', ?2, ?3, 'histórico', ?4)`).bind(AREA, adm.id, t0 - i, i + 1)));
-      await m('PUT /admin/runs/:areaId', 'nueva aportación', A('PUT', `/runs/${AREA}`, runBody));
-      await m('PUT /admin/runs/:areaId (edición)', 'aportación existente', A('PUT', `/runs/${AREA}`, { ...runBody, expectedVersion: 1, total: 31 }));
+      const created = await m('PUT /admin/runs/:areaId', 'nueva aportación', A('PUT', `/runs/${AREA}`, runBody));
+      const contributionId = created.json.id;
+      await m('PUT /admin/runs/:areaId (programada)', 'ficha de la próxima temporada junto a la vigente', A('PUT', `/runs/${AREA}`, { ...runBody, season: '2027-28', total: 32 }));
+      await m('PUT /admin/runs/:areaId (edición)', 'aportación existente', A('PUT', `/runs/${AREA}`, { ...runBody, contributionId, expectedVersion: 1, total: 31 }));
       await m('GET /admin/runs', `${cat.areas.length} áreas con aportaciones e historial`, A('GET', '/runs'));
       await m('GET /admin/runs/:areaId/history', '200 entradas (máximo)', A('GET', `/runs/${AREA}/history`));
-      await m('POST /admin/runs/:areaId/withdraw', '—', A('POST', `/runs/${AREA}/withdraw`, { expectedVersion: 2, reason: 'Auditoría' }));
-      await m('POST /admin/runs/:areaId/restore', '—', A('POST', `/runs/${AREA}/restore`, { expectedVersion: 3, reason: 'Auditoría' }));
+      await m('POST /admin/runs/:areaId/withdraw', '—', A('POST', `/runs/${AREA}/withdraw`, { contributionId, expectedVersion: 2, reason: 'Auditoría' }));
+      await m('POST /admin/runs/:areaId/restore', '—', A('POST', `/runs/${AREA}/restore`, { contributionId, expectedVersion: 3, reason: 'Auditoría' }));
     }
 
     // ---------- Destructivas, al final ----------

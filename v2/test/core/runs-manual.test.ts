@@ -2,7 +2,7 @@
 // una aportación. Las cifras de ejemplo salen del catálogo real (data/catalog.json).
 import { describe, expect, it } from 'vitest';
 import { entryCatalogRuns, runCatalogView, runEntryFromJson, type RunCatalogEntry, type RunCatalogJson } from '../../src/core/runs';
-import { resolveRunCatalog, seasonRelation, validateManualDraft, type ManualDraft, type ManualRunContribution } from '../../src/core/runs-manual';
+import { pickManual, resolveArea, resolveRunCatalog, seasonRelation, validateManualDraft, type ManualDraft, type ManualRunContribution } from '../../src/core/runs-manual';
 import { DEFAULT_WEIGHTS, scoreRows } from '../../src/core/score';
 import catalogJson from '../../data/catalog.json';
 
@@ -170,6 +170,54 @@ describe('resolución del dato efectivo', () => {
     const started = resolveRunCatalog(imp, m, '2027-07-01');
     expect(started).toMatchObject({ state: 'applied', notes: ['sustituye_antiguo'] });
     expect(started.entry).toMatchObject({ total: 31, season: '2027-28' });
+  });
+
+  it('la vigente y una ficha programada conviven: guardar, editar o retirar la futura no cambia la cifra vigente (con y sin importado)', () => {
+    const cur = manual('grandvalira', { id: 1, total: 50, season: '2026-27' });
+    const fut = manual('grandvalira', { id: 2, total: 60, season: '2027-28', sourceDate: '2026-10-15' });
+    const imp: RunCatalogEntry = { ...real('grandvalira'), total: 40, green: null, blue: null, red: null, black: null, season: null, sourceDate: null };
+    for (const i of [imp, null]) {
+      const only = resolveArea(i, [cur], '2026-10-20');
+      expect(only.entry).toMatchObject({ total: 50, origin: 'manual' });
+      for (const list of [[cur, fut], [cur, { ...fut, total: 61, version: 2 }], [cur, { ...fut, status: 'withdrawn' as const }], [fut, cur]]) {
+        const r = resolveArea(i, list, '2026-10-20');
+        expect(r.entry).toEqual(only.entry);
+        expect(r.currentId).toBe(1);
+        expect(r.scheduled).toEqual(list.some((m) => m.id === 2 && m.status === 'active') ? [{ id: 2, season: '2027-28', total: list.find((m) => m.id === 2)!.total }] : []);
+      }
+    }
+    const pick = pickManual([cur, fut], '2026-10-20');
+    expect([pick.role(cur), pick.role(fut)]).toEqual(['current', 'scheduled']);
+  });
+
+  it('al empezar su temporada la programada pasa por las reglas de prioridad y la anterior queda sustituida, sin borrarse', () => {
+    const cur = manual('grandvalira', { id: 1, total: 50, season: '2026-27' });
+    const fut = manual('grandvalira', { id: 2, total: 60, season: '2027-28' });
+    const undated: RunCatalogEntry = { ...real('grandvalira'), total: 40, green: null, blue: null, red: null, black: null, season: null, sourceDate: null };
+    expect(resolveArea(undated, [cur, fut], '2027-06-30').entry).toMatchObject({ total: 50 });
+    const started = resolveArea(undated, [cur, fut], '2027-07-01');
+    expect(started).toMatchObject({ currentId: 2, scheduled: [], state: 'applied', notes: ['sustituye_sin_temporada'] });
+    expect(started.entry).toMatchObject({ total: 60, season: '2027-28', origin: 'manual' });
+    expect(started.entry!.manual!.reviewFor).toBeNull();
+    expect(resolveArea(null, [cur, fut], '2027-07-01').entry!.total).toBe(60);
+    const pick = pickManual([cur, fut], '2027-07-01');
+    expect([pick.role(cur), pick.role(fut)]).toEqual(['superseded', 'current']);
+    // Las mismas reglas: una automática válida de la misma temporada prevalece y la programada solo completa huecos.
+    const same = resolveArea({ ...undated, total: 58, season: '2027-28' }, [cur, fut], '2027-07-01');
+    expect(same).toMatchObject({ currentId: 2, state: 'not_applied', notes: ['automatica_prevalece'] });
+    expect(same.entry).toMatchObject({ total: 58, origin: 'catalog' });
+  });
+
+  it('elige la aportación por temporada declarada, no por orden de guardado; una con temporada antes que una sin ella', () => {
+    const none = manual('ax', { id: 1, total: 30 });
+    const old = manual('ax', { id: 2, total: 31, season: '2025-26' });
+    const now = manual('ax', { id: 3, total: 32, season: '2026-27' });
+    expect(pickManual([now, old, none], TODAY).current).toBe(now);
+    expect(pickManual([none, old], TODAY).current).toBe(old);
+    expect(pickManual([none], TODAY).current).toBe(none);
+    expect(pickManual([{ ...now, status: 'withdrawn' }], TODAY).current).toBeNull();
+    expect(resolveArea(null, [{ ...now, status: 'withdrawn' }], TODAY).state).toBe('withdrawn');
+    expect(resolveArea(null, [manual('ax', { id: 4, total: 9, season: '2027-28' })], TODAY)).toMatchObject({ state: 'scheduled', entry: null, currentId: null });
   });
 
   it('temporadas iguales con datos parciales: se completa solo el hueco y el resto sigue sin dato', () => {
