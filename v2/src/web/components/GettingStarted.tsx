@@ -78,7 +78,7 @@ export function LegacyPendingNotice() {
         {[s.comments.pending ? plural(s.comments.pending, 'comentario sin publicar', 'comentarios sin publicar') : null,
           unlinked ? plural(unlinked, 'nombre sin vincular', 'nombres sin vincular') : null].filter(Boolean).join(' · ')}.
         {' '}Nada se publica ni se asigna sin tu elección.</p>
-      <Link to="/admin" className="btn btn-small btn-secondary">Revisar la hoja antigua</Link>
+      <Link to="/admin?seccion=antiguos" className="btn btn-small btn-secondary">Revisar la hoja antigua</Link>
     </section>
   );
 }

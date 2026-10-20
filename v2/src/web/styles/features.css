@@ -207,3 +207,14 @@
 .run-blue .run-dot { background: #1565c0; }
 .run-red .run-dot { background: #c62828; }
 .run-black .run-dot { background: #1c211f; box-shadow: 0 0 0 1px var(--surface); }
+
+/* Administración por secciones y edición de pistas. */
+@media (max-width: 599px) { .admin-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.run-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 720px) { .run-fields { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.run-fields input { max-width: 8rem; }
+.run-label-dot { margin-left: 6px; vertical-align: middle; }
+.run-admin-card p { margin: 0; }
+/* Valores actuales: palabras enteras (sin cortar «importado»); si no cabe en móvil, la tabla se desplaza dentro de su caja. */
+.run-values th, .run-values td { overflow-wrap: normal; }
+.run-values tbody th { white-space: nowrap; }

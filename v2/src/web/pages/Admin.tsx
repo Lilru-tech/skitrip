@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { errorMessage, get, post } from '../api';
 import { ConfirmDialog } from '../components/Dialog';
 import { IDENTITY_WARNING, UserPicker, userLabel, type UserHit } from '../components/UserPicker';
@@ -7,7 +7,8 @@ import { Empty, ErrorState, Loading } from '../components/States';
 import { useToast } from '../components/Toast';
 import { healthText, isLegitimateAbsence, instant, plural, RUN_STATUS_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL } from '../format';
 import { useResource } from '../hooks';
-import { Link, usePageTitle } from '../router';
+import { Link, useLocation, usePageTitle } from '../router';
+import { RunsAdmin } from './AdminRuns';
 import { useProfile } from '../session';
 
 interface Health {
@@ -27,9 +28,18 @@ const RUN_LABEL: Record<string, string> = { ...RUN_STATUS_LABEL, running: 'en cu
 const WATCH_LABEL: Record<string, string> = { ok: 'Correcto', aislado: 'Aviso aislado', degradado: 'Degradación repetida', fallo: 'Fallo' };
 const WATCH_KIND: Record<string, string> = { check: 'comprobación', regression: 'funcionaba antes', pending: 'pendiente', absence: 'pendiente de invierno' };
 
+type Section = 'pistas' | 'antiguos' | 'cuentas' | 'vigilancia';
+const SECTIONS: { id: Section; label: string; hint: string }[] = [
+  { id: 'pistas', label: 'Pistas', hint: 'Total y colores del catálogo, con aportaciones manuales e historial.' },
+  { id: 'antiguos', label: 'Datos antiguos', hint: 'Hoja antigua: importar, vincular nombres, publicar comentarios y asignar disponibilidad.' },
+  { id: 'cuentas', label: 'Cuentas', hint: 'Bloquear y desbloquear cuentas.' },
+  { id: 'vigilancia', label: 'Vigilancia', hint: 'Salud de las fuentes, vigilancia diaria y últimas capturas.' },
+];
+
 export function AdminPage() {
   usePageTitle('Administración');
   const me = useProfile();
+  const { query } = useLocation();
   const [rev, setRev] = useState(0);
   if (me.role !== 'admin') {
     return (
@@ -40,16 +50,31 @@ export function AdminPage() {
       </div>
     );
   }
+  const q = query.get('seccion');
+  const section: Section = SECTIONS.some((x) => x.id === q) ? (q as Section) : 'pistas';
+  const current = SECTIONS.find((x) => x.id === section)!;
+  // Cada sección se carga solo cuando se abre: la página no pide los datos de las demás.
   return (
     <div className="page page-wide">
       <h1>Administración</h1>
-      <p className="lead-s">Datos heredados de la hoja antigua, cuentas y estado de las capturas. Cada acción queda registrada.</p>
-      <LegacyOverview rev={rev} onChanged={() => setRev((n) => n + 1)} />
-      <SheetImportPanel onImported={() => setRev((n) => n + 1)} />
-      <LegacyCommentsReview rev={rev} onChanged={() => setRev((n) => n + 1)} />
-      <LegacyAvailabilityPanel rev={rev} onChanged={() => setRev((n) => n + 1)} />
-      <UsersPanel />
-      <HealthPanel />
+      <p className="lead-s">Cada acción queda registrada.</p>
+      <nav className="tabs admin-tabs" aria-label="Secciones de administración">
+        {SECTIONS.map((x) => (
+          <Link key={x.id} to={`/admin?seccion=${x.id}`} className="tab" aria-current={section === x.id ? 'page' : undefined}>{x.label}</Link>
+        ))}
+      </nav>
+      <p className="small muted">{current.hint}</p>
+      {section === 'pistas' && <RunsAdmin />}
+      {section === 'antiguos' && (
+        <>
+          <LegacyOverview rev={rev} onChanged={() => setRev((n) => n + 1)} />
+          <SheetImportPanel onImported={() => setRev((n) => n + 1)} />
+          <LegacyCommentsReview rev={rev} onChanged={() => setRev((n) => n + 1)} />
+          <LegacyAvailabilityPanel rev={rev} onChanged={() => setRev((n) => n + 1)} />
+        </>
+      )}
+      {section === 'cuentas' && <UsersPanel />}
+      {section === 'vigilancia' && <HealthPanel />}
     </div>
   );
 }
@@ -144,11 +169,10 @@ function UsersPanel() {
   const toast = useToast();
   const me = useProfile();
   const [pending, setPending] = useState<{ user: UserHit; action: 'block' | 'unblock' } | null>(null);
-  const [blocked, setBlocked] = useState<UserHit[]>([]);
+  // Cuentas bloqueadas según el servidor (en cualquier sesión), no solo las bloqueadas desde esta pantalla.
+  const list = useResource(() => get<{ users: UserHit[] }>('/api/admin/users?status=blocked'), []);
+  const blocked = list.data?.users ?? [];
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    get<{ users: UserHit[] }>('/api/admin/users?status=blocked').then((r) => setBlocked(r.users)).catch(() => undefined);
-  }, []);
   const [error, setError] = useState<string | null>(null);
 
   const confirm = async () => {
@@ -157,7 +181,7 @@ function UsersPanel() {
     try {
       await post(`/api/admin/users/${pending.user.id}/${pending.action}`);
       toast.show(pending.action === 'block' ? `${pending.user.alias} está bloqueada y su sesión se ha cerrado.` : `${pending.user.alias} puede volver a entrar.`);
-      setBlocked((b) => (pending.action === 'block' ? [...b.filter((x) => x.id !== pending.user.id), pending.user] : b.filter((x) => x.id !== pending.user.id)));
+      list.setData({ users: pending.action === 'block' ? [...blocked.filter((x) => x.id !== pending.user.id), pending.user] : blocked.filter((x) => x.id !== pending.user.id) });
       setPending(null);
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
@@ -167,20 +191,19 @@ function UsersPanel() {
       <h2 id="adm-users">Cuentas</h2>
       <p className="small">Bloquear cierra la sesión de la cuenta y le impide entrar. No borra sus datos.</p>
       <UserPicker id="adm-user-q" label="Buscar cuenta para bloquear" onPick={(u) => (u.id === me.id ? toast.show('No puedes bloquearte a ti mismo.', 'error') : setPending({ user: u, action: 'block' }))} />
-      {blocked.length > 0 && (
-        <>
-          <h3>Cuentas bloqueadas</h3>
-          <ul className="list" aria-label="Cuentas bloqueadas en esta sesión">
-            {blocked.map((u) => (
-              <li key={u.id} className="row-between">
-                <span>{u.alias}</span>
-                <button type="button" className="btn btn-secondary btn-small" onClick={() => setPending({ user: u, action: 'unblock' })}>Desbloquear</button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <p className="small muted">Por ahora solo se pueden desbloquear desde aquí las cuentas bloqueadas en esta sesión: falta un listado de cuentas bloqueadas en el servidor.</p>
+      <h3>Cuentas bloqueadas</h3>
+      {list.loading && !list.data && <Loading />}
+      {list.error && !list.data && <ErrorState message={list.error} onRetry={list.reload} />}
+      {list.data && (blocked.length === 0 ? <p className="muted small">No hay ninguna cuenta bloqueada.</p> : (
+        <ul className="list" aria-label="Cuentas bloqueadas">
+          {blocked.map((u) => (
+            <li key={u.id} className="row-between">
+              <span>{u.alias}</span>
+              <button type="button" className="btn btn-secondary btn-small" onClick={() => setPending({ user: u, action: 'unblock' })}>Desbloquear<span className="visually-hidden"> a {u.alias}</span></button>
+            </li>
+          ))}
+        </ul>
+      ))}
       <ConfirmDialog open={pending != null} busy={busy} error={error} danger={pending?.action === 'block'}
         title={pending?.action === 'block' ? `¿Bloquear a ${pending.user.alias}?` : `¿Desbloquear a ${pending?.user.alias ?? ''}?`}
         confirmLabel={pending?.action === 'block' ? 'Bloquear' : 'Desbloquear'}
