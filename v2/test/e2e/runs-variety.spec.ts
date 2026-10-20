@@ -212,3 +212,29 @@ test('colores parciales: se ven los conocidos, el resto «sin dato», sin total 
   await expect(sec).toContainText('Número de pistas: Total sin dato · desglose parcial · no puntúa');
   await expect(sec.getByRole('list', { name: /desglose parcial|por color|Colores/ })).toHaveCount(1);
 });
+
+test('aportación de una temporada pasada: se mantiene con su temporada y se marca «por revisar», sin tocar «Esquiar ahora»', async ({ page, request }) => {
+  await loggedIn(page, request);
+  const stale = (r: any) => ({ ...r, origin: 'manual', season: '2025-26',
+    manual: { fields: ['total', 'green', 'blue', 'red', 'black'], sourceRef: 'https://example.invalid/alfa-norte-2025', season: '2025-26', sourceDate: null, enteredOn: '2026-10-19', resolution: null, reviewFor: '2026-27' } });
+  await page.route('**/api/public/catalog**', async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    for (const a of body.areas) if (a.id === 'e2e-alfa-norte') a.runs = stale(a.runs);
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.route('**/api/public/areas/e2e-alfa-norte', async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    body.runs = stale(body.runs);
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto('/#/estaciones/e2e-alfa-norte');
+  const sec = page.getByRole('region', { name: 'Pistas y variedad' });
+  await expect(sec).toContainText('Número de pistas: 40');
+  await expect(sec).toContainText('· temporada 2025-26, por revisar');
+  await sec.locator('details.area-more > summary').click();
+  await expect(sec.locator('details.area-more')).toContainText('Aportación manual de la temporada 2025-26: se mantiene con su temporada y falta confirmarla para la 2026-27.');
+  // El parte actual no cambia: las abiertas siguen saliendo solo del parte vigente.
+  await expect(sec).toContainText('Pistas abiertas: sin parte vigente de pistas (sin parte)');
+});

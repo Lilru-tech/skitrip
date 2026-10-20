@@ -289,7 +289,7 @@ function Preview({ area, all, preview, season }: { area: AdminRunArea; all: Admi
   return (
     <section className="notice stack-s" aria-live="polite" aria-labelledby="run-prev-h">
       <h3 id="run-prev-h">Antes de guardar: lo que verá el usuario</h3>
-      <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} /></div>
+      <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} runs={pub} /></div>
       {pub && <p className="small">Procedencia: <RunsProvenance r={pub} withLimits /></p>}
       {preview.state === 'scheduled' && <p className="small"><strong>Se guardará para la temporada {season}:</strong> {MANUAL_NOTE_LABEL.temporada_futura}</p>}
       {!willApply && preview.state !== 'scheduled' && preview.notes.length > 0 && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> {preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}

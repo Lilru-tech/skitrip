@@ -433,7 +433,7 @@ function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx,
           {closed && openKm === 0 && <span className="muted small"> · 0 km abiertos no significa que no haya nieve</span>}</dd></div>}
         <div><dt>{ctx === 'ahora' ? 'Pistas abiertas' : 'Número de pistas'}</dt><dd>{ctx === 'ahora'
           ? <NowRunsText now={runs.now} name={area.name} catalogTotal={runs.cat.comparableTotal ?? runs.cat.own?.total ?? null} reportDate={snow?.sourceDate} />
-          : <CatalogRunsText cat={runs.cat} name={area.name} />}</dd></div>
+          : <CatalogRunsText cat={runs.cat} name={area.name} runs={area.runs} />}</dd></div>
         {cost !== undefined && <div><dt>Coste por persona</dt><dd><CostText cost={cost} /></dd></div>}
       </dl>
       {score && (

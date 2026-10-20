@@ -354,7 +354,7 @@ function RunsSection({ areaId, name, runs, memberRuns, memberNames, latest }: {
     <section className="panel stack" aria-labelledby="a-runs">
       <h2 id="a-runs">Pistas y variedad</h2>
       <dl className="area-facts">
-        <div><dt>Para planificar</dt><dd>Número de pistas: <CatalogRunsText cat={cat} name={name} /></dd></div>
+        <div><dt>Para planificar</dt><dd>Número de pistas: <CatalogRunsText cat={cat} name={name} runs={runs} /></dd></div>
         <div><dt>Esquiar ahora</dt><dd>Pistas abiertas: <NowRunsText now={now} name={name} catalogTotal={cat.comparableTotal ?? own?.total ?? null} reportDate={latest?.sourceDate} /></dd></div>
       </dl>
       <details className="area-more">
