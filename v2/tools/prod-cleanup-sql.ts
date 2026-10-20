@@ -74,6 +74,10 @@ export function cleanupStatements(m: CleanupManifest): string[] {
     `UPDATE legacy_comments SET reconciled_user_id = NULL WHERE reconciled_user_id IN (${T})`,
     `UPDATE legacy_comments SET reconciled_by = NULL WHERE reconciled_by IN (${T})`,
     `UPDATE legacy_availability SET reconciled_user_id = NULL WHERE reconciled_user_id IN (${T})`,
+    // Pistas: las cuentas de prueba nunca son administradoras, así que no deberían tener aportaciones; si alguna
+    // quedara, se borra la suya y el historial se conserva desvinculado de la cuenta.
+    `UPDATE area_run_history SET actor_id = NULL WHERE actor_id IN (${T})`,
+    `DELETE FROM area_run_contributions WHERE created_by IN (${T}) OR updated_by IN (${T})`,
     `DELETE FROM users WHERE id IN (${T})`,
   ];
 }

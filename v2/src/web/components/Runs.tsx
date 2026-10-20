@@ -3,6 +3,7 @@
 import { numDate, plural } from '../format';
 import { RUN_CATALOG_ISSUE_LABEL, RUN_COLOURS, RUN_COLOUR_LABEL, RUNS_NOW_EXCLUSION_LABEL, type ByColour, type EntryCatalogRuns, type RunsNow } from '../../core/runs';
 import type { RunCatalog } from '../catalog';
+import { RUN_FIELD_LABEL } from '../../core/runs-manual';
 
 export const RUNS_CRITERION = 'Pistas de esquí alpino según las identifica cada estación; el criterio de recuento puede variar entre estaciones (p. ej. tramos contados por separado).';
 
@@ -59,14 +60,38 @@ export function NowRunsText({ now, name, catalogTotal, reportDate }: { now: Runs
   );
 }
 
-/** Procedencia de la cifra del catálogo: fuente, temporada o fecha del dato y día de consulta (no es la fecha del dato). */
+/** Enlace a una fuente solo si es una dirección https; una cita textual se muestra tal cual. */
+function SourceRef({ refText, label }: { refText: string; label: string }) {
+  return /^https:\/\//i.test(refText)
+    ? <a href={refText} target="_blank" rel="noopener noreferrer">{label}<span className="visually-hidden"> (se abre en otra pestaña)</span></a>
+    : <>{label}: «{refText}»</>;
+}
+
+/**
+ * Procedencia de la cifra del catálogo: fuente, temporada o fecha del dato y día de consulta (no es la fecha del dato).
+ * Una aportación manual de administración se dice como tal, con su referencia y el día en que se introdujo: nunca como
+ * una comprobación automática oficial.
+ */
 export function RunsProvenance({ r, withLimits = false }: { r: RunCatalog; withLimits?: boolean }) {
-  const when = [r.season ? `temporada ${r.season}` : null, r.sourceDate ? `dato del ${numDate(r.sourceDate)}` : 'sin fecha del dato publicada'].filter(Boolean).join(' · ');
+  const when = (season: string | null, date: string | null) => [season ? `temporada ${season}` : null, date ? `dato del ${numDate(date)}` : 'sin fecha del dato publicada'].filter(Boolean).join(' · ');
+  const m = r.manual;
+  if (r.origin === 'manual' && m) {
+    return (
+      <span className="small">
+        <SourceRef refText={m.sourceRef} label="Aportación manual de administración" />
+        <span className="muted"> · total publicado · {when(m.season, m.sourceDate)} · introducido el {numDate(m.enteredOn)}</span>
+        {withLimits && m.resolution && <span className="muted"> · {m.resolution}</span>}
+      </span>
+    );
+  }
   return (
     <span className="small">
       <a href={r.sourceUrl} target="_blank" rel="noopener noreferrer">{r.basis === 'individual' ? 'Listado oficial' : 'Cifra oficial'}<span className="visually-hidden"> (se abre en otra pestaña)</span></a>
-      <span className="muted"> · {r.basis === 'individual' ? 'contado pista a pista' : 'total publicado'} · {when} · consultado el {numDate(r.checkedOn)}</span>
+      <span className="muted"> · {r.basis === 'individual' ? 'contado pista a pista' : 'total publicado'} · {when(r.season, r.sourceDate)} · consultado el {numDate(r.checkedOn)}</span>
       {withLimits && r.limitations && <span className="muted"> · {r.limitations}</span>}
+      {m && m.fields.length > 0 && (
+        <span className="muted"> · completado con una aportación manual ({m.fields.map((f) => RUN_FIELD_LABEL[f]).join(', ')}: <SourceRef refText={m.sourceRef} label="referencia" />, {when(m.season, m.sourceDate)}, introducido el {numDate(m.enteredOn)})</span>
+      )}
     </span>
   );
 }

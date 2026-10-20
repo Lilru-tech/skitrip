@@ -337,6 +337,7 @@ function RunsSection({ areaId, name, runs, memberRuns, memberNames, latest }: {
         {own?.issues.includes('desglose_no_cuadra') && <p className="small text-warn">{RUN_CATALOG_ISSUE_LABEL.desglose_no_cuadra}: se muestran las dos cifras tal como se publican y no puntúa.</p>}
         {cat.pendingDiscrepancy && memberRuns.length > 0 && <p className="small text-warn">La cifra propia no puntúa y no se sustituye por la suma de sus estaciones hasta resolver la discrepancia con evidencia.</p>}
         {runs ? <p><RunsProvenance r={runs} withLimits /></p> : cat.via !== 'members' && <p className="small muted">Sin cifra de pistas para esta estación.</p>}
+        {runs?.superseded && <p className="small muted">Sustituye a la cifra importada ({runs.superseded.total != null ? `${runs.superseded.total} pistas publicadas` : 'sin total'}{runs.superseded.comparable ? '' : ', no comparable'}{runs.superseded.limitations ? `: ${runs.superseded.limitations}` : ''}).</p>}
         {runs?.mapUrl && <p className="small"><a href={runs.mapUrl} target="_blank" rel="noopener noreferrer">Plano oficial de pistas<span className="visually-hidden"> (se abre en otra pestaña)</span></a></p>}
         {memberRuns.length > 0 && (
           <ul className="list small" aria-label={`Pistas de las estaciones de ${name}`}>

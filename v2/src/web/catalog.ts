@@ -1,8 +1,18 @@
 // Contratos del catálogo público (src/worker/routes/catalog.ts).
 import type { ByColour, RunCatalogEntry } from '../core/runs';
+import type { ManualProvenance, RunOrigin } from '../core/runs-manual';
 
-/** Catálogo de pistas de un área (area_runs): cifras publicadas por la estación, con procedencia y fechas. */
-export type RunCatalog = Omit<RunCatalogEntry, 'areaId'>;
+/**
+ * Catálogo de pistas efectivo de un área: cifras publicadas por la estación (catálogo importado) o aportadas por
+ * administración con su referencia, ya resueltas por el Worker (src/core/runs-manual.ts), con procedencia y fechas.
+ */
+export type RunCatalog = Omit<RunCatalogEntry, 'areaId'> & {
+  origin?: RunOrigin;
+  /** Campos y referencia de la aportación manual que interviene en la cifra; null si es solo del catálogo importado. */
+  manual?: ManualProvenance | null;
+  /** Cifra importada que la aportación sustituye entera (no fiable, ausente o de otra temporada). */
+  superseded?: { total: number | null; green: number | null; blue: number | null; red: number | null; black: number | null; comparable: boolean; sourceUrl: string; limitations: string | null } | null;
+};
 export const runEntry = (areaId: string, r: RunCatalog | null | undefined): RunCatalogEntry | null => (r ? { areaId, ...r } : null);
 
 export interface Snow {

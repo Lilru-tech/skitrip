@@ -21,6 +21,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { validateRoutes } from '../src/core/geo.ts';
 import { auditRunCatalog, type RunCatalogJson, type RunListJson } from '../src/core/runs.ts';
+import { runCatalogSql, sqlValue } from './run-catalog-sql.ts';
 
 const args = process.argv.slice(2);
 const opt = (name: string, def?: string) => {
@@ -39,12 +40,7 @@ const git = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { maxBuf
 const commit = git('rev-parse', REF).trim();
 const readAt = (f: string) => git('show', `${commit}:${f}`);
 
-const q = (v: unknown): string => {
-  if (v === null || v === undefined) return 'NULL';
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : 'NULL';
-  if (typeof v === 'boolean') return v ? '1' : '0';
-  return `'${String(v).replace(/'/g, "''")}'`;
-};
+const q = sqlValue;
 const cents = (eur: unknown) => (typeof eur === 'number' && Number.isFinite(eur) ? Math.round(eur * 100) : null);
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
@@ -77,19 +73,14 @@ for (const l of catalog.links) sql.push(`INSERT OR IGNORE INTO area_links (paren
 for (const o of catalog.origins) sql.push(`INSERT INTO origins (id, name, lat, lon) VALUES (${[o.id, o.name, o.lat, o.lon].map(q).join(', ')}) ON CONFLICT (id) DO UPDATE SET name = excluded.name, lat = excluded.lat, lon = excluded.lon;`);
 
 // Catálogo de pistas (revisado a mano, con fuente y fechas). Un error de revisión para la importación; el catálogo
-// importado es el del archivo: las filas de áreas que ya no figuran en él se borran.
+// importado es el del archivo: las filas de áreas que ya no figuran en él se borran. Las aportaciones manuales de
+// administración (area_run_contributions) no se tocan; un cambio de la cifra importada en un área con aportación
+// activa queda en su historial (tools/run-catalog-sql.ts).
 const runLists: RunListJson[] = JSON.parse(readFileSync(path.join(V2, 'data/run-lists.json'), 'utf8')).lists;
 const runAudit = auditRunCatalog(catalog.run_catalog, runLists, new Set(catalog.areas.map((a) => a.id)));
 if (runAudit.errors.length) throw new Error(`Catálogo de pistas no válido:\n${runAudit.errors.join('\n')}`);
 report.runCatalog = { entries: catalog.run_catalog.length, warnings: runAudit.warnings };
-for (const r of catalog.run_catalog) {
-  sql.push(`INSERT INTO area_runs (area_id, total, green, blue, red, black, basis, comparable, season, source_date, checked_on, source_url, map_url, limitations)
-VALUES (${[r.area, r.total, r.green, r.blue, r.red, r.black, r.basis, r.comparable, r.season, r.source_date, r.checked_on, r.source_url, r.map_url, r.limitations].map(q).join(', ')})
-ON CONFLICT (area_id) DO UPDATE SET total = excluded.total, green = excluded.green, blue = excluded.blue, red = excluded.red, black = excluded.black, basis = excluded.basis,
-  comparable = excluded.comparable, season = excluded.season, source_date = excluded.source_date, checked_on = excluded.checked_on, source_url = excluded.source_url,
-  map_url = excluded.map_url, limitations = excluded.limitations;`);
-}
-sql.push(`DELETE FROM area_runs WHERE area_id NOT IN (${catalog.run_catalog.map((r) => q(r.area)).join(', ') || "''"});`);
+sql.push(...runCatalogSql(catalog.run_catalog, { at: Date.now(), label: `Importación del catálogo (${REF}@${commit.slice(0, 7)})` }));
 
 const originById = new Map(catalog.origins.map((o) => [o.id, o]));
 const routeIssues = validateRoutes(catalog.routes.map((r) => ({ originId: r.origin, areaId: r.area, roadKm: r.road_km, origin: originById.get(r.origin)!, area: areaById.get(r.area) ?? null })));

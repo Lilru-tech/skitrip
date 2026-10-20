@@ -97,9 +97,89 @@ sea de la temporada actual.
   sería una fuente nueva.
 - Las cifras de catálogo sin temporada indicada deben revisarse cuando las estaciones publiquen la ficha 2026-27.
 
+## Qué proceso actualiza cada dato
+
+| Dato | Tabla | Quién lo actualiza | Cuándo |
+|---|---|---|---|
+| Total y colores del catálogo (para planificar) | `area_runs` | La publicación (`v2-release`) importa `data/catalog.json` (`run_catalog`) con `tools/import-legacy.ts` → `tools/run-catalog-sql.ts` | En cada publicación; el archivo se revisa a mano |
+| Aportaciones manuales al total y a los colores | `area_run_contributions` + `area_run_history` | Administración › Pistas (`/api/admin/runs`) | Cuando un administrador las guarda, retira o restaura |
+| Pistas abiertas, abiertas por color y totales del parte | `snow_observations` | Captura de nieve (`v2-snow`, `POST /api/ingest/snow`) | Cada captura programada |
+| Estado de apertura, nieve y km | `snow_observations` | Captura de nieve | Cada captura programada |
+
+La edición de administración solo toca el total y los colores del catálogo. No cambia el parte diario (abiertas,
+apertura, nieve, km) ni las rutas, precios o cierres. No se ha añadido ningún recolector nuevo.
+
+## Aportaciones manuales y prioridad
+
+`area_runs` es el catálogo importado (lo llamamos «automático»: lo reescribe cada publicación). Una edición guardada
+ahí desaparecería en el siguiente despliegue, así que las aportaciones manuales viven en su propia tabla
+(`area_run_contributions`, migración 0021), con historial (`area_run_history`) que nunca se borra. La importación no las
+toca; si cambia la cifra importada de un área con alguna aportación activa, lo anota una vez en el historial
+(`import_change`).
+Reimportar sin cambios no anota nada ni borra nada.
+
+Un área puede tener **varias aportaciones**, como mucho una activa por temporada declarada (y una sin temporada): por
+ejemplo, la vigente de 2026-27 y una ficha ya publicada de 2027-28. Cada operación (guardar, editar, retirar, restaurar)
+actúa sobre una sola y no toca las demás. Para decidir cuál entra en la regla (`pickManual`) se toma, de las activas
+cuya temporada ya ha empezado, la de temporada más reciente (una con temporada antes que una sin ella); las de
+temporadas futuras quedan **programadas**. Guardar, editar o retirar una programada no cambia la cifra vigente. Cuando
+empieza su temporada pasa a ser la elegida y entra en las mismas reglas de prioridad; la anterior queda como
+«sustituida por una de temporada posterior», sin borrarse, y las dos siguen en el historial.
+
+Una única regla decide la cifra efectiva (`resolveArea` → `resolveRunCatalog`, `src/core/runs-manual.ts`). El Worker la
+aplica al servir el catálogo y la ficha, así que fichas, Comparar, dominios y puntuación usan la misma cifra:
+
+La temporada solo se compara cuando **las dos fuentes la declaran** («2026-27»). No se deduce de la fecha de
+publicación, porque un documento de septiembre puede describir la temporada anterior, y «desconocida» nunca cuenta como
+«la misma». El resultado **no cambia solo porque pase el tiempo**: una cifra sin temporada no recupera la prioridad al
+empezar otra temporada.
+
+0. Aportación de una temporada que **aún no ha empezado** (ficha publicada por adelantado, como mucho la próxima
+   temporada): se guarda junto a la vigente, pero no se aplica hasta que empiece; no sustituye la aportación vigente
+   ni los datos de la temporada en curso ni toca los partes de «Esquiar ahora». La fecha de la fuente sigue sin poder ser futura: temporada futura no es fecha futura.
+1. Cifra importada válida (enteros, desglose coherente, comparable) y de la **misma temporada** que la aportación:
+   **prevalece la importada**. La aportación solo completa los campos que faltan (un color o el total), si la
+   combinación cuadra y la aportación no está marcada como no comparable. Si no cuadra, no se mezcla: se muestra lo
+   importado y queda pendiente.
+2. Cifra importada válida de una temporada **posterior**: prevalece la importada y la aportación no se aplica; el cambio
+   queda en el historial.
+3. Cifra importada que falta, no es fiable (discrepancia pendiente, desglose que no cuadra), es de una temporada
+   **anterior**, o **no indica temporada frente a una aportación con temporada explícita**: la aportación la
+   **sustituye entera**. La ficha dice qué cifra importada se sustituye. Si la temporada de la aportación ya pasó, se
+   mantiene con su temporada y se marca «por revisar» para la temporada en curso; no se presenta como dato de la nueva.
+4. Cifra importada válida y aportación sin temporada, o importada con temporada y aportación sin ella: prevalece la
+   importada, pero **no se combinan** sus campos. Las dos quedan por separado y la vista previa lo explica.
+5. Una aportación retirada no cuenta. Restaurarla vuelve a pasar por las mismas reglas: si mientras tanto llegó un dato
+   automático válido, prevalece el automático y la aportación queda guardada sin aplicar.
+
+Las cifras manuales se muestran como «Aportación manual de administración» con su referencia, la temporada o fecha de la
+fuente y el día en que se introdujeron; siempre como total publicado, nunca como listado pista a pista ni como
+comprobación automática oficial. El público ve la referencia, la temporada y las fechas, y la explicación cuando resuelve
+una discrepancia; el motivo, la autoría y el historial solo los ve administración.
+
+Validación (en el navegador y en el servidor, `validateManualDraft`): enteros de 0 en adelante; vacío = sin dato, 0 =
+cero confirmado; al menos una cifra; desglose completo = total, parcial ≤ total; no se deducen pistas de km ni de
+porcentajes ni se suman colores para inventar un total; fuente o referencia comprobable (https o cita) y motivo;
+temporada «2026-27», como mucho la próxima; fecha de la fuente no futura. Si la cifra importada tiene una discrepancia pendiente (Astún +
+Candanchú, Font-Romeu, Les Angles), la aportación solo puede marcarse comparable con una explicación con evidencia
+(30 caracteres como mínimo), que queda registrada y se publica en los detalles. Sin ella, se puede guardar como no
+comparable. Las reglas de dominios no cambian: una cifra propia del dominio no se suma con sus estaciones y una
+discrepancia no se sustituye por la suma de las estaciones.
+
+Se pueden guardar datos parciales: por ejemplo, solo 10 verdes sin total, o un total de 40 con solo las verdes. Se
+muestran los valores conocidos como desglose parcial y el resto como «sin dato»; nunca se inventa el total ni se rellena
+con ceros. Sin total no puntúa en «Variedad de pistas».
+
+Una aportación activa por área y temporada (no hay duplicados: crear otra de la misma temporada responde 409
+`season_taken` y pide editar la existente). Cada escritura lleva la aportación y la versión que se editó: si otro
+administrador guardó antes, la API responde 409 y no sobrescribe. El historial guarda, por aportación, quién, cuándo,
+la acción, los valores anteriores y nuevos, la fuente y el motivo.
+
 ## Mantenimiento
 
 El catálogo de pistas no cambia con cada parte: se revisa a mano cuando cambia la ficha de una estación, se edita
 `run_catalog` (y `data/run-lists.json` si es un listado) con fuente y fechas, y la publicación lo importa. La importación
-para si la revisión encuentra errores (`auditRunCatalog`). En producción supone una lectura de ~24 filas de
-`area_runs` por carga del catálogo y ninguna consulta externa al mostrar las tarjetas.
+para si la revisión encuentra errores (`auditRunCatalog`). Para un dato que falta o que llega antes de revisar el
+archivo, Administración › Pistas permite una aportación manual con las reglas anteriores. En producción supone una
+lectura de ~24 filas de `area_runs` y de las aportaciones activas por carga del catálogo y ninguna consulta externa al
+mostrar las tarjetas.
