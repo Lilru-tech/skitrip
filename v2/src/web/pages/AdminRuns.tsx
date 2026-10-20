@@ -39,7 +39,7 @@ const flagsOf = (a: AdminRunArea) => {
   const v = runCatalogView(a.resolved.entry);
   return {
     faltan: !v || v.total == null || !v.breakdownComplete,
-    revisar: !!v?.issues.some((i) => REVIEW_ISSUES.has(i)) || a.resolved.state === 'not_applied' || a.resolved.state === 'partial',
+    revisar: !!v?.issues.some((i) => REVIEW_ISSUES.has(i)) || a.resolved.state === 'not_applied' || a.resolved.state === 'partial' || !!a.resolved.entry?.manual?.reviewFor,
     manuales: a.contribution != null,
   };
 };
@@ -73,9 +73,10 @@ function RunsList({ data, missing }: { data: AdminRuns; missing: string | null }
         <summary>Cómo se decide qué cifra vale</summary>
         <ul>
           <li>Si el catálogo importado tiene una cifra válida de la misma temporada que tu aportación, prevalece. Tu aportación solo completa lo que falta, si cuadra.</li>
-          <li>Si el catálogo importado no tiene cifra, no es fiable, es de una temporada anterior o no indica temporada frente a tu aportación documentada de la temporada actual, tu aportación lo sustituye entera, sin mezclar fuentes.</li>
-          <li>Si no consta que las dos sean de la misma temporada (en otro caso), prevalece el importado y no se mezclan sus cifras. La temporada no se deduce de la fecha del documento.</li>
-          <li>Las aportaciones que no se aplican se conservan con su historial. Si llega un dato automático válido, prevalece el automático.</li>
+          <li>Si el catálogo importado no tiene cifra, no es fiable, es de una temporada anterior o no indica temporada frente a tu aportación con temporada, tu aportación lo sustituye entera, sin mezclar fuentes. Esto no cambia al empezar otra temporada: si la de tu aportación ya pasó, se mantiene y queda «por revisar».</li>
+          <li>Si tu aportación no indica temporada, prevalece el importado y no se mezclan sus cifras. La temporada no se deduce de la fecha del documento.</li>
+          <li>Una ficha de la próxima temporada se guarda, pero no se aplica hasta que empiece: no cambia los datos de la temporada en curso ni los partes de «Esquiar ahora».</li>
+          <li>Las aportaciones que no se aplican se conservan con su historial. Si llega un dato automático válido de una temporada posterior, prevalece el automático.</li>
         </ul>
       </details>
       {missing && <p className="notice notice-warn" role="alert">No existe la estación «{missing}». <Link to="/admin?seccion=pistas">Ver todas</Link></p>}
@@ -189,7 +190,7 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
           <div className="field">
             <label htmlFor="run-season">Temporada (si se conoce)</label>
             <input id="run-season" type="text" placeholder="2026-27" value={form.season} onChange={(e) => set('season', e.target.value)} maxLength={7} aria-describedby="run-season-hint" />
-            <p className="field-hint" id="run-season-hint">La que declara la fuente («2026-27»), no la deducida de su fecha. Solo con la misma temporada se combinan tu aportación y el dato automático.</p>
+            <p className="field-hint" id="run-season-hint">La que declara la fuente («2026-27»), no la deducida de su fecha. Solo con la misma temporada se combinan tu aportación y el dato automático. Puede ser la próxima, si la ficha ya está publicada.</p>
           </div>
           <div className="field">
             <label htmlFor="run-date">Fecha de la fuente (si la publica)</label>
@@ -218,7 +219,7 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
           </div>
         )}
 
-        <Preview area={area} all={all} preview={preview} />
+        <Preview area={area} all={all} preview={preview} season={draft.season} />
 
         {errors.length > 0 && (
           <div className={tried ? 'notice notice-warn' : 'small'} role={tried ? 'alert' : undefined} data-testid="run-errors">
@@ -276,7 +277,7 @@ function CurrentValues({ area }: { area: AdminRunArea }) {
 }
 
 /** Lo que verá el usuario con lo escrito en el formulario y si podrá puntuar. */
-function Preview({ area, all, preview }: { area: AdminRunArea; all: AdminRunArea[]; preview: ResolvedRuns }) {
+function Preview({ area, all, preview, season }: { area: AdminRunArea; all: AdminRunArea[]; preview: ResolvedRuns; season: string | null }) {
   const parent = area.parentId ? all.find((a) => a.id === area.parentId) ?? null : null;
   const membersOf = (id: string) => all.filter((a) => a.parentId === id);
   const effective = (a: AdminRunArea) => (a.id === area.id ? preview.entry : a.resolved.entry);
@@ -290,7 +291,8 @@ function Preview({ area, all, preview }: { area: AdminRunArea; all: AdminRunArea
       <h3 id="run-prev-h">Antes de guardar: lo que verá el usuario</h3>
       <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} /></div>
       {pub && <p className="small">Procedencia: <RunsProvenance r={pub} withLimits /></p>}
-      {!willApply && preview.notes.length > 0 && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> {preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
+      {preview.state === 'scheduled' && <p className="small"><strong>Se guardará para la temporada {season}:</strong> {MANUAL_NOTE_LABEL.temporada_futura}</p>}
+      {!willApply && preview.state !== 'scheduled' && preview.notes.length > 0 && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> {preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
       {willApply && preview.overridden.length > 0 && <p className="text-warn small">En {preview.overridden.map((f) => RUN_FIELD_LABEL[f]).join(', ')} prevalece el catálogo importado; solo se aplica lo que completa.</p>}
       {willApply && preview.notes.length > 0 && <p className="small">{preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
       <p className="small">

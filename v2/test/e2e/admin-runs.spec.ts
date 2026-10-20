@@ -23,6 +23,7 @@ async function adminToken(request: APIRequestContext) {
   return (await s.json()).idToken as string;
 }
 const currentSeason = () => { const d = new Date(); const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${String((y + 1) % 100).padStart(2, '0')}`; };
+const nextSeason = () => { const y = Number(currentSeason().slice(0, 4)) + 1; return `${y}-${String((y + 1) % 100).padStart(2, '0')}`; };
 const areaCard = (page: Page, name: string) => page.getByRole('list', { name: 'Estaciones y dominios' }).getByRole('listitem').filter({ has: page.getByRole('heading', { name }) });
 
 test('administración de pistas: secciones, filtros, vista previa, validación, conflicto, retirar e historial', async ({ page, request }, info) => {
@@ -72,7 +73,12 @@ test('administración de pistas: secciones, filtros, vista previa, validación, 
   await expect(preview).not.toContainText('completado con una aportación manual');
   // Documentada en la temporada actual: sustituye entera a la cifra importada sin temporada (sin total, no puntúa).
   await page.getByLabel('Temporada (si se conoce)').fill(currentSeason());
-  await expect(preview).toContainText('no indica temporada y la aportación es de la temporada actual');
+  await expect(preview).toContainText('no indica temporada y la aportación sí');
+  // Ficha ya publicada de la próxima temporada: se guardaría para entonces, sin cambiar los datos de ahora.
+  await page.getByLabel('Temporada (si se conoce)').fill(nextSeason());
+  await expect(preview).toContainText(`Se guardará para la temporada ${nextSeason()}`);
+  await expect(preview).toContainText('Número de pistas: 30');
+  await expect(page.getByTestId('run-errors')).not.toContainText('temporada');
   await page.getByLabel('Temporada (si se conoce)').fill('');
   await page.getByRole('link', { name: 'Pistas', exact: true }).first().click();
 

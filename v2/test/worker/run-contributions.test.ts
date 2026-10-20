@@ -123,9 +123,26 @@ describe('aportaciones', () => {
     const r = await api(admin.token, 'PUT', '/api/admin/runs/grandvalira', body({ total: 140, season: now, reason: 'Ficha de la temporada actual' }));
     expect(r.json.resolved).toMatchObject({ state: 'applied', notes: ['sustituye_sin_temporada'] });
     expect(await areaRuns('grandvalira')).toMatchObject({ total: 140, green: null, origin: 'manual', superseded: { total: 142 } });
-    // Una temporada posterior a la actual no se acepta.
-    const future = await api(admin.token, 'PUT', '/api/admin/runs/grandvalira', body({ expectedVersion: 1, total: 140, season: seasonLabel(currentSeasonStart(todayMadrid()) + 1) }));
-    expect(future.status).toBe(422);
+    // Una automática que declara una temporada posterior la sustituye; la aportación y el cambio quedan en el historial.
+    const next = seasonLabel(currentSeasonStart(todayMadrid()) + 1);
+    await importRuns(runCatalog.map((x) => (x.area === 'grandvalira' ? { ...x, season: next } : x)));
+    expect(await areaRuns('grandvalira')).toMatchObject({ total: 142, origin: 'catalog' });
+    expect((await history('grandvalira')).map((h) => h.action)).toEqual(['create', 'import_change']);
+    await importRuns(runCatalog);
+    expect(await areaRuns('grandvalira')).toMatchObject({ total: 140, origin: 'manual' });
+  });
+
+  it('una ficha publicada por adelantado para la próxima temporada se guarda, pero no sustituye la cifra de la temporada en curso', async () => {
+    const next = seasonLabel(currentSeasonStart(todayMadrid()) + 1);
+    const r = await api(admin.token, 'PUT', '/api/admin/runs/port-del-comte', body({ total: 31, season: next, sourceDate: todayMadrid(), reason: 'Ficha de la próxima temporada' }));
+    expect(r.status).toBe(200);
+    expect(r.json.resolved).toMatchObject({ state: 'scheduled', notes: ['temporada_futura'] });
+    expect(await areaRuns('port-del-comte')).toMatchObject({ total: 29, origin: 'catalog' });
+    const list = await api(admin.token, 'GET', '/api/admin/runs');
+    expect(list.json.areas.find((a: any) => a.id === 'port-del-comte').contribution).toMatchObject({ total: 31, season: next, status: 'active' });
+    // Dos temporadas por delante no.
+    const far = await api(admin.token, 'PUT', '/api/admin/runs/port-del-comte', body({ expectedVersion: 1, total: 31, season: seasonLabel(currentSeasonStart(todayMadrid()) + 2) }));
+    expect(far.status).toBe(422);
   });
 
   it('colores parciales sin total: se guardan y se muestran tal cual, sin total inventado ni ceros, y no puntúan', async () => {
