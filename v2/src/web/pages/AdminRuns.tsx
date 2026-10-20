@@ -1,7 +1,8 @@
 // Administración › Pistas: aportaciones manuales al total y a los colores del catálogo de pistas. Solo eso: no cambia
 // el parte diario (abiertas, apertura, nieve, km), ni rutas, precios o cierres. Antes de guardar se ve lo que verá el
 // usuario, si puntuará y si la aportación no se aplicará porque prevalece el catálogo importado. El servidor repite la
-// validación y los permisos; el historial y el motivo solo se ven aquí.
+// validación y los permisos; el historial y el motivo solo se ven aquí. Una estación puede tener varias aportaciones
+// (una activa por temporada: la vigente y una ficha ya publicada de la próxima); se edita una cada vez.
 import { useMemo, useState, type FormEvent } from 'react';
 import { errorMessage, get, post, put, ApiError } from '../api';
 import { ConfirmDialog } from '../components/Dialog';
@@ -13,18 +14,19 @@ import { useResource } from '../hooks';
 import { Link, setQuery, useLocation } from '../router';
 import { entryCatalogRuns, runCatalogView, RUN_CATALOG_ISSUE_LABEL, type RunCatalogEntry, type RunCatalogIssue } from '../../core/runs';
 import {
-  importedNeedsResolution, MANUAL_NOTE_LABEL, MANUAL_STATE_LABEL, MIN_RESOLUTION, resolveRunCatalog, RUN_FIELD_LABEL, RUN_FIELDS, validateManualDraft,
-  type ManualDraft, type ManualRunContribution, type ResolvedRuns, type RunField,
+  CONTRIBUTION_ROLE_LABEL, importedNeedsResolution, MANUAL_NOTE_LABEL, MANUAL_STATE_LABEL, MIN_RESOLUTION, pickManual, resolveArea, RUN_FIELD_LABEL, RUN_FIELDS,
+  validateManualDraft, type ContributionRole, type ManualDraft, type ManualRunContribution, type ResolvedArea, type ResolvedRuns, type RunField,
 } from '../../core/runs-manual';
 import type { RunCatalog } from '../catalog';
 
-interface Contribution extends ManualRunContribution { reason: string; createdAt: number; updatedAt: number; updatedByAlias: string | null }
+interface Contribution extends ManualRunContribution { id: number; reason: string; createdAt: number; updatedAt: number; updatedByAlias: string | null; role: ContributionRole }
 interface AdminRunArea {
   id: string; name: string; kind: string; parentId: string | null;
-  imported: RunCatalogEntry | null; contribution: Contribution | null; resolved: ResolvedRuns; history: { count: number; lastAt: number | null };
+  /** Vigente primero, después programadas, sustituidas y retiradas. */
+  imported: RunCatalogEntry | null; contributions: Contribution[]; resolved: ResolvedArea; history: { count: number; lastAt: number | null };
 }
 interface AdminRuns { today: string; areas: AdminRunArea[] }
-interface HistoryRow { id: number; action: string; at: number; actor: string | null; before: Record<string, unknown> | null; after: Record<string, unknown> | null; sourceRef: string | null; reason: string | null; version: number | null }
+interface HistoryRow { id: number; contributionId: number | null; action: string; at: number; actor: string | null; before: Record<string, unknown> | null; after: Record<string, unknown> | null; sourceRef: string | null; reason: string | null; version: number | null }
 
 type Filter = 'todas' | 'faltan' | 'revisar' | 'manuales';
 const FILTER_LABEL: Record<Filter, string> = { todas: 'Todas', faltan: 'Faltan datos', revisar: 'Datos por revisar', manuales: 'Con aportaciones manuales' };
@@ -40,7 +42,7 @@ const flagsOf = (a: AdminRunArea) => {
   return {
     faltan: !v || v.total == null || !v.breakdownComplete,
     revisar: !!v?.issues.some((i) => REVIEW_ISSUES.has(i)) || a.resolved.state === 'not_applied' || a.resolved.state === 'partial' || !!a.resolved.entry?.manual?.reviewFor,
-    manuales: a.contribution != null,
+    manuales: a.contributions.length > 0,
   };
 };
 
@@ -52,7 +54,12 @@ export function RunsAdmin() {
   if (r.error && !r.data) return <section className="panel"><ErrorState message={r.error} onRetry={r.reload} /></section>;
   const data = r.data!;
   const area = areaId ? data.areas.find((a) => a.id === areaId) : null;
-  if (areaId && area) return <RunEditor key={`${area.id}:${area.contribution?.version ?? 0}`} area={area} all={data.areas} today={data.today} onSaved={() => void r.reload()} />;
+  if (areaId && area) {
+    // ?aportacion=<id> edita esa; «nueva» abre una en blanco; sin parámetro, la primera (la vigente si la hay).
+    const want = query.get('aportacion');
+    const selected = want === 'nueva' ? null : area.contributions.find((c) => String(c.id) === want) ?? (want ? null : area.contributions[0] ?? null);
+    return <RunEditor key={`${area.id}:${selected?.id ?? 'nueva'}:${selected?.version ?? 0}`} area={area} selected={selected} all={data.areas} today={data.today} onSaved={() => void r.reload()} />;
+  }
   return <RunsList data={data} missing={areaId} />;
 }
 
@@ -75,7 +82,7 @@ function RunsList({ data, missing }: { data: AdminRuns; missing: string | null }
           <li>Si el catálogo importado tiene una cifra válida de la misma temporada que tu aportación, prevalece. Tu aportación solo completa lo que falta, si cuadra.</li>
           <li>Si el catálogo importado no tiene cifra, no es fiable, es de una temporada anterior o no indica temporada frente a tu aportación con temporada, tu aportación lo sustituye entera, sin mezclar fuentes. Esto no cambia al empezar otra temporada: si la de tu aportación ya pasó, se mantiene y queda «por revisar».</li>
           <li>Si tu aportación no indica temporada, prevalece el importado y no se mezclan sus cifras. La temporada no se deduce de la fecha del documento.</li>
-          <li>Una ficha de la próxima temporada se guarda, pero no se aplica hasta que empiece: no cambia los datos de la temporada en curso ni los partes de «Esquiar ahora».</li>
+          <li>Una ficha de la próxima temporada se guarda como aportación aparte, junto a la vigente, y no se aplica hasta que empiece: no cambia la cifra vigente, los datos de la temporada en curso ni los partes de «Esquiar ahora». Cuando empieza su temporada pasa por estas mismas reglas y la anterior queda en el historial.</li>
           <li>Las aportaciones que no se aplican se conservan con su historial. Si llega un dato automático válido de una temporada posterior, prevalece el automático.</li>
         </ul>
       </details>
@@ -109,7 +116,8 @@ function RunsList({ data, missing }: { data: AdminRuns; missing: string | null }
                   {e && <span className="tag tag-quiet">{ORIGIN_LABEL[e.origin]}</span>}
                   {f.faltan && <span className="tag tag-warn">Faltan datos</span>}
                   {f.revisar && <span className="tag tag-warn">Por revisar</span>}
-                  {a.contribution && <span className={`tag ${a.resolved.state === 'applied' ? 'tag-ok' : 'tag-quiet'}`}>{MANUAL_STATE_LABEL[a.resolved.state]}</span>}
+                  {a.contributions.length > 0 && <span className={`tag ${a.resolved.state === 'applied' ? 'tag-ok' : 'tag-quiet'}`}>{MANUAL_STATE_LABEL[a.resolved.state]}</span>}
+                  {a.resolved.state !== 'scheduled' && a.resolved.scheduled.map((x) => <span key={x.id} className="tag tag-quiet">Programada {x.season}</span>)}
                 </p>
                 <Link className="btn btn-secondary btn-small" to={`/admin?seccion=pistas&area=${encodeURIComponent(a.id)}`}>Editar pistas<span className="visually-hidden"> de {a.name}</span></Link>
               </li>
@@ -133,9 +141,9 @@ const toDraft = (f: FormState): ManualDraft => ({
   comparable: f.comparable, resolution: f.resolution.trim() || null, season: f.season.trim() || null, sourceDate: f.sourceDate || null, sourceRef: f.sourceRef.trim(), reason: f.reason.trim(),
 });
 
-function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: AdminRunArea[]; today: string; onSaved: () => void }) {
+function RunEditor({ area, selected, all, today, onSaved }: { area: AdminRunArea; selected: Contribution | null; all: AdminRunArea[]; today: string; onSaved: () => void }) {
   const toast = useToast();
-  const [form, setForm] = useState<FormState>(() => fromContribution(area.contribution));
+  const [form, setForm] = useState<FormState>(() => fromContribution(selected));
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; conflict: boolean } | null>(null);
@@ -144,8 +152,13 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
   const draft = toDraft(form);
   const errors = validateManualDraft(draft, { imported: area.imported, today });
   const needsResolution = importedNeedsResolution(area.imported);
-  const preview = resolveRunCatalog(area.imported, { ...draft, areaId: area.id, enteredOn: today, status: 'active', version: area.contribution?.version ?? 0 }, today);
-  const c = area.contribution;
+  const c = selected;
+  // Vista previa con TODAS las aportaciones del área, la editada sustituida por lo escrito: así se ve si la vigente cambia.
+  const draftM: ManualRunContribution = { ...draft, id: c?.id ?? -1, areaId: area.id, enteredOn: today, status: 'active', version: c?.version ?? 0 };
+  const others = area.contributions.filter((x) => x.id !== c?.id);
+  const preview = resolveArea(area.imported, [...others, draftM], today);
+  const draftRole = pickManual([...others, draftM], today).role(draftM);
+  const takenBy = others.find((x) => x.status === 'active' && (x.season ?? '') === (draft.season ?? ''));
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -153,8 +166,9 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
     if (errors.length) return;
     setBusy(true); setError(null);
     try {
-      await put(`/api/admin/runs/${encodeURIComponent(area.id)}`, { ...draft, expectedVersion: c?.version ?? null });
+      const saved = await put<{ id: number }>(`/api/admin/runs/${encodeURIComponent(area.id)}`, { ...draft, contributionId: c?.id ?? null, expectedVersion: c?.version ?? null });
       toast.show(`Pistas de ${area.name} guardadas.`);
+      setQuery('aportacion', String(saved.id));
       onSaved();
     } catch (err) {
       setError({ text: errorMessage(err), conflict: err instanceof ApiError && err.status === 409 });
@@ -168,9 +182,11 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
       <p className="small muted">Solo el total y los colores del catálogo, para planificar. No cambia las pistas abiertas del parte, la apertura, la nieve ni los kilómetros.</p>
 
       <CurrentValues area={area} />
+      <ContributionList area={area} selected={c} />
 
       <form className="stack" onSubmit={(e) => void save(e)} noValidate aria-describedby="run-ed-rules">
-        <h3>{c ? 'Editar la aportación manual' : 'Nueva aportación manual'}</h3>
+        <h3>{c ? `Editar la aportación${c.season ? ` de la temporada ${c.season}` : ' sin temporada'}` : 'Nueva aportación manual'}</h3>
+        {!c && area.contributions.some((x) => x.status === 'active') && <p className="small">Se guarda aparte: las demás aportaciones no cambian. Úsala, por ejemplo, para una ficha ya publicada de la próxima temporada.</p>}
         <p id="run-ed-rules" className="small">Vacío = sin dato. 0 = cero confirmado. No rellenes los colores que no conoces y no deduzcas pistas de los kilómetros ni de porcentajes.</p>
         <div className="form-grid run-fields">
           {RUN_FIELDS.map((k) => (
@@ -219,7 +235,8 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
           </div>
         )}
 
-        <Preview area={area} all={all} preview={preview} season={draft.season} />
+        {takenBy && <p className="notice notice-warn small" role="alert">Ya hay una aportación activa {takenBy.season ? `de la temporada ${takenBy.season}` : 'sin temporada'}. <Link to={`/admin?seccion=pistas&area=${encodeURIComponent(area.id)}&aportacion=${takenBy.id}`}>Edítala</Link> en lugar de crear otra.</p>}
+        <Preview area={area} all={all} preview={preview} draftRole={draftRole} season={draft.season} />
 
         {errors.length > 0 && (
           <div className={tried ? 'notice notice-warn' : 'small'} role={tried ? 'alert' : undefined} data-testid="run-errors">
@@ -232,35 +249,59 @@ function RunEditor({ area, all, today, onSaved }: { area: AdminRunArea; all: Adm
         )}
         <div className="row-wrap">
           <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy || undefined}>{busy ? 'Guardando…' : 'Guardar aportación'}</button>
-          {c?.status === 'active' && <button type="button" className="btn btn-secondary" onClick={() => setAction('withdraw')}>Retirar aportación</button>}
-          {c?.status === 'withdrawn' && <button type="button" className="btn btn-secondary" onClick={() => setAction('restore')}>Restaurar aportación</button>}
+          {c?.status === 'active' && <button type="button" className="btn btn-secondary" onClick={() => setAction('withdraw')}>Retirar esta aportación</button>}
+          {c?.status === 'withdrawn' && <button type="button" className="btn btn-secondary" onClick={() => setAction('restore')}>Restaurar esta aportación</button>}
         </div>
       </form>
 
       <History areaId={area.id} count={area.history.count} />
-      {c && <StatusAction area={area} action={action} onClose={() => setAction(null)} onDone={onSaved} />}
+      {c && <StatusAction area={area} contribution={c} action={action} onClose={() => setAction(null)} onDone={onSaved} />}
     </section>
   );
 }
 
 const issueText = (e: RunCatalogEntry | null) => runCatalogView(e)?.issues.filter((i) => REVIEW_ISSUES.has(i)).map((i) => RUN_CATALOG_ISSUE_LABEL[i]).join('; ') ?? '';
 
+const seasonText = (c: Contribution) => (c.season ? `Temporada ${c.season}` : 'Sin temporada');
+
+/** Aportaciones del área (vigente, programadas, sustituidas, retiradas): cuál se edita y cómo crear otra. */
+function ContributionList({ area, selected }: { area: AdminRunArea; selected: Contribution | null }) {
+  if (!area.contributions.length) return null;
+  const base = `/admin?seccion=pistas&area=${encodeURIComponent(area.id)}`;
+  return (
+    <div className="stack-s">
+      <h3>Aportaciones manuales</h3>
+      <ul className="list small" aria-label="Aportaciones manuales">
+        {area.contributions.map((x) => (
+          <li key={x.id} className="list-row list-row-wrap" aria-current={x.id === selected?.id ? 'true' : undefined}>
+            <span className="list-main"><strong>{seasonText(x)}</strong> · {x.total != null ? plural(x.total, 'pista', 'pistas') : 'sin total'}</span>
+            <span className={`tag ${x.role === 'current' ? 'tag-ok' : 'tag-quiet'}`}>{CONTRIBUTION_ROLE_LABEL[x.role]}{x.role === 'scheduled' && x.season ? `: se aplicará al empezar la ${x.season}` : ''}</span>
+            {x.id === selected?.id ? <span className="muted">Editando</span> : <Link className="btn btn-link btn-small" to={`${base}&aportacion=${x.id}`}>Editar<span className="visually-hidden"> la aportación {seasonText(x).toLowerCase()}</span></Link>}
+          </li>
+        ))}
+      </ul>
+      {selected && <Link className="btn btn-secondary btn-small" to={`${base}&aportacion=nueva`}>Nueva aportación (otra temporada)</Link>}
+    </div>
+  );
+}
+
 /** Valores importados, aportados y vigentes, campo a campo, con su procedencia. */
 function CurrentValues({ area }: { area: AdminRunArea }) {
-  const imp = area.imported, c = area.contribution, eff = area.resolved;
+  const imp = area.imported, eff = area.resolved;
+  const c = area.contributions.find((x) => x.role === 'current') ?? null;
   return (
     <div className="stack-s">
       <h3>Valores actuales</h3>
       <div className="table-scroll" tabIndex={0} role="region" aria-label="Valores actuales de pistas">
         <table className="data-table compact run-values">
-          <caption className="visually-hidden">Total y colores: catálogo importado, aportación manual y valor vigente</caption>
-          <thead><tr><th scope="col">Campo</th><th scope="col">Catálogo importado</th><th scope="col">Aportación manual</th><th scope="col">Vigente</th></tr></thead>
+          <caption className="visually-hidden">Total y colores: catálogo importado, aportación manual de la temporada en curso y valor vigente</caption>
+          <thead><tr><th scope="col">Campo</th><th scope="col">Catálogo importado</th><th scope="col">Aportación manual vigente</th><th scope="col">Vigente</th></tr></thead>
           <tbody>
             {RUN_FIELDS.map((k) => (
               <tr key={k}>
                 <th scope="row">{k === 'total' ? 'Total' : RUN_FIELD_LABEL[k]}</th>
                 <td>{imp?.[k] ?? 'sin dato'}</td>
-                <td>{c ? `${c[k] ?? 'sin dato'}${c.status === 'withdrawn' ? ' (retirada)' : ''}` : '—'}</td>
+                <td>{c ? `${c[k] ?? 'sin dato'}` : '—'}</td>
                 <td>{eff.entry?.[k] ?? 'sin dato'}{eff.fieldOrigin[k] && <span className="muted small"> · {eff.fieldOrigin[k] === 'manual' ? 'manual' : 'importado'}</span>}{eff.overridden.includes(k) && <span className="small text-warn"> · prevalece el importado</span>}</td>
               </tr>
             ))}
@@ -269,15 +310,16 @@ function CurrentValues({ area }: { area: AdminRunArea }) {
       </div>
       <ul className="small">
         <li>Catálogo importado: {imp ? <><RunsProvenance r={{ ...imp, origin: 'catalog', manual: null }} withLimits />{!imp.comparable && <span className="text-warn"> · no comparable</span>}</> : 'sin fila importada'}</li>
-        {c && <li>Aportación manual ({c.status === 'active' ? 'activa' : 'retirada'}, versión {c.version}): {c.sourceRef}{c.season && ` · temporada ${c.season}`}{c.sourceDate && ` · fuente del ${numDate(c.sourceDate)}`} · introducida el {numDate(c.enteredOn)}{c.updatedByAlias && ` por ${c.updatedByAlias}`} · motivo: {c.reason}{!c.comparable && ' · marcada como no comparable'}</li>}
+        {c && <li>Aportación manual vigente (versión {c.version}): {c.sourceRef}{c.season && ` · temporada ${c.season}`}{c.sourceDate && ` · fuente del ${numDate(c.sourceDate)}`} · introducida el {numDate(c.enteredOn)}{c.updatedByAlias && ` por ${c.updatedByAlias}`} · motivo: {c.reason}{!c.comparable && ' · marcada como no comparable'}</li>}
         <li>Estado: <strong>{MANUAL_STATE_LABEL[eff.state]}</strong>{eff.notes.map((n) => <span key={n}> {MANUAL_NOTE_LABEL[n]}</span>)}</li>
+        {eff.state !== 'scheduled' && eff.scheduled.map((x) => <li key={x.id}>Programada para la temporada {x.season}{x.total != null && ` (${plural(x.total, 'pista', 'pistas')})`}: no cambia la cifra vigente hasta que empiece su temporada.</li>)}
       </ul>
     </div>
   );
 }
 
 /** Lo que verá el usuario con lo escrito en el formulario y si podrá puntuar. */
-function Preview({ area, all, preview, season }: { area: AdminRunArea; all: AdminRunArea[]; preview: ResolvedRuns; season: string | null }) {
+function Preview({ area, all, preview, draftRole, season }: { area: AdminRunArea; all: AdminRunArea[]; preview: ResolvedRuns; draftRole: ContributionRole; season: string | null }) {
   const parent = area.parentId ? all.find((a) => a.id === area.parentId) ?? null : null;
   const membersOf = (id: string) => all.filter((a) => a.parentId === id);
   const effective = (a: AdminRunArea) => (a.id === area.id ? preview.entry : a.resolved.entry);
@@ -285,14 +327,17 @@ function Preview({ area, all, preview, season }: { area: AdminRunArea; all: Admi
   const parentCat = parent ? entryCatalogRuns(effective(parent), membersOf(parent.id).map(effective)) : null;
   const before = parent ? entryCatalogRuns(parent.resolved.entry, membersOf(parent.id).map((a) => a.resolved.entry)) : null;
   const pub = toPublic(preview);
-  const willApply = preview.state === 'applied' || preview.state === 'partial';
+  // La editada no es la que entra en la regla (programada, o hay otra de temporada posterior): lo vigente no cambia.
+  const elsewhere = draftRole === 'scheduled' || draftRole === 'superseded';
+  const willApply = !elsewhere && (preview.state === 'applied' || preview.state === 'partial');
   return (
     <section className="notice stack-s" aria-live="polite" aria-labelledby="run-prev-h">
       <h3 id="run-prev-h">Antes de guardar: lo que verá el usuario</h3>
       <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} /></div>
       {pub && <p className="small">Procedencia: <RunsProvenance r={pub} withLimits /></p>}
-      {preview.state === 'scheduled' && <p className="small"><strong>Se guardará para la temporada {season}:</strong> {MANUAL_NOTE_LABEL.temporada_futura}</p>}
-      {!willApply && preview.state !== 'scheduled' && preview.notes.length > 0 && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> {preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
+      {draftRole === 'scheduled' && <p className="small"><strong>Se guardará para la temporada {season}:</strong> {MANUAL_NOTE_LABEL.temporada_futura}{area.contributions.some((x) => x.role === 'current') && ' La aportación vigente se mantiene.'}</p>}
+      {draftRole === 'superseded' && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> hay otra aportación de una temporada posterior que ya ha empezado.</p>}
+      {!elsewhere && !willApply && preview.notes.length > 0 && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> {preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
       {willApply && preview.overridden.length > 0 && <p className="text-warn small">En {preview.overridden.map((f) => RUN_FIELD_LABEL[f]).join(', ')} prevalece el catálogo importado; solo se aplica lo que completa.</p>}
       {willApply && preview.notes.length > 0 && <p className="small">{preview.notes.map((n) => MANUAL_NOTE_LABEL[n]).join(' ')}</p>}
       <p className="small">
@@ -329,7 +374,7 @@ function HistoryList({ areaId }: { areaId: string }) {
     <ol className="list small" aria-label="Historial de cambios">
       {r.data!.history.map((h) => (
         <li key={h.id} className="list-row list-row-wrap">
-          <span className="list-main"><strong>{ACTION_LABEL[h.action] ?? h.action}</strong> · {instant(h.at)} · {h.actor ?? 'publicación (importación)'}</span>
+          <span className="list-main"><strong>{ACTION_LABEL[h.action] ?? h.action}</strong>{h.contributionId != null && <> ({(h.after ?? h.before)?.season ? `temporada ${String((h.after ?? h.before)!.season)}` : 'sin temporada'})</>} · {instant(h.at)} · {h.actor ?? 'publicación (importación)'}</span>
           <span>Antes: {valuesText(h.before)}{h.before?.status === 'withdrawn' ? ' (retirada)' : ''}</span>
           <span>Después: {valuesText(h.after)}{h.after?.status === 'withdrawn' ? ' (retirada)' : ''}</span>
           {h.sourceRef && <span className="muted">Fuente: {h.sourceRef}</span>}
@@ -340,27 +385,27 @@ function HistoryList({ areaId }: { areaId: string }) {
   );
 }
 
-function StatusAction({ area, action, onClose, onDone }: { area: AdminRunArea; action: 'withdraw' | 'restore' | null; onClose: () => void; onDone: () => void }) {
+function StatusAction({ area, contribution: c, action, onClose, onDone }: { area: AdminRunArea; contribution: Contribution; action: 'withdraw' | 'restore' | null; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirm = async () => {
-    if (!action || !area.contribution) return;
+    if (!action) return;
     if (reason.trim().length < 5) { setError('Explica brevemente el motivo.'); return; }
     setBusy(true); setError(null);
     try {
-      await post(`/api/admin/runs/${encodeURIComponent(area.id)}/${action}`, { expectedVersion: area.contribution.version, reason: reason.trim() });
+      await post(`/api/admin/runs/${encodeURIComponent(area.id)}/${action}`, { contributionId: c.id, expectedVersion: c.version, reason: reason.trim() });
       toast.show(action === 'withdraw' ? 'Aportación retirada: se conserva en el historial.' : 'Aportación restaurada.');
       setReason(''); onClose(); onDone();
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
   return (
     <ConfirmDialog open={action != null} busy={busy} error={error} danger={action === 'withdraw'}
-      title={action === 'withdraw' ? `¿Retirar la aportación de ${area.name}?` : `¿Restaurar la aportación de ${area.name}?`}
+      title={`¿${action === 'withdraw' ? 'Retirar' : 'Restaurar'} la aportación de ${area.name} (${seasonText(c).toLowerCase()})?`}
       confirmLabel={action === 'withdraw' ? 'Retirar' : 'Restaurar'}
       body={<>
-        <p>{action === 'withdraw' ? 'Dejará de contar. No se borra: queda en el historial y se puede restaurar.' : 'Volverá a contar con la misma prioridad: si el catálogo importado tiene un dato válido, prevalece el importado.'}</p>
+        <p>{action === 'withdraw' ? 'Dejará de contar. No se borra: queda en el historial y se puede restaurar. Las demás aportaciones no cambian.' : 'Volverá a contar con la misma prioridad: si el catálogo importado tiene un dato válido, prevalece el importado.'}</p>
         <div className="field">
           <label htmlFor="run-action-reason">Motivo</label>
           <input id="run-action-reason" type="text" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
