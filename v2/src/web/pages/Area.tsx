@@ -3,8 +3,8 @@
 // antiguos quedan plegados, con sus fuentes, fechas y avisos a un clic.
 import { useState } from 'react';
 import { get } from '../api';
-import { Freshness, ReportDate, StatusBadge } from '../components/Badges';
-import { resortStatus } from '../../core/compare';
+import { Freshness, ReportAge, ReportDate, StatusBadge } from '../components/Badges';
+import { resortStatus, SNOW_CHART_STATE_TEXT, snowChartState } from '../../core/compare';
 import { Comments } from '../components/Comments';
 import { ErrorState, Loading } from '../components/States';
 import { AREA_KIND_LABEL, AVAILABILITY_LABEL, euros, healthText, instant, isLegitimateAbsence, kmText, numDate, OP_STATUS_LABEL, PRICE_KIND_LABEL, PROVIDER_LABEL, RUN_STATUS_LABEL, SNOW_QUALITY_LABEL, SOURCE_KIND_LABEL, SOURCE_STATUS_LABEL, UNIT_LABEL } from '../format';
@@ -17,7 +17,7 @@ import { legacyAnomalyText, routeProvenance } from '../../core/legacy';
 import { SnowKm } from './Compare';
 import { entryCatalogRuns, runCatalogView, runsNow, RUN_CATALOG_ISSUE_LABEL } from '../../core/runs';
 import { runEntry, type RunCatalog } from '../catalog';
-import { CatalogRunsText, NowRunsText, RunColours, RUNS_CRITERION, RunsProvenance } from '../components/Runs';
+import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Forfait = 'yes' | 'no' | 'unknown';
 const FORFAIT_LABEL: Record<Forfait, string> = { no: 'Solo alojamiento', yes: 'Alojamiento + forfait', unknown: 'Forfait sin confirmar' };
@@ -42,6 +42,9 @@ export function AreaPage({ areaId }: { areaId: string }) {
   const items = offers.items.filter((o) => o.forfaitIncluded === mode);
   const offerSources = sources.filter((s) => s.kind === 'offers' && s.url);
   const legacyCount = legacy.snow.length + legacy.hotel.length;
+  const chartState = snowChartState(snow.slice(-90).map((x) => x.openKm));
+  const firstRoute = d.data!.routes?.[0] ?? null;
+  const firstProv = firstRoute ? routeProvenance(firstRoute) : null;
 
   return (
     <div className="page page-wide">
@@ -63,19 +66,31 @@ export function AreaPage({ areaId }: { areaId: string }) {
       <section className="panel stack" aria-labelledby="a-snow">
         <h2 id="a-snow">Estado actual</h2>
         {latest ? (
-          <>
-            <p className="status-line">
-              <StatusBadge info={resortStatus(latest, Date.now())} />
-              <SnowStatus snow={latest} />
-              <Freshness state={latest.freshness} at={latest.observedAt} /><ReportDate date={latest.sourceDate} />
-            </p>
-            {latest.quality !== 'ok' && <p className="notice notice-warn small">Dato con avisos: {latest.qualityNote ?? SNOW_QUALITY_LABEL[latest.quality] ?? latest.quality}. No puntúa en Comparar.</p>}
-            {latest.openLifts != null && <p className="small">Remontes {latest.openLifts}{latest.totalLifts != null && ` de ${latest.totalLifts}`}</p>}
-          </>
+          <p className="status-line">
+            <StatusBadge info={resortStatus(latest, Date.now())} />
+            <SnowStatus snow={latest} />
+          </p>
         ) : <p><StatusBadge info={resortStatus(null, Date.now())} /> Sin dato de nieve en los últimos 90 días.</p>}
-        <p className="muted small">Km totales declarados: {kmText(area.official_total_km)}{area.total_km_source && ` (${area.total_km_source})`}. Las condiciones actuales no predicen las de un viaje futuro.</p>
-        {area.notes && <p className="small muted">Nota del catálogo: {area.notes}</p>}
-        {snow.length > 1 && <SnowChart snow={snow} />}
+        <dl className="area-facts">
+          {latest && <div><dt>Parte</dt><dd><ReportAge date={latest.sourceDate} at={latest.observedAt} freshness={latest.freshness} /></dd></div>}
+          {latest?.openLifts != null && <div><dt>Remontes</dt><dd>{latest.openLifts}{latest.totalLifts != null && ` de ${latest.totalLifts}`} abiertos</dd></div>}
+          <div><dt>Distancia</dt><dd>{firstRoute?.roadKm != null ? <>desde {firstRoute.originName}: {kmText(firstRoute.roadKm)}{firstRoute.durationMin != null && ` · ${Math.floor(firstRoute.durationMin / 60)} h ${firstRoute.durationMin % 60} min aprox.`}
+            {firstProv?.level === 'legacy' && <span className="small text-warn"> · {firstProv.label}</span>}</> : 'sin ruta registrada'}</dd></div>
+        </dl>
+        {latest && latest.quality !== 'ok' && <p className="notice notice-warn small">Dato con avisos: {latest.qualityNote ?? SNOW_QUALITY_LABEL[latest.quality] ?? latest.quality}. No puntúa en Comparar.</p>}
+        {snow.length > 1 && (chartState === 'chart' ? <SnowChart snow={snow} /> : (
+          <p className="small muted" data-testid="snow-chart-empty">{SNOW_CHART_STATE_TEXT[chartState]} <button type="button" className="btn-link" onClick={openSnowHistory}>Ver el historial de nieve</button></p>
+        ))}
+        <details className="area-more">
+          <summary>Ver detalles<span className="visually-hidden"> del estado actual de {area.name}</span></summary>
+          <ul className="small muted run-notes">
+            {latest && <li>Captura: <Freshness state={latest.freshness} at={latest.observedAt} /><ReportDate date={latest.sourceDate} /></li>}
+            <li>Km totales declarados: {kmText(area.official_total_km)}{area.total_km_source && ` (${area.total_km_source})`}.</li>
+            {area.notes && <li>Nota del catálogo: {area.notes}</li>}
+            {firstRoute && firstProv && <li>Ruta desde {firstRoute.originName}: {firstProv.label}. Las demás salidas, en «Cómo llegar».</li>}
+            <li>Las condiciones actuales no predicen las de un viaje futuro.</li>
+          </ul>
+        </details>
       </section>
 
       <RunsSection areaId={area.id} name={area.name} runs={d.data!.runs ?? null} memberRuns={d.data!.memberRuns ?? []} memberNames={new Map(children.map((c) => [c.child_id, c.child_name]))} latest={latest} />
@@ -84,7 +99,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
         <h2 id="a-offers">Ofertas y qué hacer</h2>
         {offers.items.length === 0 ? (
           <div className="stack-s" data-testid="no-offers">
-            <p><strong>No hay ofertas automáticas recientes para esta estación.</strong> {offerSources.length ? 'El recolector no ha traído ninguna en los últimos 14 días.' : 'No tiene ningún proveedor con lectura automática.'}</p>
+            <p><strong>No hay ofertas automáticas recientes para esta estación.</strong> {offerSources.length ? 'No ha llegado ninguna en los últimos 14 días.' : 'No tiene ningún proveedor con lectura automática.'}</p>
             <p className="small muted">Puedes buscar directamente en el proveedor y apuntar el precio que te den como cotización en un viaje: así entra en el presupuesto con sus fechas y condiciones.</p>
             <ProviderLinks sources={offerSources} officialUrl={area.official_url} />
           </div>
@@ -154,7 +169,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
       )}
 
       {snow.length > 0 && (
-        <details className="fold">
+        <details className="fold" id="a-snow-history">
           <summary>Historial de nieve de 90 días <span className="muted">· {snow.length} observaciones</span></summary>
           <div className="table-scroll">
             <table className="data-table">
@@ -204,13 +219,21 @@ export function AreaPage({ areaId }: { areaId: string }) {
   );
 }
 
-/** Estado de nieve en una línea: un cierre confirmado se dice como tal aunque la fuente no publique km. */
+/** Abre el historial de nieve plegado y lleva el foco a él (alternativa al gráfico vacío). */
+function openSnowHistory() {
+  const el = document.getElementById('a-snow-history') as HTMLDetailsElement | null;
+  if (!el) return;
+  el.open = true;
+  el.scrollIntoView({ block: 'start' });
+  el.querySelector('summary')?.focus();
+}
+
+/** Km del parte en una línea junto a la etiqueta de estado (que ya dice «Cerrada» o «Abierta»: no se repite). */
 function SnowStatus({ snow }: { snow: Snow }) {
   const closed = snow.opStatus === 'closed_confirmed' || snow.opStatus === 'out_of_season';
   return (
     <span className={`status-main ${closed ? 'is-closed' : ''}`}>
-      <SnowKm open={snow.openKm} total={snow.totalKm} opStatus={snow.opStatus} />
-      {!closed && <span className="small muted"> · {OP_STATUS_LABEL[snow.opStatus] ?? snow.opStatus}</span>}
+      <SnowKm open={snow.openKm} total={snow.totalKm} opStatus={snow.opStatus} omitState />
     </span>
   );
 }
@@ -330,33 +353,28 @@ function RunsSection({ areaId, name, runs, memberRuns, memberNames, latest }: {
   return (
     <section className="panel stack" aria-labelledby="a-runs">
       <h2 id="a-runs">Pistas y variedad</h2>
-      <div className="stack-s">
-        <h3>Catálogo de la estación</h3>
-        <div>Número de pistas: <CatalogRunsText cat={cat} name={name} /></div>
-        {cat.comparableTotal != null && own && own.total != null && !own.breakdownComplete && someColour(own) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
-        {own?.issues.includes('desglose_no_cuadra') && <p className="small text-warn">{RUN_CATALOG_ISSUE_LABEL.desglose_no_cuadra}: se muestran las dos cifras tal como se publican y no puntúa.</p>}
-        {cat.pendingDiscrepancy && memberRuns.length > 0 && <p className="small text-warn">La cifra propia no puntúa y no se sustituye por la suma de sus estaciones hasta resolver la discrepancia con evidencia.</p>}
-        {runs ? <p><RunsProvenance r={runs} withLimits /></p> : cat.via !== 'members' && <p className="small muted">Sin cifra de pistas para esta estación.</p>}
-        {runs?.superseded && <p className="small muted">Sustituye a la cifra importada ({runs.superseded.total != null ? `${runs.superseded.total} pistas publicadas` : 'sin total'}{runs.superseded.comparable ? '' : ', no comparable'}{runs.superseded.limitations ? `: ${runs.superseded.limitations}` : ''}).</p>}
-        {runs?.mapUrl && <p className="small"><a href={runs.mapUrl} target="_blank" rel="noopener noreferrer">Plano oficial de pistas<span className="visually-hidden"> (se abre en otra pestaña)</span></a></p>}
-        {memberRuns.length > 0 && (
-          <ul className="list small" aria-label={`Pistas de las estaciones de ${name}`}>
-            {memberRuns.map((m) => {
-              const v = runCatalogView(runEntry(m.areaId, m));
-              return <li key={m.areaId}><strong>{memberNames.get(m.areaId) ?? m.areaId}</strong>: {v?.total ?? 'sin dato'}{v?.total != null && ' pistas'} · <RunsProvenance r={m} /></li>;
-            })}
-            <li className="muted">Cada pista cuenta en su estación; el dominio no se suma con ellas.</li>
-          </ul>
-        )}
-        <p className="small muted">Para planificar: es lo que tiene la estación, no garantiza qué estará abierto en las fechas del viaje. {RUNS_CRITERION}</p>
-      </div>
-      <div className="stack-s">
-        <h3>Parte actual</h3>
-        <div>Pistas abiertas: <NowRunsText now={now} name={name} catalogTotal={cat.comparableTotal ?? own?.total ?? null} reportDate={latest?.sourceDate} /></div>
-      </div>
+      <dl className="area-facts">
+        <div><dt>Para planificar</dt><dd>Número de pistas: <CatalogRunsText cat={cat} name={name} runs={runs} /></dd></div>
+        <div><dt>Esquiar ahora</dt><dd>Pistas abiertas: <NowRunsText now={now} name={name} catalogTotal={cat.comparableTotal ?? own?.total ?? null} reportDate={latest?.sourceDate} /></dd></div>
+      </dl>
+      <details className="area-more">
+        <summary>Ver detalles<span className="visually-hidden"> de las pistas de {name}</span></summary>
+        <div className="stack-s">
+          <RunsIssueDetail cat={cat} runs={runs} members={memberRuns.length > 0} />
+          {runs ? <p className="small"><RunsProvenance r={runs} /></p> : cat.via !== 'members' && <p className="small muted">Sin cifra de pistas para esta estación.</p>}
+          {runs?.mapUrl && <p className="small"><a href={runs.mapUrl} target="_blank" rel="noopener noreferrer">Plano oficial de pistas<span className="visually-hidden"> (se abre en otra pestaña)</span></a></p>}
+          {memberRuns.length > 0 && (
+            <ul className="list small" aria-label={`Pistas de las estaciones de ${name}`}>
+              {memberRuns.map((m) => {
+                const v = runCatalogView(runEntry(m.areaId, m));
+                return <li key={m.areaId}><strong>{memberNames.get(m.areaId) ?? m.areaId}</strong>: {v?.total ?? 'sin dato'}{v?.total != null && ' pistas'} · <RunsProvenance r={m} /></li>;
+              })}
+              <li className="muted">Cada pista cuenta en su estación; el dominio no se suma con ellas.</li>
+            </ul>
+          )}
+          <p className="small muted">El catálogo es lo que tiene la estación: no garantiza qué estará abierto en las fechas del viaje. {RUNS_CRITERION}</p>
+        </div>
+      </details>
     </section>
   );
 }
-
-/** Hay algún color publicado sin que el desglose esté completo (se muestran los que hay, sin completar el resto). */
-const someColour = (v: NonNullable<ReturnType<typeof runCatalogView>>) => Object.values(v.byColour).some((n) => n != null);

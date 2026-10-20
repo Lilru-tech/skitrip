@@ -333,7 +333,7 @@ function Preview({ area, all, preview, draftRole, season }: { area: AdminRunArea
   return (
     <section className="notice stack-s" aria-live="polite" aria-labelledby="run-prev-h">
       <h3 id="run-prev-h">Antes de guardar: lo que verá el usuario</h3>
-      <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} /></div>
+      <div>Número de pistas: <CatalogRunsText cat={cat} name={area.name} runs={pub} /></div>
       {pub && <p className="small">Procedencia: <RunsProvenance r={pub} withLimits /></p>}
       {draftRole === 'scheduled' && <p className="small"><strong>Se guardará para la temporada {season}:</strong> {MANUAL_NOTE_LABEL.temporada_futura}{area.contributions.some((x) => x.role === 'current') && ' La aportación vigente se mantiene.'}</p>}
       {draftRole === 'superseded' && <p className="text-warn small"><strong>Esta aportación no se aplicará:</strong> hay otra aportación de una temporada posterior que ya ha empezado.</p>}

@@ -82,6 +82,18 @@ test('administración de pistas: secciones, filtros, vista previa, validación, 
   await page.getByLabel('Temporada (si se conoce)').fill('');
   await page.getByRole('link', { name: 'Pistas', exact: true }).first().click();
 
+  // Colores parciales sin cifra importada (Delta): la vista previa muestra lo conocido y deja el resto sin dato.
+  await page.getByLabel('Buscar estación o dominio').fill('delta');
+  await areaCard(page, 'Delta Sin Ruta (sintético)').getByRole('link', { name: /Editar pistas/ }).click();
+  await page.getByLabel('Pistas verdes').fill('10');
+  await expect(preview).toContainText('Número de pistas: Total sin dato · desglose parcial · no puntúa');
+  await expect(preview.getByRole('list', { name: /desglose parcial/ })).toHaveText(/10 verdes\s*azules: sin dato\s*rojas: sin dato\s*negras: sin dato/);
+  await page.getByLabel('Total de pistas').fill('40');
+  await expect(preview).toContainText('Número de pistas: 40 · desglose parcial');
+  await expect(preview.getByRole('list', { name: /desglose parcial/ })).toHaveText(/10 verdes\s*azules: sin dato/);
+  await expect(preview).not.toContainText('sin desglose por colores');
+  await page.getByRole('link', { name: 'Pistas', exact: true }).first().click();
+
   // Discrepancia (Beta): una casilla no basta; hace falta explicación con evidencia.
   await page.getByLabel('Buscar estación o dominio').fill('beta');
   await areaCard(page, 'Beta (sintético)').getByRole('link', { name: /Editar pistas/ }).click();

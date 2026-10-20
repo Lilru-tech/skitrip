@@ -21,26 +21,70 @@ export function RunColours({ v, of = null, label }: { v: ByColour; of?: ByColour
   );
 }
 
-/** Catálogo (Planificar): total comparable con su desglose; si no hay, lo publicado con por qué no puntúa. */
-export function CatalogRunsText({ cat, name }: { cat: EntryCatalogRuns; name: string }) {
+const someColour = (v: ByColour | null | undefined) => !!v && RUN_COLOURS.some((c) => v[c] != null);
+
+/**
+ * Catálogo (Planificar): total comparable con su desglose; si no hay, lo publicado con por qué no puntúa. Un desglose
+ * parcial muestra los colores conocidos y dice «sin dato» en los demás: nunca se inventa el total ni se rellena con ceros.
+ */
+export function CatalogRunsText({ cat, name, runs }: { cat: EntryCatalogRuns; name: string; runs?: RunCatalog | null }) {
+  return <><CatalogRunsFigure cat={cat} name={name} />{runs?.manual?.reviewFor && <ReviewTag season={runs.manual.season} />}</>;
+}
+
+/** Aportación cuya temporada ya pasó: se mantiene con su temporada, sin presentarla como dato de la temporada en curso. */
+function ReviewTag({ season }: { season: string | null }) {
+  return <span className="small text-warn"> · temporada {season}, por revisar</span>;
+}
+
+function CatalogRunsFigure({ cat, name }: { cat: EntryCatalogRuns; name: string }) {
+  const own = cat.own;
+  const partialLabel = `Colores conocidos de ${name} (desglose parcial)`;
   if (cat.comparableTotal != null) {
+    const partial = cat.via === 'own' && own && !own.breakdownComplete && someColour(own.byColour);
     return (
       <>
         <strong>{cat.comparableTotal}</strong>{cat.via === 'members' && <span className="muted small"> (suma de sus estaciones)</span>}
-        {cat.byColour ? <RunColours v={cat.byColour} label={`Pistas de ${name} por color`} /> : <span className="muted small"> · sin desglose por colores</span>}
+        {cat.byColour ? <RunColours v={cat.byColour} label={`Pistas de ${name} por color`} />
+          : partial ? <><span className="muted small"> · desglose parcial</span><RunColours v={own!.byColour} label={partialLabel} /></>
+          : <span className="muted small"> · sin desglose por colores</span>}
       </>
     );
   }
-  const own = cat.own;
-  if (own?.total == null) return <>Sin dato</>;
-  const why = own.issues.filter((i) => i !== 'sin_total').map((i) => RUN_CATALOG_ISSUE_LABEL[i])[0];
-  // Se conservan las cifras publicadas (total y colores) aunque no puntúen.
+  if (own?.total == null) {
+    if (!someColour(own?.byColour)) return <>Sin dato</>;
+    // Solo colores: se ven, pero sin total no hay cifra que puntúe.
+    return (
+      <>
+        Total sin dato <span className="small muted">· desglose parcial · no puntúa</span>
+        <RunColours v={own!.byColour} label={partialLabel} />
+      </>
+    );
+  }
+  // Resumen: la cifra publicada con una advertencia breve; el porqué va en los detalles (RunsIssueDetail).
   return (
     <>
-      {own.total} publicadas <span className="small text-warn">· no puntúa: {why}</span>
-      {RUN_COLOURS.some((c) => own.byColour[c] != null) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
+      {plural(own.total, 'pista publicada', 'pistas publicadas')} <span className="small text-warn">· dato por revisar · no puntúa</span>
+      {someColour(own.byColour) && <RunColours v={own.byColour} label={`Colores publicados de ${name}`} />}
     </>
   );
+}
+
+/**
+ * Detalle de por qué una cifra no puntúa o de dónde sale: discrepancia, desglose que no cuadra, cifra importada
+ * sustituida por una aportación manual y su explicación. Va en «Ver detalles»; el resumen solo dice «dato por revisar».
+ */
+export function RunsIssueDetail({ cat, runs, members = false }: { cat: EntryCatalogRuns; runs: RunCatalog | null | undefined; members?: boolean }) {
+  const why = cat.comparableTotal == null && cat.own ? cat.own.issues.filter((i) => i !== 'sin_total').map((i) => RUN_CATALOG_ISSUE_LABEL[i]) : [];
+  const items = [
+    ...why.map((w) => `No puntúa: ${w}.`),
+    cat.pendingDiscrepancy && members ? 'La cifra propia no se sustituye por la suma de sus estaciones hasta resolver la discrepancia con evidencia.' : null,
+    runs?.limitations ?? null,
+    runs?.manual?.reviewFor ? `Aportación manual de la temporada ${runs.manual.season}: se mantiene con su temporada y falta confirmarla para la ${runs.manual.reviewFor}.` : null,
+    runs?.manual?.resolution ? `Resolución con evidencia: ${runs.manual.resolution}` : null,
+    runs?.superseded ? `Sustituye a la cifra importada (${runs.superseded.total != null ? plural(runs.superseded.total, 'pista publicada', 'pistas publicadas') : 'sin total'}${runs.superseded.comparable ? '' : ', no comparable'}${runs.superseded.limitations ? `: ${runs.superseded.limitations}` : ''}).` : null,
+  ].filter((x): x is string => !!x);
+  if (!items.length) return null;
+  return <ul className="small muted run-notes">{items.map((t) => <li key={t}>{t}</li>)}</ul>;
 }
 
 /** Parte actual (Esquiar ahora): abiertas frente al total del mismo parte; sin parte vigente nunca se usa el catálogo. */

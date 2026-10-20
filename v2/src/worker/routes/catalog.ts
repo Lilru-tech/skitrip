@@ -79,7 +79,7 @@ catalogRoutes.get('/catalog', async (c) => {
           return { ...snowOut(pick, nowMs), rank: { ...rank, label: rank.excluded ? SNOW_EXCLUSION_LABEL[rank.excluded] : null }, sources: candBy.get(a.id)!.length };
         })(),
         runs: publicRuns(runsBy.get(a.id), manualBy.get(a.id) ?? []),
-        legacySnow: l ? { date: l.obs_date, openKm: l.open_km, totalKm: l.total_km, anomalies: l.anomalies ? JSON.parse(l.anomalies) : [], note: 'Serie legacy: no verificada; un 0 puede ser un «-» convertido.' } : null,
+        legacySnow: l ? { date: l.obs_date, openKm: l.open_km, totalKm: l.total_km, anomalies: l.anomalies ? JSON.parse(l.anomalies) : [], note: 'Serie del SkiTrip antiguo: no verificada; un 0 puede ser un «-» convertido.' } : null,
       };
     }),
   });
@@ -133,7 +133,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
     sources: (sources.results as any[]).map((s) => ({ ...s, fields: JSON.parse(s.fields) })),
     snow: (snow.results as any[]).map((s) => snowOut(s, nowMs)),
     legacy: {
-      warning: 'Datos legacy agregados: sin hotel, fechas de estancia ni ocupación; mezclan ofertas distintas. No sirven como evolución de un precio concreto.',
+      warning: 'Datos agregados del SkiTrip antiguo: sin hotel, fechas de estancia ni ocupación; mezclan ofertas distintas. No sirven como evolución de un precio concreto.',
       snow: (legacySnow.results as any[]).map((r) => ({ ...r, anomalies: r.anomalies ? JSON.parse(r.anomalies) : [] })),
       hotel: legacyHotel.results,
     },

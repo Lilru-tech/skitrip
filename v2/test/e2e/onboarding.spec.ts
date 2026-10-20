@@ -166,11 +166,13 @@ test('ficha y Comparar: cierre confirmado, cobertura explicada, procedencia de l
   await page.goto('/#/comparar');
   const near = page.getByRole('list', { name: 'Estaciones dentro de la distancia' });
   const eps = near.getByRole('listitem').filter({ hasText: 'Épsilon Cerrada (sintético)' });
-  await expect(eps).toContainText('Cerrada (confirmado por la fuente) · la fuente no publica km');
+  // «Cerrada» una sola vez (la etiqueta); el detalle del parte no la repite.
+  await expect(eps).toContainText('Estado confirmado por la fuente · la fuente no publica km');
+  await expect(eps).not.toContainText('Cerrada (confirmado por la fuente)');
   await expect(eps).not.toContainText('sin dato abiertos de sin dato');
   await expect(eps).toContainText('(cobertura 100 %)');
   await expect(eps.locator('.status-badge')).toHaveText('✕ Cerrada');
-  await expect(eps).toContainText('Cerrada hoy; puede estar abierta en las fechas de tu viaje.');
+  await expect(eps).toContainText('Hoy no abre; puede estar abierta en las fechas de tu viaje.');
   await expect(eps).toContainText('calculada con OSRM (OpenStreetMap) el 01/10/2026, sin revisión humana');
   await expect(near.getByRole('listitem').filter({ hasText: 'Beta (sintético)' })).toContainText('anotada a mano el 01/09/2026, sin revisar');
   await expectNoHorizontalOverflow(page, `comparar con cierre (${info.project.name})`);
@@ -178,7 +180,9 @@ test('ficha y Comparar: cierre confirmado, cobertura explicada, procedencia de l
   await page.goto('/#/estaciones/e2e-cerrada');
   await expect(page.getByRole('heading', { level: 1, name: 'Épsilon Cerrada (sintético)' })).toBeVisible();
   const now = page.getByRole('region', { name: 'Estado actual' });
-  await expect(now).toContainText('Cerrada (confirmado por la fuente)');
+  await expect(now.locator('.status-badge')).toHaveText('✕ Cerrada');
+  await expect(now).toContainText('Estado confirmado por la fuente');
+  await expect(now).toContainText('desde Tarragona: 215 km · 3 h 31 min aprox.');
   const offers = page.getByRole('region', { name: 'Ofertas y qué hacer' });
   await expect(offers.getByTestId('no-offers')).toContainText('No hay ofertas automáticas recientes');
   await expect(offers.getByRole('link', { name: /Buscar en Esquiades/ })).toHaveAttribute('href', 'https://example.invalid/ofertas-epsilon');

@@ -1,5 +1,6 @@
 import { instant } from '../format';
 import { RESORT_STATUS_LABEL, type ResortStatusInfo } from '../../core/compare';
+import { addDays, todayMadrid } from '../../core/dates';
 
 const STATUS_SYMBOL = { open: '✓', closed: '✕', off_season: '–', unknown: '?' } as const;
 
@@ -36,4 +37,19 @@ export function ReportDate({ date }: { date: string | null | undefined }) {
   if (!date) return <span className="small muted"> · la fuente no publica fecha de parte</span>;
   const [y, m, d] = date.split('-');
   return <span className="small"> · parte del {d}/{m}/{y}</span>;
+}
+
+/**
+ * Antigüedad del parte para el resumen: la fecha que publica la fuente, no la de captura. Una captura reciente de un
+ * parte viejo sigue siendo un parte viejo; sin fecha publicada se dice y solo entonces se da la hora de captura.
+ */
+export function ReportAge({ date, at, freshness }: { date: string | null | undefined; at?: number | null; freshness?: 'fresh' | 'stale' | 'never' }) {
+  if (freshness === 'never' || (!date && at == null)) return <>Sin parte</>;
+  if (!date) {
+    return <>Sin fecha de parte{at != null && <span className="muted"> · capturado {instant(at)}</span>}
+      {freshness === 'stale' && <span className="text-warn"> · dato antiguo</span>}</>;
+  }
+  const [y, m, d] = date.split('-');
+  const old = date < addDays(todayMadrid(), -1) || freshness === 'stale';
+  return <>Parte del {d}/{m}/{y}{old && <span className="text-warn"> · parte desactualizado</span>}</>;
 }

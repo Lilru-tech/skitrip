@@ -67,12 +67,13 @@ const kmEs = (v: number) => `${KM_ES.format(v)} km`;
  * fuera de temporada por confirmación de la fuente se dice como tal aunque la fuente no publique km, en lugar de
  * «sin dato abiertos de sin dato».
  */
-export function snowStateText(s: { opStatus: string; openKm: number | null; totalKm: number | null }): { text: string; closed: boolean } {
+/** `omitState`: junto a la etiqueta de estado (que ya dice «Cerrada») no se repite la palabra. */
+export function snowStateText(s: { opStatus: string; openKm: number | null; totalKm: number | null }, omitState = false): { text: string; closed: boolean } {
   const total = s.totalKm == null ? null : kmEs(s.totalKm);
   if (s.opStatus === 'closed_confirmed' || s.opStatus === 'out_of_season') {
     const what = s.opStatus === 'closed_confirmed' ? 'Cerrada' : 'Fuera de temporada';
     const km = s.openKm != null ? ` · ${kmEs(s.openKm)} abiertos${total ? ` de ${total}` : ''}` : total ? ` · ${total} en total` : ' · la fuente no publica km';
-    return { text: `${what} (confirmado por la fuente)${km}`, closed: true };
+    return { text: omitState ? `Estado confirmado por la fuente${km}` : `${what} (confirmado por la fuente)${km}`, closed: true };
   }
   return { text: `${s.openKm == null ? 'sin dato' : kmEs(s.openKm)} abiertos de ${total ?? 'sin dato'}`, closed: false };
 }
@@ -225,3 +226,23 @@ export function tripCostMissing(t: { startDate: string | null; endDate: string |
   if (t.skiDays == null) m.push('días de esquí');
   return m;
 }
+
+/**
+ * Qué se puede dibujar con los km abiertos de una serie de observaciones. Un valor desconocido (null) no es un cero:
+ *  - 'chart': hay algún km abierto medido (> 0); el gráfico marca aparte las observaciones sin dato.
+ *  - 'no_data': ninguna observación publica km abiertos; faltan datos, no se afirma que no hubiera km abiertos.
+ *  - 'all_zero': todas las observaciones registran 0 km abiertos.
+ *  - 'zero_and_missing': las que tienen dato registran 0 y el resto no publica km.
+ */
+export type SnowChartState = 'chart' | 'no_data' | 'all_zero' | 'zero_and_missing';
+export function snowChartState(openKm: readonly (number | null | undefined)[]): SnowChartState {
+  const measured = openKm.filter((v): v is number => v != null);
+  if (measured.some((v) => v > 0)) return 'chart';
+  if (!measured.length) return 'no_data';
+  return measured.length === openKm.length ? 'all_zero' : 'zero_and_missing';
+}
+export const SNOW_CHART_STATE_TEXT: Record<Exclude<SnowChartState, 'chart'>, string> = {
+  no_data: 'Faltan datos para dibujar el gráfico: ninguna observación de los últimos 90 días publica km abiertos.',
+  all_zero: 'Sin gráfico: todas las observaciones de los últimos 90 días registran 0 km abiertos.',
+  zero_and_missing: 'Sin gráfico: las observaciones con dato registran 0 km abiertos y las demás no publican km.',
+};

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickSnow, rankCosts, snowForRanking, type SnowCandidate } from '../../src/core/compare';
+import { pickSnow, rankCosts, snowChartState, snowForRanking, type SnowCandidate } from '../../src/core/compare';
 import type { BudgetResult } from '../../src/core/budget';
 
 const NOW = Date.UTC(2027, 0, 15, 12);
@@ -67,5 +67,14 @@ describe('revisión final 3 · fecha del parte frente a fecha de captura', () =>
   it('se mantienen las exclusiones por calidad y estado desconocido', () => {
     expect(snowForRanking(s({ sourceDate: today, quality: 'total_mismatch' }), NOW).excluded).toBe('dudoso');
     expect(snowForRanking(s({ sourceDate: today, opStatus: 'unknown' }), NOW).excluded).toBe('estado_desconocido');
+  });
+});
+
+describe('gráfico de km abiertos', () => {
+  it('distingue ausencia de mediciones, ceros registrados y observaciones mixtas', () => {
+    expect(snowChartState([null, null, undefined])).toBe('no_data');
+    expect(snowChartState([0, 0])).toBe('all_zero');
+    expect(snowChartState([0, null])).toBe('zero_and_missing');
+    expect(snowChartState([null, 12, 0])).toBe('chart');
   });
 });
