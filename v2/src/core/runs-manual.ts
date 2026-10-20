@@ -9,15 +9,19 @@
 // resolveRunCatalog es la ÚNICA regla que decide qué cifra vale (fichas, Comparar, dominios y puntuación la reciben ya
 // resuelta del Worker):
 //  La temporada solo se compara con la que declaran las dos fuentes («2026-27»). No se deduce de la fecha del documento,
-//  que puede describir otra temporada, y «desconocida» nunca equivale a «la misma».
+//  que puede describir otra temporada, y «desconocida» nunca equivale a «la misma». El resultado no cambia solo porque
+//  pase el tiempo: una cifra sin temporada nunca recupera la prioridad al empezar otra temporada.
+//  0. Aportación de una temporada que aún no ha empezado (ficha publicada por adelantado): se guarda, pero no se aplica
+//     hasta que empiece; no sustituye los datos de la temporada en curso.
 //  1. Catálogo importado válido (enteros, desglose coherente, comparable) y de la MISMA temporada que la aportación:
 //     prevalece. La aportación solo completa los huecos (un color o el total que falta), si la combinación cuadra y la
 //     aportación no se declara no comparable; si no cuadra, no se mezcla y se explica.
 //  2. Importado válido de una temporada POSTERIOR a la de la aportación: prevalece y la aportación no se aplica.
-//  3. Importado de una temporada ANTERIOR, o sin temporada frente a una aportación documentada de la temporada actual:
-//     la aportación sustituye la cifra entera (una cifra de vigencia sin acreditar no desplaza a una documentada).
-//  4. Importado válido con temporada desconocida en cualquier otro caso (aportación sin temporada o de otra temporada
-//     pasada): prevalece el importado, pero NO se mezclan sus campos; las dos fuentes quedan separadas y se explica.
+//  3. Importado de una temporada ANTERIOR, o sin temporada frente a una aportación con temporada explícita: la aportación
+//     sustituye la cifra entera. Si su temporada ya pasó, se mantiene con su temporada y queda marcada para revisar; no
+//     se presenta como dato de la temporada nueva.
+//  4. Importado válido y aportación sin temporada, o importado con temporada y aportación sin ella: prevalece el
+//     importado, pero NO se mezclan sus campos; las dos fuentes quedan separadas y se explica.
 //  5. Importado ausente o no fiable (discrepancia pendiente, desglose que no cuadra): la aportación lo sustituye entera.
 //     Nunca se mezclan colores y totales de fuentes cuya temporada común no consta.
 //  6. Una aportación retirada no cuenta; restaurarla vuelve a pasar por estas mismas reglas.
@@ -51,7 +55,8 @@ export interface ManualRunContribution extends RunValues {
 /** Por qué una aportación activa se aplica en parte o no se aplica. */
 export type ManualNote =
   | 'automatica_prevalece' | 'temporada_anterior' | 'combinacion_incoherente' | 'no_comparable_no_se_mezcla' | 'sin_huecos'
-  | 'vigencia_desconocida' | 'sustituye_ausente' | 'sustituye_invalido' | 'sustituye_antiguo' | 'sustituye_sin_temporada';
+  | 'vigencia_desconocida' | 'temporada_futura' | 'revisar_temporada'
+  | 'sustituye_ausente' | 'sustituye_invalido' | 'sustituye_antiguo' | 'sustituye_sin_temporada';
 export const MANUAL_NOTE_LABEL: Record<ManualNote, string> = {
   automatica_prevalece: 'El catálogo importado tiene una cifra válida para este campo y prevalece; la aportación se conserva en el historial.',
   temporada_anterior: 'La aportación es de una temporada anterior a la del catálogo importado: no se aplica y se conserva.',
@@ -62,17 +67,22 @@ export const MANUAL_NOTE_LABEL: Record<ManualNote, string> = {
   sustituye_ausente: 'No hay cifra importada: se usa la aportación manual.',
   sustituye_invalido: 'La cifra importada no es fiable (discrepancia o desglose que no cuadra): la aportación la sustituye entera, sin mezclar.',
   sustituye_antiguo: 'La cifra importada es de una temporada anterior: la aportación la sustituye entera, sin mezclar.',
-  sustituye_sin_temporada: 'La cifra importada no indica temporada y la aportación es de la temporada actual con su fuente: la aportación la sustituye entera, sin mezclar.',
+  sustituye_sin_temporada: 'La cifra importada no indica temporada y la aportación sí: la aportación la sustituye entera, sin mezclar. Una cifra sin temporada no recupera la prioridad con el paso del tiempo.',
+  temporada_futura: 'La aportación es de una temporada que aún no ha empezado: se guarda y se aplicará cuando empiece. Hasta entonces no sustituye los datos de la temporada en curso.',
+  revisar_temporada: 'La aportación es de una temporada anterior a la actual: se mantiene con su temporada y necesita revisión para la temporada en curso.',
 };
 
-export type ManualState = 'none' | 'withdrawn' | 'applied' | 'partial' | 'not_applied';
+export type ManualState = 'none' | 'withdrawn' | 'applied' | 'partial' | 'not_applied' | 'scheduled';
 export const MANUAL_STATE_LABEL: Record<ManualState, string> = {
   none: 'Sin aportación manual', withdrawn: 'Aportación retirada', applied: 'Aportación aplicada', partial: 'Aportación aplicada en parte', not_applied: 'Aportación no aplicada',
+  scheduled: 'Aportación programada para su temporada',
 };
 
 /** Procedencia pública de la parte manual de la cifra efectiva (sin autoría ni motivo, que son de administración). */
 export interface ManualProvenance {
   fields: RunField[]; sourceRef: string; season: string | null; sourceDate: string | null; enteredOn: string; resolution: string | null;
+  /** Temporada en curso cuando la de la aportación ya pasó: el dato se mantiene, pendiente de revisar para esa temporada. */
+  reviewFor?: string | null;
 }
 export type RunOrigin = 'catalog' | 'manual' | 'mixed';
 
@@ -116,11 +126,11 @@ export function importedIsValid(imp: RunCatalogEntry | null | undefined): boolea
 /** Hay una cifra importada que no es fiable: resolverla con una aportación comparable exige explicación con evidencia. */
 export const importedNeedsResolution = (imp: RunCatalogEntry | null | undefined) => !!imp && hasValues(imp) && !importedIsValid(imp);
 
-function manualEntry(imp: RunCatalogEntry | null | undefined, m: ManualRunContribution, fields: RunField[]): ResolvedRuns['entry'] {
+function manualEntry(imp: RunCatalogEntry | null | undefined, m: ManualRunContribution, fields: RunField[], reviewFor: string | null): ResolvedRuns['entry'] {
   return {
     areaId: m.areaId, total: m.total, green: m.green, blue: m.blue, red: m.red, black: m.black, basis: 'aggregate', comparable: m.comparable,
     season: m.season, sourceDate: m.sourceDate, checkedOn: m.enteredOn, sourceUrl: m.sourceRef, mapUrl: imp?.mapUrl ?? null, limitations: null,
-    origin: 'manual', manual: { fields, sourceRef: m.sourceRef, season: m.season, sourceDate: m.sourceDate, enteredOn: m.enteredOn, resolution: m.resolution },
+    origin: 'manual', manual: { fields, sourceRef: m.sourceRef, season: m.season, sourceDate: m.sourceDate, enteredOn: m.enteredOn, resolution: m.resolution, reviewFor },
   };
 }
 
@@ -131,10 +141,15 @@ export function resolveRunCatalog(imp: RunCatalogEntry | null | undefined, man: 
   if (!man || man.status !== 'active') return asCatalog(man ? 'withdrawn' : 'none');
   const given = RUN_FIELDS.filter((f) => man[f] != null);
   if (!given.length) return asCatalog('not_applied');
+  const now = currentSeasonStart(today);
+  const manSeason = seasonStart(man.season);
+  // Ficha publicada por adelantado: no sustituye nada hasta que empiece su temporada.
+  if (manSeason != null && manSeason > now) return asCatalog('scheduled', [], ['temporada_futura']);
   const rel = imp ? seasonRelation(imp, man) : 'unknown';
-  // Importado sin temporada frente a una aportación documentada de la temporada en curso: la vigencia no está acreditada.
-  const undatedVsCurrent = rel === 'unknown' && imp != null && seasonStart(imp.season) == null && seasonStart(man.season) === currentSeasonStart(today);
-  if (imp && importedIsValid(imp) && rel !== 'imported_older' && !undatedVsCurrent) {
+  // Importado sin temporada frente a una aportación con temporada explícita: la cifra sin temporada no acredita su
+  // vigencia, y no la recupera porque cambie la temporada en curso (no depende de la fecha de hoy).
+  const undatedVsDated = rel === 'unknown' && imp != null && seasonStart(imp.season) == null && manSeason != null;
+  if (imp && importedIsValid(imp) && rel !== 'imported_older' && !undatedVsDated) {
     const overridden = given.filter((f) => imp[f] != null && imp[f] !== man[f]);
     if (rel === 'imported_newer') return asCatalog('not_applied', overridden, ['temporada_anterior']);
     // Sin temporada común acreditada no se combinan campos: cada fuente queda por separado.
@@ -155,7 +170,10 @@ export function resolveRunCatalog(imp: RunCatalogEntry | null | undefined, man: 
     };
   }
   const note: ManualNote = !imp || !hasValues(imp) ? 'sustituye_ausente' : !importedIsValid(imp) ? 'sustituye_invalido' : rel === 'imported_older' ? 'sustituye_antiguo' : 'sustituye_sin_temporada';
-  return { entry: manualEntry(imp, man, given), fieldOrigin: originOf(man, 'manual'), state: 'applied', overridden: [], notes: [note] };
+  // Se mantiene con su temporada explícita; si ya pasó, se avisa de que necesita revisión para la temporada en curso.
+  const reviewFor = manSeason != null && manSeason < now ? seasonLabel(now) : null;
+  const notes: ManualNote[] = reviewFor ? [note, 'revisar_temporada'] : [note];
+  return { entry: manualEntry(imp, man, given, reviewFor), fieldOrigin: originOf(man, 'manual'), state: 'applied', overridden: [], notes };
 }
 
 // ---------- Validación de una aportación (navegador y Worker) ----------
@@ -188,7 +206,8 @@ export function validateManualDraft(d: ManualDraft, ctx: { imported: RunCatalogE
   if (d.season != null) {
     const m = SEASON_RE.exec(d.season);
     if (!m || (Number(m[1]) + 1) % 100 !== Number(m[2])) errors.push('La temporada se escribe como 2026-27.');
-    else if (Number(m[1]) > currentSeasonStart(ctx.today)) errors.push(`La temporada no puede ser posterior a la actual (${seasonLabel(currentSeasonStart(ctx.today))}).`);
+    // Una ficha de la próxima temporada puede publicarse antes de que empiece; más allá no hay fichas publicadas.
+    else if (Number(m[1]) > currentSeasonStart(ctx.today) + 1) errors.push(`Como mucho, la próxima temporada (${seasonLabel(currentSeasonStart(ctx.today) + 1)}).`);
   }
   if (d.sourceDate != null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.sourceDate) || Number.isNaN(Date.parse(d.sourceDate))) errors.push('La fecha de la fuente no es válida.');
