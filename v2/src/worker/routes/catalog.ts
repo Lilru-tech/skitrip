@@ -7,7 +7,7 @@ import { zId } from '../schemas';
 import { CAPABILITIES } from '../../core/capabilities';
 import { addDays, todayMadrid } from '../../core/dates';
 import { pickSnow, SNOW_EXCLUSION_LABEL, snowForRanking } from '../../core/compare';
-import { publicRuns } from '../run-data';
+import { contributionsByArea, publicRuns } from '../run-data';
 
 // Datos no personales: catálogo, rutas, nieve y fuentes. Lectura anónima con caché corta.
 export const catalogRoutes = new Hono<AppEnv>();
@@ -53,7 +53,7 @@ catalogRoutes.get('/catalog', async (c) => {
     db.prepare(`SELECT * FROM area_run_contributions WHERE status = 'active'`),
   ]);
   const runsBy = new Map((runs.results as any[]).map((r) => [r.area_id, r]));
-  const manualBy = new Map((manual.results as any[]).map((r) => [r.area_id, r]));
+  const manualBy = contributionsByArea(manual.results as any[]);
   const routeBy = new Map((routes.results as any[]).map((r) => [r.area_id, r]));
   const candBy = new Map<string, any[]>();
   for (const s of snow.results as any[]) (candBy.get(s.area_id) ?? candBy.set(s.area_id, []).get(s.area_id)!).push(candOf(s));
@@ -78,7 +78,7 @@ catalogRoutes.get('/catalog', async (c) => {
           // «rank»: lo que puede puntuar en «Nieve abierta ahora». Un dato excluido se sigue mostrando con su fecha.
           return { ...snowOut(pick, nowMs), rank: { ...rank, label: rank.excluded ? SNOW_EXCLUSION_LABEL[rank.excluded] : null }, sources: candBy.get(a.id)!.length };
         })(),
-        runs: publicRuns(runsBy.get(a.id), manualBy.get(a.id)),
+        runs: publicRuns(runsBy.get(a.id), manualBy.get(a.id) ?? []),
         legacySnow: l ? { date: l.obs_date, openKm: l.open_km, totalKm: l.total_km, anomalies: l.anomalies ? JSON.parse(l.anomalies) : [], note: 'Serie del SkiTrip antiguo: no verificada; un 0 puede ser un «-» convertido.' } : null,
       };
     }),
@@ -125,7 +125,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
   const manualRows = manual.results as any[];
   // Áreas con cifra importada o con aportación activa (una aportación puede completar un área sin fila importada).
   const runAreas = [...new Set([...runRows, ...manualRows].map((r) => r.area_id as string))];
-  const runsOf = (aid: string) => publicRuns(runRows.find((r) => r.area_id === aid), manualRows.find((r) => r.area_id === aid));
+  const runsOf = (aid: string) => publicRuns(runRows.find((r) => r.area_id === aid), manualRows.filter((r) => r.area_id === aid));
   c.header('Cache-Control', 'public, max-age=120');
   return c.json({
     area,
@@ -142,7 +142,7 @@ catalogRoutes.get('/areas/:id', async (c) => {
     routes: (routes.results as any[]).map((r) => ({ originId: r.origin_id, originName: r.origin_name, accessName: r.access_name, roadKm: r.road_km, durationMin: r.duration_min,
       tollCents: r.toll_cents, source: r.source, checkedOn: r.checked_on, validated: !!r.validated, notes: r.notes })),
     runs: runsOf(id),
-    memberRuns: runAreas.filter((aid) => aid !== id).map((aid) => ({ areaId: aid, ...runsOf(aid)! })),
+    memberRuns: runAreas.filter((aid) => aid !== id && runsOf(aid)).map((aid) => ({ areaId: aid, ...runsOf(aid)! })),
     legacyCommentsNote: 'Comentarios de la hoja antigua. El autor es el nombre escrito en la hoja (texto libre): no identifica una cuenta salvo vinculación explícita de administración.',
     // «modality» es técnica; lo visible es forfaitIncluded: 'unknown' nunca se presenta como «solo alojamiento».
     offers: { note: 'Ofertas orientativas con las fechas y condiciones del proveedor. No son precios para vuestras fechas ni garantizan disponibilidad.',

@@ -114,11 +114,20 @@ apertura, nieve, km) ni las rutas, precios o cierres. No se ha añadido ningún 
 `area_runs` es el catálogo importado (lo llamamos «automático»: lo reescribe cada publicación). Una edición guardada
 ahí desaparecería en el siguiente despliegue, así que las aportaciones manuales viven en su propia tabla
 (`area_run_contributions`, migración 0021), con historial (`area_run_history`) que nunca se borra. La importación no las
-toca; si cambia la cifra importada de un área con aportación activa, lo anota en el historial (`import_change`).
+toca; si cambia la cifra importada de un área con alguna aportación activa, lo anota una vez en el historial
+(`import_change`).
 Reimportar sin cambios no anota nada ni borra nada.
 
-Una única regla decide la cifra efectiva (`resolveRunCatalog`, `src/core/runs-manual.ts`). El Worker la aplica al
-servir el catálogo y la ficha, así que fichas, Comparar, dominios y puntuación usan la misma cifra:
+Un área puede tener **varias aportaciones**, como mucho una activa por temporada declarada (y una sin temporada): por
+ejemplo, la vigente de 2026-27 y una ficha ya publicada de 2027-28. Cada operación (guardar, editar, retirar, restaurar)
+actúa sobre una sola y no toca las demás. Para decidir cuál entra en la regla (`pickManual`) se toma, de las activas
+cuya temporada ya ha empezado, la de temporada más reciente (una con temporada antes que una sin ella); las de
+temporadas futuras quedan **programadas**. Guardar, editar o retirar una programada no cambia la cifra vigente. Cuando
+empieza su temporada pasa a ser la elegida y entra en las mismas reglas de prioridad; la anterior queda como
+«sustituida por una de temporada posterior», sin borrarse, y las dos siguen en el historial.
+
+Una única regla decide la cifra efectiva (`resolveArea` → `resolveRunCatalog`, `src/core/runs-manual.ts`). El Worker la
+aplica al servir el catálogo y la ficha, así que fichas, Comparar, dominios y puntuación usan la misma cifra:
 
 La temporada solo se compara cuando **las dos fuentes la declaran** («2026-27»). No se deduce de la fecha de
 publicación, porque un documento de septiembre puede describir la temporada anterior, y «desconocida» nunca cuenta como
@@ -126,8 +135,8 @@ publicación, porque un documento de septiembre puede describir la temporada ant
 empezar otra temporada.
 
 0. Aportación de una temporada que **aún no ha empezado** (ficha publicada por adelantado, como mucho la próxima
-   temporada): se guarda, pero no se aplica hasta que empiece; no sustituye los datos de la temporada en curso ni toca
-   los partes de «Esquiar ahora». La fecha de la fuente sigue sin poder ser futura: temporada futura no es fecha futura.
+   temporada): se guarda junto a la vigente, pero no se aplica hasta que empiece; no sustituye la aportación vigente
+   ni los datos de la temporada en curso ni toca los partes de «Esquiar ahora». La fecha de la fuente sigue sin poder ser futura: temporada futura no es fecha futura.
 1. Cifra importada válida (enteros, desglose coherente, comparable) y de la **misma temporada** que la aportación:
    **prevalece la importada**. La aportación solo completa los campos que faltan (un color o el total), si la
    combinación cuadra y la aportación no está marcada como no comparable. Si no cuadra, no se mezcla: se muestra lo
@@ -161,9 +170,10 @@ Se pueden guardar datos parciales: por ejemplo, solo 10 verdes sin total, o un t
 muestran los valores conocidos como desglose parcial y el resto como «sin dato»; nunca se inventa el total ni se rellena
 con ceros. Sin total no puntúa en «Variedad de pistas».
 
-Una aportación por área (no hay duplicados). Cada escritura lleva la versión que se editó: si otro administrador guardó
-antes, la API responde 409 y no sobrescribe. El historial guarda quién, cuándo, la acción, los valores anteriores y
-nuevos, la fuente y el motivo.
+Una aportación activa por área y temporada (no hay duplicados: crear otra de la misma temporada responde 409
+`season_taken` y pide editar la existente). Cada escritura lleva la aportación y la versión que se editó: si otro
+administrador guardó antes, la API responde 409 y no sobrescribe. El historial guarda, por aportación, quién, cuándo,
+la acción, los valores anteriores y nuevos, la fuente y el motivo.
 
 ## Mantenimiento
 

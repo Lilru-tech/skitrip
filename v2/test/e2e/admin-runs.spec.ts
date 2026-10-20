@@ -124,7 +124,9 @@ test('administración de pistas: secciones, filtros, vista previa, validación, 
   await expect(page.getByText('Aportación no aplicada')).toBeVisible();
 
   // Otro administrador guarda mientras tanto: no se sobrescribe en silencio.
-  const body = { expectedVersion: 1, total: mine.total + 2, green: null, blue: null, red: null, black: null, comparable: true, resolution: null, season: mine.season || null, sourceDate: null, sourceRef: 'Folleto sintético de prueba, página 3', reason: 'Edición paralela' };
+  const listed = await apiAs(request, token, 'GET', '/api/admin/runs');
+  const contributionId = listed.areas.find((a: any) => a.id === mine.id).contributions[0].id;
+  const body = { contributionId, expectedVersion: 1, total: mine.total + 2, green: null, blue: null, red: null, black: null, comparable: true, resolution: null, season: mine.season || null, sourceDate: null, sourceRef: 'Folleto sintético de prueba, página 3', reason: 'Edición paralela' };
   await apiAs(request, token, 'PUT', `/api/admin/runs/${mine.id}`, body);
   await page.getByLabel('Motivo (solo administración)').fill('Segunda edición');
   await page.getByRole('button', { name: 'Guardar aportación' }).click();
@@ -132,21 +134,52 @@ test('administración de pistas: secciones, filtros, vista previa, validación, 
   await page.getByRole('button', { name: 'Recargar' }).click();
   await expect(page.getByLabel('Total de pistas')).toHaveValue(String(mine.total + 2));
 
-  // Retirar (con motivo) y ver el historial completo.
-  await page.getByRole('button', { name: 'Retirar aportación' }).click();
-  const dlg = page.getByRole('dialog', { name: `¿Retirar la aportación de ${mine.name}?` });
+  // Ficha ya publicada de la próxima temporada: se guarda aparte, junto a la vigente, sin cambiar lo que se ve hoy.
+  await page.getByRole('link', { name: 'Nueva aportación (otra temporada)' }).click();
+  await expect(page.getByRole('heading', { name: 'Nueva aportación manual' })).toBeVisible();
+  await expect(page.getByLabel('Total de pistas')).toHaveValue('');
+  await page.getByLabel('Total de pistas').fill(String(mine.total + 5));
+  await page.getByLabel('Fuente o referencia comprobable').fill('Ficha sintética de la próxima temporada');
+  await page.getByLabel('Temporada (si se conoce)').fill(nextSeason());
+  await expect(preview).toContainText(`Se guardará para la temporada ${nextSeason()}`);
+  await expect(preview).toContainText('La aportación vigente se mantiene.');
+  await expect(preview).toContainText(`Número de pistas: ${mine.total}`);
+  await page.getByLabel('Motivo (solo administración)').fill('Ficha publicada por adelantado');
+  await page.getByRole('button', { name: 'Guardar aportación' }).click();
+  await waitToast(page, `Pistas de ${mine.name} guardadas.`);
+  const contributions = page.getByRole('list', { name: 'Aportaciones manuales' });
+  await expect(contributions.getByRole('listitem')).toHaveCount(2);
+  await expect(contributions.getByRole('listitem').nth(0)).toContainText(`${mine.total + 2} pistas`);
+  await expect(contributions.getByRole('listitem').nth(0)).toContainText('Vigente');
+  await expect(contributions.getByRole('listitem').nth(1)).toContainText(`Temporada ${nextSeason()} · ${mine.total + 5} pistas`);
+  await expect(contributions.getByRole('listitem').nth(1)).toContainText(`Programada: se aplicará al empezar la ${nextSeason()}`);
+  await expect(values.getByRole('row', { name: /Total/ })).toContainText(`${mine.total}${mine.total + 2}${mine.total}`);
+  await expect(page.getByText(`Programada para la temporada ${nextSeason()} (${mine.total + 5} pistas)`)).toBeVisible();
+  // Crear otra de la misma temporada no se permite: se edita la existente.
+  await page.getByRole('link', { name: 'Nueva aportación (otra temporada)' }).click();
+  await page.getByLabel('Temporada (si se conoce)').fill(nextSeason());
+  await expect(page.getByText(`Ya hay una aportación activa de la temporada ${nextSeason()}`)).toBeVisible();
+  // Volver a la vigente para retirarla.
+  await contributions.getByRole('listitem').nth(0).getByRole('link', { name: /Editar/ }).click();
+  await expect(page.getByLabel('Total de pistas')).toHaveValue(String(mine.total + 2));
+
+  // Retirar (con motivo) y ver el historial completo. La programada sigue.
+  await page.getByRole('button', { name: 'Retirar esta aportación' }).click();
+  const dlg = page.getByRole('dialog', { name: new RegExp(`^¿Retirar la aportación de ${mine.name.replace(/[()]/g, '\\$&')}`) });
   await dlg.getByLabel('Motivo').fill('Fin de la prueba');
   await dlg.getByRole('button', { name: 'Retirar' }).click();
   await waitToast(page, 'Aportación retirada: se conserva en el historial.');
-  await expect(page.getByRole('button', { name: 'Restaurar aportación' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Restaurar esta aportación' })).toBeVisible();
+  await expect(contributions.getByRole('listitem').filter({ hasText: 'Programada' })).toContainText(`${mine.total + 5} pistas`);
   await page.locator('details.fold > summary', { hasText: 'Historial' }).click();
   const hist = page.getByRole('list', { name: 'Historial de cambios' });
-  await expect(hist.getByRole('listitem')).toHaveCount(3);
+  await expect(hist.getByRole('listitem')).toHaveCount(4);
   await expect(hist.getByRole('listitem').nth(0)).toContainText('Aportación retirada');
   await expect(hist.getByRole('listitem').nth(0)).toContainText('Motivo: Fin de la prueba');
-  await expect(hist.getByRole('listitem').nth(1)).toContainText(`Antes: total ${mine.total + 1}`);
-  await expect(hist.getByRole('listitem').nth(2)).toContainText(`Aportación creada · `);
-  await expect(hist.getByRole('listitem').nth(2)).toContainText(ADMIN.alias);
+  await expect(hist.getByRole('listitem').nth(1)).toContainText(`Aportación creada (temporada ${nextSeason()})`);
+  await expect(hist.getByRole('listitem').nth(2)).toContainText(`Antes: total ${mine.total + 1}`);
+  await expect(hist.getByRole('listitem').nth(3)).toContainText('Aportación creada');
+  await expect(hist.getByRole('listitem').nth(3)).toContainText(ADMIN.alias);
   await expectNoHorizontalOverflow(page, `admin pistas editor (${info.project.name})`);
 
   // La ficha pública sigue con la cifra oficial y sin motivo ni autoría.
