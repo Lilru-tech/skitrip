@@ -1,7 +1,7 @@
 // Aportaciones manuales de pistas en la API: permisos de administración en el servidor, validación, versiones,
 // historial, retirar y restaurar, y persistencia frente a la reimportación del catálogo (mismo SQL que la publicación).
 import { env, SELF } from 'cloudflare:test';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import catalog from '../../data/catalog.json';
 import { runCatalogSql } from '../../tools/run-catalog-sql';
 import { todayMadrid } from '../../src/core/dates';
@@ -22,6 +22,7 @@ const body = (o: Record<string, unknown> = {}) => ({
 let admin: { token: string; id: string; alias: string };
 let admin2: { token: string; id: string; alias: string };
 let user: { token: string; id: string; alias: string };
+let jvId: number;
 
 beforeAll(async () => {
   await seedCatalog(env.DB, catalog as any);
@@ -35,7 +36,7 @@ describe('permisos', () => {
   it('solo administración: sin sesión 401, cuenta normal 404 en todas las operaciones', async () => {
     expect((await api(null, 'GET', '/api/admin/runs')).status).toBe(401);
     for (const [m, p, b] of [['GET', '/api/admin/runs'], ['GET', '/api/admin/runs/ax-3-domaines/history'], ['PUT', '/api/admin/runs/ax-3-domaines', body({ green: 1 })],
-      ['POST', '/api/admin/runs/ax-3-domaines/withdraw', { expectedVersion: 1, reason: 'prueba' }], ['POST', '/api/admin/runs/ax-3-domaines/restore', { expectedVersion: 1, reason: 'prueba' }]] as const) {
+      ['POST', '/api/admin/runs/ax-3-domaines/withdraw', { contributionId: 1, expectedVersion: 1, reason: 'prueba' }], ['POST', '/api/admin/runs/ax-3-domaines/restore', { contributionId: 1, expectedVersion: 1, reason: 'prueba' }]] as const) {
       expect((await api(user.token, m, p, b)).status).toBe(404);
     }
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM area_run_contributions').first('n')).toBe(0);
@@ -71,7 +72,7 @@ describe('aportaciones', () => {
     expect(await areaRuns('ax-3-domaines')).toMatchObject({ green: 9, blue: 13, origin: 'catalog', manual: null });
     const list = await api(admin.token, 'GET', '/api/admin/runs');
     const ax = list.json.areas.find((a: any) => a.id === 'ax-3-domaines');
-    expect(ax.contribution).toMatchObject({ green: 10, status: 'active', version: 1 });
+    expect(ax.contributions).toMatchObject([{ green: 10, status: 'active', version: 1, role: 'current' }]);
     expect(ax.resolved).toMatchObject({ state: 'not_applied', overridden: ['green', 'blue'], notes: ['automatica_prevalece'] });
     const h = await history('ax-3-domaines');
     expect(h.map((x) => x.action)).toEqual(['create', 'import_change']);
@@ -139,9 +140,9 @@ describe('aportaciones', () => {
     expect(r.json.resolved).toMatchObject({ state: 'scheduled', notes: ['temporada_futura'] });
     expect(await areaRuns('port-del-comte')).toMatchObject({ total: 29, origin: 'catalog' });
     const list = await api(admin.token, 'GET', '/api/admin/runs');
-    expect(list.json.areas.find((a: any) => a.id === 'port-del-comte').contribution).toMatchObject({ total: 31, season: next, status: 'active' });
+    expect(list.json.areas.find((a: any) => a.id === 'port-del-comte').contributions).toMatchObject([{ total: 31, season: next, status: 'active', role: 'scheduled' }]);
     // Dos temporadas por delante no.
-    const far = await api(admin.token, 'PUT', '/api/admin/runs/port-del-comte', body({ expectedVersion: 1, total: 31, season: seasonLabel(currentSeasonStart(todayMadrid()) + 2) }));
+    const far = await api(admin.token, 'PUT', '/api/admin/runs/port-del-comte', body({ total: 31, season: seasonLabel(currentSeasonStart(todayMadrid()) + 2) }));
     expect(far.status).toBe(422);
   });
 
@@ -154,10 +155,13 @@ describe('aportaciones', () => {
   it('dos administradores a la vez: el segundo recibe un conflicto en lugar de sobrescribir', async () => {
     const first = await api(admin.token, 'PUT', '/api/admin/runs/javalambre', body({ total: 12, reason: 'Primero' }));
     expect(first.status).toBe(200);
+    jvId = first.json.id;
+    // Otra aportación nueva sin temporada mientras ya hay una activa sin temporada: conflicto, no se duplica ni se pisa.
     const again = await api(admin2.token, 'PUT', '/api/admin/runs/javalambre', body({ total: 13, reason: 'Nuevo a la vez' }));
     expect(again.status).toBe(409);
-    const a = await api(admin.token, 'PUT', '/api/admin/runs/javalambre', body({ expectedVersion: 1, total: 14, reason: 'Edición A' }));
-    const b = await api(admin2.token, 'PUT', '/api/admin/runs/javalambre', body({ expectedVersion: 1, total: 15, reason: 'Edición B' }));
+    expect(again.json.error.code).toBe('season_taken');
+    const a = await api(admin.token, 'PUT', '/api/admin/runs/javalambre', body({ contributionId: jvId, expectedVersion: 1, total: 14, reason: 'Edición A' }));
+    const b = await api(admin2.token, 'PUT', '/api/admin/runs/javalambre', body({ contributionId: jvId, expectedVersion: 1, total: 15, reason: 'Edición B' }));
     expect([a.status, b.status]).toEqual([200, 409]);
     expect(b.json.error.code).toBe('version_conflict');
     expect(await env.DB.prepare(`SELECT total, version FROM area_run_contributions WHERE area_id = 'javalambre'`).first()).toEqual({ total: 14, version: 2 });
@@ -165,15 +169,15 @@ describe('aportaciones', () => {
   });
 
   it('retirar y restaurar conservan la trazabilidad; restaurar respeta la prioridad automática', async () => {
-    const w = await api(admin.token, 'POST', '/api/admin/runs/javalambre/withdraw', { expectedVersion: 2, reason: 'Fuente dudosa' });
+    const w = await api(admin.token, 'POST', '/api/admin/runs/javalambre/withdraw', { contributionId: jvId, expectedVersion: 2, reason: 'Fuente dudosa' });
     expect(w.status).toBe(200);
     expect((await areaRuns('javalambre')).total).toBeNull();
-    expect((await api(admin.token, 'POST', '/api/admin/runs/javalambre/withdraw', { expectedVersion: 3, reason: 'Otra vez' })).status).toBe(409);
-    expect((await api(admin.token, 'POST', '/api/admin/runs/javalambre/restore', { expectedVersion: 2, reason: 'Versión vieja' })).status).toBe(409);
+    expect((await api(admin.token, 'POST', '/api/admin/runs/javalambre/withdraw', { contributionId: jvId, expectedVersion: 3, reason: 'Otra vez' })).status).toBe(409);
+    expect((await api(admin.token, 'POST', '/api/admin/runs/javalambre/restore', { contributionId: jvId, expectedVersion: 2, reason: 'Versión vieja' })).status).toBe(409);
     // Mientras está retirada llega un dato automático válido (no se anota: la retirada no interviene); al restaurar,
     // prevalece el automático. Ninguna de las dos declara temporada: no se mezclan y se explica.
     await importRuns(runCatalog.map((x) => (x.area === 'javalambre' ? { ...x, total: 16, comparable: true } : x)));
-    const r = await api(admin2.token, 'POST', '/api/admin/runs/javalambre/restore', { expectedVersion: 3, reason: 'La fuente era buena' });
+    const r = await api(admin2.token, 'POST', '/api/admin/runs/javalambre/restore', { contributionId: jvId, expectedVersion: 3, reason: 'La fuente era buena' });
     expect(r.status).toBe(200);
     expect(r.json.resolved).toMatchObject({ state: 'not_applied', notes: ['vigencia_desconocida'] });
     expect((await areaRuns('javalambre')).total).toBe(16);
@@ -191,8 +195,76 @@ describe('aportaciones', () => {
     expect(r.status).toBe(200);
     const by = new Map(r.json.areas.map((a: any) => [a.id, a]));
     expect(by.size).toBe((catalog as any).areas.length);
-    expect(by.get('astun')).toMatchObject({ parentId: 'astun-candanchu', imported: { total: 57, basis: 'individual' }, contribution: null, resolved: { state: 'none' } });
-    expect(by.get('javalambre')).toMatchObject({ contribution: { total: 14, status: 'active', version: 4, updatedByAlias: admin2.alias }, history: { count: 5 } });
+    expect(by.get('astun')).toMatchObject({ parentId: 'astun-candanchu', imported: { total: 57, basis: 'individual' }, contributions: [], resolved: { state: 'none' } });
+    expect(by.get('javalambre')).toMatchObject({ contributions: [{ total: 14, status: 'active', version: 4, updatedByAlias: admin2.alias, role: 'current' }], history: { count: 5 } });
     expect(r.d1).toBeLessThan(10);
   });
+});
+
+// La vigente y una ficha ya publicada para la próxima temporada conviven: flujo completo de guardado y lectura por la
+// API, con catálogo importado (Pal-Arinsal: 47 sin temporada) y sin él (Masella: sin cifra importada).
+describe('aportación vigente y programada a la vez', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  const list = async (id: string) => (await api(admin.token, 'GET', '/api/admin/runs')).json.areas.find((a: any) => a.id === id);
+
+  for (const [area, imported] of [['pal-arinsal', 47], ['masella', null]] as const) {
+    it(`${area}: guardar, editar y retirar la futura no altera la vigente; al empezar su temporada se aplica (${imported == null ? 'sin' : 'con'} importado)`, async () => {
+      const s0 = currentSeasonStart(todayMadrid());
+      expect((await areaRuns(area))?.total ?? null).toBe(imported);
+      const cur = await api(admin.token, 'PUT', `/api/admin/runs/${area}`, body({ total: 50, season: seasonLabel(s0), reason: 'Ficha vigente' }));
+      expect(cur.status).toBe(200);
+      const vigente = await areaRuns(area);
+      expect(vigente).toMatchObject({ total: 50, origin: 'manual', season: seasonLabel(s0) });
+      const detail = async () => (await pub(`/api/public/areas/${area}`)).runs;
+      expect(await detail()).toEqual(vigente);
+
+      // Guardar la futura (aportación nueva): la vigente sigue igual en el catálogo y en la ficha.
+      const fut = await api(admin.token, 'PUT', `/api/admin/runs/${area}`, body({ total: 60, season: seasonLabel(s0 + 1), sourceDate: todayMadrid(), reason: 'Ficha publicada por adelantado' }));
+      expect(fut.status).toBe(200);
+      expect(fut.json.id).not.toBe(cur.json.id);
+      expect(fut.json.resolved).toMatchObject({ currentId: cur.json.id, scheduled: [{ id: fut.json.id, season: seasonLabel(s0 + 1), total: 60 }] });
+      expect(await areaRuns(area)).toEqual(vigente);
+      expect(await detail()).toEqual(vigente);
+      expect((await list(area)).contributions.map((c: any) => [c.id, c.role, c.total])).toEqual([[cur.json.id, 'current', 50], [fut.json.id, 'scheduled', 60]]);
+      // Una segunda futura de la misma temporada no se crea encima.
+      expect((await api(admin2.token, 'PUT', `/api/admin/runs/${area}`, body({ total: 61, season: seasonLabel(s0 + 1) }))).json.error.code).toBe('season_taken');
+
+      // Editar y retirar la futura tampoco la tocan; restaurarla la deja otra vez programada.
+      expect((await api(admin.token, 'PUT', `/api/admin/runs/${area}`, body({ contributionId: fut.json.id, expectedVersion: 1, total: 62, season: seasonLabel(s0 + 1), reason: 'Corrección de la ficha' }))).status).toBe(200);
+      expect(await areaRuns(area)).toEqual(vigente);
+      expect((await api(admin.token, 'POST', `/api/admin/runs/${area}/withdraw`, { contributionId: fut.json.id, expectedVersion: 2, reason: 'Ficha provisional' })).status).toBe(200);
+      expect(await areaRuns(area)).toEqual(vigente);
+      expect((await api(admin.token, 'POST', `/api/admin/runs/${area}/restore`, { contributionId: fut.json.id, expectedVersion: 3, reason: 'Ficha confirmada' })).status).toBe(200);
+      expect(await areaRuns(area)).toEqual(vigente);
+      const vig = (await list(area)).contributions.find((c: any) => c.id === cur.json.id);
+      expect(vig).toMatchObject({ version: 1, status: 'active', total: 50 });
+
+      // Reimportar el catálogo conserva las dos.
+      await importRuns(runCatalog);
+      await importRuns(runCatalog.map((x) => (x.area === area ? { ...x, source_date: '2026-10-18' } : x)));
+      await importRuns(runCatalog);
+      expect((await list(area)).contributions.map((c: any) => [c.id, c.status, c.total])).toEqual([[cur.json.id, 'active', 50], [fut.json.id, 'active', 62]]);
+      expect(await areaRuns(area)).toMatchObject({ total: 50, origin: 'manual' });
+
+      // Al empezar la temporada de la futura (1 de julio), pasa por las reglas de prioridad: con importado sin temporada
+      // o sin importado, la sustituye; la anterior queda como sustituida, sin borrarse.
+      // (Solo la lectura pública: la sesión de administración caducaría con el reloj adelantado.)
+      const next = seasonLabel(s0 + 1);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(`${s0 + 1}-07-01T10:00:00Z`));
+      expect(await areaRuns(area)).toMatchObject({ total: 62, season: next, origin: 'manual', manual: { reviewFor: null } });
+      expect(await detail()).toMatchObject({ total: 62, season: next });
+      vi.setSystemTime(new Date(`${s0 + 1}-06-30T10:00:00Z`));
+      expect(await areaRuns(area)).toMatchObject({ total: 50 });
+      vi.useRealTimers();
+      // Nada se ha reescrito: hoy siguen la vigente y la programada.
+      expect((await list(area)).contributions.map((c: any) => [c.id, c.role])).toEqual([[cur.json.id, 'current'], [fut.json.id, 'scheduled']]);
+
+      // Historial: las dos aportaciones, cada entrada con la suya; la importación con cambio queda anotada una sola vez.
+      const h = (await api(admin.token, 'GET', `/api/admin/runs/${area}/history`)).json.history.reverse();
+      expect(h.map((x: any) => [x.action, x.contributionId])).toEqual([
+        ['create', cur.json.id], ['create', fut.json.id], ['update', fut.json.id], ['withdraw', fut.json.id], ['restore', fut.json.id], ['import_change', null], ['import_change', null],
+      ]);
+    });
+  }
 });
