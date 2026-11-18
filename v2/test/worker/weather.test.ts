@@ -23,7 +23,9 @@ function install(m: Partial<Mock> = {}) {
     if (mock.delayMs) await new Promise((r) => setTimeout(r, mock.delayMs));
     if (mock.fail) return new Response('fail', { status: mock.fail });
     const lats = url.searchParams.get('latitude')!.split(',');
-    const t0 = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`) / 1000;
+    // La serie empieza a las 00:00 UTC del día de Madrid (no del día UTC): entre las 00 y las 01 h de Madrid el día UTC
+    // aún es el anterior y la prueba dependería de la hora a la que se ejecuta.
+    const t0 = Date.parse(`${todayMadrid()}T00:00:00Z`) / 1000;
     const time = Array.from({ length: 192 }, (_, i) => t0 + i * 3600);
     const loc = (i: number) => {
       const hourly: Record<string, unknown> = { time };
