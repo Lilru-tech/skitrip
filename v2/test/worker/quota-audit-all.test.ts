@@ -424,6 +424,7 @@ describe('auditoría de consultas: resto de rutas', () => {
       const snow = snowSources.find((s: any) => s.area === dom || s.scope === dom) ?? snowSources[0];
       await db.batch(Array.from({ length: 30 }, (_, i) => db.prepare(`INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date, op_status, open_km, quality, content_hash, extractor)
         VALUES (?1, ?2, ?3, ?4, ?5, 'open', 20, 'ok', ?1, 'audit')`).bind(`aud-crowd-${i}`, dom, snow.id, t0, `${1996 + i}-02-15`)));
+      await m('GET /public/crowds/habitual', '40 estaciones × 31 días, con observaciones y partes', api(null, 'GET', `/api/public/crowds/habitual?areas=${[...scopes, ...cat.areas.map((x: any) => x.id)].slice(0, 40).join(',')}&dias=${Array.from({ length: 31 }, (_, i) => addDays('2027-02-01', i).slice(5)).join(',')}`));
       await m('GET /public/areas/:id/crowds', `dominio + estaciones × 30 años del mismo día, con partes`, api(null, 'GET', `/api/public/areas/${dom}/crowds?dia=02-15`));
       const crowdBody = { observationId: null, expectedVersion: null, areaId: AREA, date: '2026-02-14', measure: 'daily_skiers', status: 'value', value: 1200, sample: 'regular',
         sourceRef: 'https://example.invalid/noticia', sourceTitle: null, sourcePublished: null, note: null, reason: 'Auditoría' };

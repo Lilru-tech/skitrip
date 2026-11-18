@@ -74,6 +74,16 @@ describe('lectura pública', () => {
     await ins('t-pa', 'port-aine', '2026-02-21', 0);
     expect((await crowds('port-aine', '02-21')).scopes[0].observations[0].intensity).toMatchObject({ value: null, missing: 'zero_km', openKm: 0 });
   });
+  it('afluencia habitual para Comparar: los récords no cuentan (con los datos de hoy ninguna estación llega a 3 años)', async () => {
+    const r = (await api(null, 'GET', '/api/public/crowds/habitual?areas=boi-taull,la-molina,no-existe&dias=02-21,02-22')).json;
+    expect(r.minYears).toBe(3);
+    expect(r.areas).toEqual([
+      { areaId: 'boi-taull', median: null, years: 0, values: 0 },
+      { areaId: 'la-molina', median: null, years: 0, values: 0 },
+      { areaId: 'no-existe', median: null, years: 0, values: 0 },
+    ]);
+    expect((await api(null, 'GET', '/api/public/crowds/habitual?areas=boi-taull&dias=21-02')).status).toBe(422);
+  });
   it('día y mes inválidos: 422; 29/02 válido', async () => {
     expect((await api(null, 'GET', '/api/public/areas/la-molina/crowds?dia=02-30')).status).toBe(422);
     expect((await api(null, 'GET', '/api/public/areas/la-molina/crowds')).status).toBe(422);

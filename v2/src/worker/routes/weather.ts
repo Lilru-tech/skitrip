@@ -109,7 +109,11 @@ weatherRoutes.get('/forecast', async (c) => {
       const row = rows.find((x) => x.area_id === id);
       const f = parseStored(row);
       const days = forecastDays(f, from, to, today);
-      return { areaId: id, fetchedAt: f ? row!.fetched_at : null, freshness: f ? freshnessOf(row!.fetched_at!, nowMs) : null, summary: tripSummary(days), horizons: [...new Set(days.map((d) => d.horizon))] };
+      return {
+        areaId: id, fetchedAt: f ? row!.fetched_at : null, freshness: f ? freshnessOf(row!.fetched_at!, nowMs) : null, summary: tripSummary(days), horizons: [...new Set(days.map((d) => d.horizon))],
+        // Franja de esquí por día y modelo (solo previsión próxima): lo que usa el criterio «Condiciones meteorológicas».
+        ski: days.filter((d) => d.horizon === 'near').map((d) => ({ date: d.date, models: d.models.map((m) => ({ id: m.id, rain: m.day.ski.rain, strong: m.day.ski.strongGustHours, hours: m.day.ski.hours })) })),
+      };
     }),
   });
 });

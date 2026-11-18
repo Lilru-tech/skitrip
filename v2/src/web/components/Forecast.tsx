@@ -9,6 +9,7 @@ import { setQuery, useLocation } from '../router';
 import { useSession } from '../session';
 import { addDaysIso, daysBetweenIso, NEAR_MAX_LEAD, SKI_FROM_HOUR, SKI_TO_HOUR, STRONG_GUST_KMH, TREND_MAX_LEAD, type DayView, type Freshness, type Horizon, type TripForecastSummary } from '../../core/weather';
 import { todayMadrid } from '../../core/dates';
+import type { SkiForecast } from '../../core/trip-criteria';
 import type { Trip } from '../types';
 
 export interface ForecastPoint {
@@ -19,7 +20,7 @@ export interface ForecastPoint {
   lastError: string | null; days: DayView[]; summary: TripForecastSummary;
 }
 export interface ForecastResponse { today: string; from: string; to: string; attribution: string; horizonLabels: Record<Horizon, string>; notice: string | null; points: ForecastPoint[] }
-export interface CompareForecast { areaId: string; fetchedAt: number | null; freshness: Freshness | null; summary: TripForecastSummary; horizons: Horizon[] }
+export interface CompareForecast { areaId: string; fetchedAt: number | null; freshness: Freshness | null; summary: TripForecastSummary; horizons: Horizon[]; ski?: SkiForecast['days'] }
 
 const n1 = (v: number) => v.toLocaleString('es-ES', { maximumFractionDigits: 1 });
 /** «0–9,6» o «4» si los extremos coinciden. */

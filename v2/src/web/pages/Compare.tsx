@@ -20,13 +20,16 @@ import type { LegacyComment } from '../catalog';
 import { runEntry } from '../catalog';
 import { entryCatalogRuns, entryRunsNow, type EntryCatalogRuns, type RunsNow } from '../../core/runs';
 import { ForecastSummaryText, type CompareForecast } from '../components/Forecast';
+import { crowdCriterion, weatherCriterion, type Criterion, type CriterionEntry, type CrowdStat } from '../../core/trip-criteria';
+import { addDaysIso, daysBetweenIso } from '../../core/weather';
+import { todayMadrid } from '../../core/dates';
 import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Mode = 'lodging' | 'lodging_forfait';
 type Context = 'plan' | 'ahora';
 /** Km que puntúan en «Nieve abierta ahora»: solo los del dato elegido si es reciente y fiable (snow.rank), nunca snow.openKm tal cual. */
 const snowRankKm = (a: CatalogArea) => (a.snow?.rank ? a.snow.rank.openKm : null);
-const WEIGHT_LABEL: Record<keyof Weights, string> = { snowNow: 'Nieve abierta ahora', size: 'Km de pistas', distance: 'Cercanía', vibe: 'Ambiente', cost: 'Coste', runs: 'Variedad de pistas' };
+const WEIGHT_LABEL: Record<keyof Weights, string> = { snowNow: 'Nieve abierta ahora', size: 'Km de pistas', distance: 'Cercanía', vibe: 'Ambiente', cost: 'Coste', runs: 'Variedad de pistas', weather: 'Condiciones meteorológicas', crowd: 'Afluencia histórica' };
 const SLIDERS: (keyof Weights)[] = ['snowNow', 'size', 'runs', 'distance', 'vibe'];
 // El coste solo puntúa con un viaje elegido y presupuestos completos (mismas fechas y condiciones); sin eso, su peso
 // efectivo es 0. Al planificar, la nieve de hoy no puntúa por defecto (no dice nada de las fechas del viaje).
@@ -110,6 +113,19 @@ export function ComparePage() {
   const costActive = !!trip && tripMissing.length === 0 && anyComplete;
   const weights: Weights = costActive ? weightsBy[ctx] : { ...weightsBy[ctx], cost: 0 };
 
+  // Previsión de las fechas del viaje (al planificar): solo caché; si no hay, lo indica y la próxima pasada horaria la descarga.
+  const forecastIds = useMemo(() => (catalog.data ? topLevel(catalog.data).flatMap((e) => [e.area.id, ...e.members.map((m) => m.id)]) : []), [catalog.data]);
+  const forecastKey = ctx === 'plan' && trip?.startDate && trip.endDate && forecastIds.length ? `${trip.startDate}|${trip.endDate}|${forecastIds.join(',')}` : null;
+  const forecast = useKeyedResource(forecastKey, () => get<{ areas: CompareForecast[] }>(`/api/public/forecast?areas=${encodeURIComponent(forecastIds.join(','))}&desde=${trip!.startDate}&hasta=${trip!.endDate}`));
+  const forecastBy = forecast.data ? new Map(forecast.data.areas.map((a) => [a.areaId, a])) : forecast.error ? 'error' as const : forecastKey ? 'loading' as const : undefined;
+
+  // Afluencia habitual de los días del viaje por estación (su propio ámbito), para el criterio «Afluencia histórica».
+  const tripMmdds = trip?.startDate && trip.endDate && trip.endDate >= trip.startDate && daysBetweenIso(trip.startDate, trip.endDate) < 31
+    ? [...new Set(Array.from({ length: daysBetweenIso(trip.startDate, trip.endDate) + 1 }, (_, i) => addDaysIso(trip.startDate!, i).slice(5)))] : [];
+  const entryIds = useMemo(() => (catalog.data ? topLevel(catalog.data).map((e) => e.area.id) : []), [catalog.data]);
+  const crowdKey = ctx === 'plan' && tripMmdds.length && entryIds.length ? `${tripMmdds.join(',')}|${entryIds.join(',')}` : null;
+  const crowds = useKeyedResource(crowdKey, () => get<{ areas: (CrowdStat & { areaId: string })[] }>(`/api/public/crowds/habitual?areas=${encodeURIComponent(entryIds.join(','))}&dias=${tripMmdds.join(',')}`));
+
   const groups = useMemo(() => {
     if (!catalog.data) return null;
     const nowMs = Date.now();
@@ -121,27 +137,36 @@ export function ComparePage() {
     const noRoute = entries.filter((e) => e.area.route?.roadKm == null);
     // «Esquiar ahora»: solo se puntúan y recomiendan las abiertas confirmadas; el resto se lista aparte, sin puntuar.
     const candidates = ctx === 'ahora' ? near.filter((e) => e.status.status === 'open') : near;
+    // Tiempo y afluencia: se aplican a todas las candidatas o a ninguna (con su motivo); inactivos, su peso es 0.
+    const plan = ctx === 'plan';
+    const fc = forecast.data ? new Map(forecast.data.areas.map((a) => [a.areaId, a])) : null;
+    const critEntries: CriterionEntry[] = candidates.map((e) => ({
+      id: e.area.id, name: e.area.name,
+      points: fc?.has(e.area.id) ? [{ id: e.area.id, name: e.area.name }] : e.members.filter((m) => fc?.has(m.id)).map((m) => ({ id: m.id, name: m.name })),
+    }));
+    const weatherCrit: Criterion = !plan ? { active: false, reason: 'Solo al planificar un viaje.' } : trip?.startDate && trip.endDate && !fc
+      ? { active: false, reason: forecast.error ? `No se ha podido cargar la previsión: ${forecast.error}` : 'Cargando la previsión…' }
+      : weatherCriterion(trip?.startDate ?? null, trip?.endDate ?? null, todayMadrid(), critEntries, new Map([...(fc?.values() ?? [])].map((a) => [a.areaId, { freshness: a.freshness, days: a.ski ?? [] }])));
+    const crowdCrit: Criterion = !plan ? { active: false, reason: 'Solo al planificar un viaje.' }
+      : crowdCriterion(critEntries, crowds.data ? new Map(crowds.data.areas.map((a) => [a.areaId, a])) : crowds.error ? new Map() : null, tripMmdds.length > 0);
+    const effective: Weights = { ...weights, weather: weatherCrit.active ? weights.weather : 0, crowd: crowdCrit.active ? weights.crowd : 0 };
     const scored = scoreRows(candidates.map((e) => ({
       id: e.area.id, costPerPersonCents: costActive ? costByArea?.get(e.area.id)?.perPersonCents ?? null : null, roadKm: e.area.route?.roadKm ?? null,
       totalKm: e.area.snow?.totalKm ?? e.area.officialTotalKm, openKmNow: snowRankKm(e.area), vibe: e.area.vibe,
       // Planificar: total comparable del catálogo. Esquiar ahora: abiertas con parte vigente (nunca el catálogo en su lugar).
       runs: ctx === 'plan' ? e.runs.cat.comparableTotal : e.runs.now.open,
-    })), weights);
+      weather: weatherCrit.active ? weatherCrit.value.get(e.area.id) ?? null : null,
+      crowd: crowdCrit.active ? crowdCrit.value.get(e.area.id) ?? null : null,
+    })), effective);
     const byId = new Map(candidates.map((e) => [e.area.id, e]));
     return {
       ranked: scored.map((s) => ({ ...byId.get(s.id)!, score: s })),
       unknownNow: ctx === 'ahora' ? near.filter((e) => e.status.status === 'unknown') : [],
       closedNow: ctx === 'ahora' ? near.filter((e) => e.status.status === 'closed' || e.status.status === 'off_season') : [],
-      far, noRoute,
+      far, noRoute, weatherCrit, crowdCrit,
       counts: { all: countStatuses(entries.map((e) => e.status.status)), filtered: countStatuses(near.map((e) => e.status.status)) },
     };
-  }, [catalog.data, maxKm, weights, ctx, costActive, costByArea, origin, customRoutes]);
-
-  // Previsión de las fechas del viaje (al planificar): solo caché; si no hay, lo indica y la próxima pasada horaria la descarga.
-  const forecastIds = useMemo(() => (catalog.data ? topLevel(catalog.data).flatMap((e) => [e.area.id, ...e.members.map((m) => m.id)]) : []), [catalog.data]);
-  const forecastKey = ctx === 'plan' && trip?.startDate && trip.endDate && forecastIds.length ? `${trip.startDate}|${trip.endDate}|${forecastIds.join(',')}` : null;
-  const forecast = useKeyedResource(forecastKey, () => get<{ areas: CompareForecast[] }>(`/api/public/forecast?areas=${encodeURIComponent(forecastIds.join(','))}&desde=${trip!.startDate}&hasta=${trip!.endDate}`));
-  const forecastBy = forecast.data ? new Map(forecast.data.areas.map((a) => [a.areaId, a])) : forecast.error ? 'error' as const : forecastKey ? 'loading' as const : undefined;
+  }, [catalog.data, maxKm, weights, ctx, costActive, costByArea, origin, customRoutes, forecast.data, forecast.error, crowds.data, crowds.error, trip?.startDate, trip?.endDate, tripMmdds.join(',')]);
 
   const originName = origin === 'tarragona' ? 'Tarragona' : origin === 'sabadell' ? 'Sabadell' : custom?.label ?? 'tu origen';
   const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; runs: { cat: EntryCatalogRuns; now: RunsNow } }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
@@ -205,7 +230,7 @@ export function ComparePage() {
         <details className="weights">
           <summary>Pesos de la puntuación</summary>
           <div className="weights-grid">
-            {(costActive ? ['cost' as const, ...SLIDERS] : SLIDERS).map((k) => (
+            {[...(costActive ? ['cost' as const] : []), ...SLIDERS, ...(ctx === 'plan' ? ['weather' as const, 'crowd' as const] : [])].map((k) => (
               <div key={k} className="field">
                 <label htmlFor={`w-${k}`}>{WEIGHT_LABEL[k]}: <strong>{Math.round(weights[k] * 100)}</strong></label>
                 <input id={`w-${k}`} type="range" min={0} max={100} step={5} value={Math.round(weights[k] * 100)}
@@ -217,6 +242,13 @@ export function ComparePage() {
           <p className="muted small"><strong>Variedad de pistas</strong> empieza a 0. Más pistas suman más puntos; los colores son informativos y no puntúan. {ctx === 'plan'
             ? 'Al planificar cuenta el número de pistas del catálogo de cada estación, que no garantiza qué estará abierto en las fechas del viaje.'
             : 'Ahora cuentan las pistas abiertas con un parte vigente; sin parte vigente el criterio queda sin dato.'} Km de pistas y número de pistas miden cosas relacionadas: si subes los dos, el tamaño de la estación pesa más. Ningún otro peso cambia solo.</p>
+          {ctx === 'plan' && groups && (
+            <div className="stack-s" data-testid="trip-criteria">
+              <p className="muted small"><strong>Condiciones meteorológicas</strong> y <strong>Afluencia histórica</strong> empiezan a 0 y se aplican a todas las estaciones o a ninguna. Tiempo: lluvia y horas con rachas de 60 km/h o más en la franja de esquí (09–17 h), con el modelo más desfavorable y solo con previsión próxima para todos los días del viaje; la nieve nueva y la temperatura no puntúan. Afluencia: menos esquiadores por km abierto en esos días de años anteriores (mediana, al menos 3 años, sin récords). La falta de previsión o de registros nunca suma.</p>
+              <p className="small" data-testid="weather-criterion">{groups.weatherCrit.active ? <span className="tag tag-ok">Tiempo: se aplica</span> : <span className="tag tag-quiet">Tiempo: no se aplica</span>} {groups.weatherCrit.active ? 'Todas las estaciones tienen previsión próxima vigente de al menos 2 modelos comunes.' : groups.weatherCrit.reason}</p>
+              <p className="small" data-testid="crowd-criterion">{groups.crowdCrit.active ? <span className="tag tag-ok">Afluencia: se aplica</span> : <span className="tag tag-quiet">Afluencia: no se aplica</span>} {groups.crowdCrit.active ? 'Todas las estaciones tienen registros suficientes.' : groups.crowdCrit.reason}</p>
+            </div>
+          )}
           <p className="muted small">La <strong>cobertura</strong> dice qué parte de la puntuación se calcula con datos disponibles. No indica si la estación está abierta: eso lo dice su estado.</p>
         </details>
         <p className="muted small">Las ofertas de cada estación se muestran en su ficha en modo «{MODALITY_LABEL[mode]}». Son orientativas, con fechas del proveedor.</p>

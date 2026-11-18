@@ -147,3 +147,23 @@ export function validateCrowdDraft(d: CrowdDraft, today: string): string[] {
   if (d.reason.trim().length < 5) e.push('Explica el motivo (mínimo 5 caracteres).');
   return e;
 }
+
+/** Mínimo de años con intensidad diaria válida para que la afluencia pueda puntuar (docs/METEO-AFLUENCIA.md §4). */
+export const CROWD_MIN_YEARS = 3;
+/**
+ * Afluencia habitual de un ámbito para unos días del año: mediana de las intensidades diarias válidas de esos días y
+ * meses (solo cifras de esquiadores del día de muestras habituales: sin récords ni días seleccionados) y años con dato.
+ * Un ámbito no toma las cifras de otro (un dominio no suma las de sus estaciones).
+ */
+export function habitualIntensity(obs: readonly CrowdObservation[], km: readonly SameDayKm[], areaId: string, mmdds: readonly string[]): { median: number | null; years: number; values: number }{
+  const days = new Set(mmdds);
+  const vals: { y: number; v: number }[] = [];
+  for (const o of obs) {
+    if (o.areaId !== areaId || o.sample !== 'regular' || o.measure !== 'daily_skiers' || o.status !== 'value' || !days.has(o.date.slice(5))) continue;
+    const r = dailyIntensity(o, km);
+    if (r.value != null) vals.push({ y: +o.date.slice(0, 4), v: r.value });
+  }
+  const s = vals.map((x) => x.v).sort((a, b) => a - b);
+  const median = s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : Math.round(((s[s.length / 2 - 1] + s[s.length / 2]) / 2) * 10) / 10) : null;
+  return { median, years: new Set(vals.map((x) => x.y)).size, values: s.length };
+}
