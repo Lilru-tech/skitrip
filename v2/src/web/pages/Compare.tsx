@@ -19,6 +19,7 @@ import { customRouteMap, setCustomOrigin, useCustomOrigin } from '../origin';
 import type { LegacyComment } from '../catalog';
 import { runEntry } from '../catalog';
 import { entryCatalogRuns, entryRunsNow, type EntryCatalogRuns, type RunsNow } from '../../core/runs';
+import { ForecastSummaryText, type CompareForecast } from '../components/Forecast';
 import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Mode = 'lodging' | 'lodging_forfait';
@@ -136,9 +137,15 @@ export function ComparePage() {
     };
   }, [catalog.data, maxKm, weights, ctx, costActive, costByArea, origin, customRoutes]);
 
+  // Previsión de las fechas del viaje (al planificar): solo caché; si no hay, lo indica y la próxima pasada horaria la descarga.
+  const forecastIds = useMemo(() => (catalog.data ? topLevel(catalog.data).flatMap((e) => [e.area.id, ...e.members.map((m) => m.id)]) : []), [catalog.data]);
+  const forecastKey = ctx === 'plan' && trip?.startDate && trip.endDate && forecastIds.length ? `${trip.startDate}|${trip.endDate}|${forecastIds.join(',')}` : null;
+  const forecast = useKeyedResource(forecastKey, () => get<{ areas: CompareForecast[] }>(`/api/public/forecast?areas=${encodeURIComponent(forecastIds.join(','))}&desde=${trip!.startDate}&hasta=${trip!.endDate}`));
+  const forecastBy = forecast.data ? new Map(forecast.data.areas.map((a) => [a.areaId, a])) : forecast.error ? 'error' as const : forecastKey ? 'loading' as const : undefined;
+
   const originName = origin === 'tarragona' ? 'Tarragona' : origin === 'sabadell' ? 'Sabadell' : custom?.label ?? 'tu origen';
   const card = (e: { area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; runs: { cat: EntryCatalogRuns; now: RunsNow } }, extra: { rank?: number; score?: ReturnType<typeof scoreRows>[number] } = {}) => (
-    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} runs={e.runs} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} {...extra} />
+    <AreaCard key={e.area.id} area={e.area} members={e.members} status={e.status} runs={e.runs} mode={mode} origin={originName} ctx={ctx} cost={!trip ? undefined : costByArea ? costByArea.get(e.area.id) ?? null : costs.error ? 'error' : 'loading'} forecast={forecastBy} {...extra} />
   );
 
   return (
@@ -398,11 +405,13 @@ function GeneralTips() {
   );
 }
 
-function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx, cost }: {
+function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx, cost, forecast }: {
   area: CatalogArea; members: CatalogArea[]; status: ResortStatusInfo; runs: { cat: EntryCatalogRuns; now: RunsNow }; mode: Mode; origin: string; ctx: Context; rank?: number;
   /** undefined = sin viaje elegido (no se muestra); null = el viaje no tiene candidaturas en esta estación;
    * 'loading' / 'error' = aún no hay costes de la selección actual (nunca se muestran los de otra). */
   cost?: AreaCost | null | 'loading' | 'error';
+  /** Previsión de las fechas del viaje por estación (un dominio, por cada estación miembro). undefined = no se muestra. */
+  forecast?: Map<string, CompareForecast> | 'loading' | 'error';
   score?: ReturnType<typeof scoreRows>[number];
 }) {
   const href = `/estaciones/${area.id}${mode === 'lodging_forfait' ? '?modalidad=lodging_forfait' : ''}`;
@@ -435,6 +444,7 @@ function AreaCard({ area, members, status, runs, mode, score, rank, origin, ctx,
           ? <NowRunsText now={runs.now} name={area.name} catalogTotal={runs.cat.comparableTotal ?? runs.cat.own?.total ?? null} reportDate={snow?.sourceDate} />
           : <CatalogRunsText cat={runs.cat} name={area.name} runs={area.runs} />}</dd></div>
         {cost !== undefined && <div><dt>Coste por persona</dt><dd><CostText cost={cost} /></dd></div>}
+        {forecast !== undefined && <div><dt>Previsión del viaje</dt><dd><ForecastCell forecast={forecast} area={area} members={members} /></dd></div>}
       </dl>
       {score && (
         <p className="score-line">
@@ -495,4 +505,26 @@ function memberText(m: CatalogArea): string {
 /** Km abiertos de totales; con el estado, un cierre confirmado se dice como tal (no «sin dato abiertos de sin dato»). */
 export function SnowKm({ open, total, opStatus, omitState = false }: { open: number | null; total: number | null; opStatus?: string; omitState?: boolean }) {
   return <span>{snowStateText({ opStatus: opStatus ?? 'unknown', openKm: open, totalKm: total }, omitState).text}</span>;
+}
+
+/** Previsión de las fechas del viaje en una tarjeta: la de la estación o, en un dominio, la de cada estación (sin mezclar). */
+function ForecastCell({ forecast, area, members }: { forecast: Map<string, CompareForecast> | 'loading' | 'error'; area: CatalogArea; members: CatalogArea[] }) {
+  if (forecast === 'loading') return <span className="muted">cargando…</span>;
+  if (forecast === 'error') return <span className="text-warn">no se ha podido cargar</span>;
+  const own = forecast.get(area.id);
+  const list = own ? [{ name: null as string | null, f: own }] : members.flatMap((m) => { const f = forecast.get(m.id); return f ? [{ name: m.name as string | null, f }] : []; });
+  if (!list.length) return <span className="muted">sin punto de previsión</span>;
+  return (
+    <span data-testid={`cmp-forecast-${area.id}`}>
+      {list.map(({ name, f }, i) => (
+        <span key={i} className="block small">
+          {name && <strong>{name}: </strong>}
+          {f.summary.state === 'none'
+            ? (f.horizons.every((h) => h === 'beyond' || h === 'past') ? 'Todavía no hay previsión disponible.' : 'Sin previsión guardada todavía; se consulta en la próxima hora.')
+            : <ForecastSummaryText s={f.summary} />}
+          {f.freshness === 'stale' && <span className="text-warn"> · previsión antigua</span>}
+        </span>
+      ))}
+    </span>
+  );
 }

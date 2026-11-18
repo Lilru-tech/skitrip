@@ -15,6 +15,12 @@ export const E2E_WORKER_VARS: Record<string, string> = {
   // Geoapify simulado (test/e2e/geoapify-mock.mjs): clave de prueba, sin red.
   GEOAPIFY_API_KEY: 'e2e-geo-key-not-a-secret',
   GEOAPIFY_BASE_URL: `http://localhost:${GEO_MOCK_PORT}`,
+  // Open-Meteo simulado (mismo servidor, ruta /meteo) y puntos de previsión de las estaciones sintéticas.
+  OPEN_METEO_BASE_URL: `http://localhost:${GEO_MOCK_PORT}/meteo`,
+  WEATHER_TEST_POINTS: JSON.stringify(['e2e-beta', 'e2e-alfa-norte', 'e2e-alfa-sur'].map((areaId, i) => ({
+    areaId, lat: 42.3 + i / 10, lon: 1.6, elevation: 2000 - i * 100, baseM: 1700, topM: 2500, altitudeSource: 'sintética', altitudeNote: null,
+    location: 'Punto sintético', locationSource: 'e2e',
+  }))),
 };
 
 /** Build de prueba de Pages: base /skitrip/, API en otro origen y CSP en <meta>, contra el emulador de Auth. */

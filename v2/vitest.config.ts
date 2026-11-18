@@ -10,7 +10,8 @@ export default defineConfig(async () => {
         wrangler: { configPath: './wrangler.jsonc' },
         miniflare: {
           bindings: { TEST_MIGRATIONS: migrations, AUTH_MODE: 'emulator', FIREBASE_PROJECT_ID: 'demo-skitrip', ALLOWED_ORIGINS: 'http://localhost:5173,https://lilru-tech.github.io', MAX_PROFILES: '50', INGEST_TOKEN: 'test-ingest-token',
-            GEOAPIFY_API_KEY: 'test-geo-key', GEOAPIFY_BASE_URL: 'https://geo.mock', GEO_DAILY_CREDITS: '100', GEO_USER_DAILY_CREDITS: '40' },
+            GEOAPIFY_API_KEY: 'test-geo-key', GEOAPIFY_BASE_URL: 'https://geo.mock', GEO_DAILY_CREDITS: '100', GEO_USER_DAILY_CREDITS: '40',
+            OPEN_METEO_BASE_URL: 'https://meteo.mock', WEATHER_DAILY_UNITS: '40' },
         },
       }),
     ],

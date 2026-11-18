@@ -12,6 +12,12 @@ export interface Env {
   /** Topes de créditos al día (UTC): global y por persona. Por defecto 2000 y 250 (el plan gratuito da 3000). */
   GEO_DAILY_CREDITS?: string;
   GEO_USER_DAILY_CREDITS?: string;
+  /** Solo pruebas: servidor simulado de Open-Meteo. En producción no se define (https://api.open-meteo.com). */
+  OPEN_METEO_BASE_URL?: string;
+  /** Tope propio de unidades de Open-Meteo al día (UTC). Por defecto 2000 (el plan gratuito da 10.000). */
+  WEATHER_DAILY_UNITS?: string;
+  /** Solo E2E con AUTH_MODE emulator: puntos de previsión de estaciones sintéticas (JSON). */
+  WEATHER_TEST_POINTS?: string;
 }
 
 export interface AuthInfo {

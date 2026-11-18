@@ -223,3 +223,4 @@
 ul.row-wrap { list-style: none; padding-left: 0; margin: 0; }
 ul.run-notes { padding-left: 1.2em; margin: var(--space-1) 0 0; }
 ul.run-notes > li + li { margin-top: var(--space-1); }
+.block { display: block; }
