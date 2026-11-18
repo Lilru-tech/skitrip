@@ -60,6 +60,18 @@ async function archive(model: string) {
 }
 
 out(`# Comprobación de fuentes · ${new Date().toISOString()}`);
+// ¿Qué cambia la «elevation» de Open-Meteo? Misma consulta con la altitud de la celda (nan) y con la del punto (2478 m).
+for (const m of ['ecmwf_ifs', 'icon_seamless', 'meteofrance_seamless']) {
+  const sums: string[] = [];
+  for (const el of ['nan', '2478']) {
+    const r = await get(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&elevation=${el}&hourly=${HOURLY.join(',')}&models=${m}&forecast_days=3&timezone=Europe%2FMadrid`);
+    const j = json(r.text);
+    if (!j?.hourly) { sums.push(`elevation=${el}: HTTP ${r.status}`); continue; }
+    const agg = (k: string, f: 'sum' | 'max' | 'mean') => { const v = (j.hourly[k] as (number | null)[]).filter((x): x is number => x != null); const s = v.reduce((a, b) => a + b, 0); return (f === 'sum' ? s : f === 'max' ? Math.max(...v) : s / v.length).toFixed(2); };
+    sums.push(`elevation=${el} → usada ${j.elevation} m · T media ${agg('temperature_2m', 'mean')} · precip ${agg('precipitation', 'sum')} · lluvia ${agg('rain', 'sum')} · nieve ${agg('snowfall', 'sum')} cm · viento máx ${agg('wind_speed_10m', 'max')} · racha máx ${agg('wind_gusts_10m', 'max')}`);
+  }
+  out(`elevation · ${m}: ${sums.join(' || ')}`);
+}
 // Previsión: varios modelos identificados del mismo proveedor (Open-Meteo redistribuye datos de ECMWF, DWD, Météo-France, NOAA).
 for (const m of ['ecmwf_ifs', 'ecmwf_ifs025', 'icon_seamless', 'icon_eu', 'meteofrance_seamless', 'meteofrance_arome_france_hd', 'meteofrance_arome_france', 'gfs_seamless']) await forecast(m);
 out('\n## Metadatos de actualización');
@@ -84,8 +96,15 @@ for (const m of ['era5', 'era5_land', 'era5_seamless', 'cerra', 'ecmwf_ifs']) aw
     for (const x of rows.filter((x: any) => alt(x) >= 1400).sort((a: any, b: any) => alt(b) - alt(a)))
       out(`  ${x.codi_estacio ?? x.codi} · ${x.nom_estacio ?? x.nom} · ${alt(x)} m · ${x.latitud},${x.longitud} · ${x.nom_estat_ema ?? x.estat ?? ''} · alta ${x.data_inici ?? ''} baja ${x.data_fi ?? ''} · ${x.nom_comarca ?? ''}`);
   } else out(r.text.slice(0, 300));
-  const d = await get('https://analisi.transparenciacatalunya.cat/resource/7bvh-jvq2.json?$limit=3');
-  out(`XEMA diarios (7bvh-jvq2) · HTTP ${d.status} · muestra ${d.text.slice(0, 600)}`);
+  for (const id of ['yqwd-vj5e', '7bvh-jvq2']) {
+    const v = json((await get(`https://analisi.transparenciacatalunya.cat/api/views/${id}.json`)).text);
+    out(`licencia ${id}: ${JSON.stringify(v?.license ?? v?.metadata?.license ?? null)} · ${v?.licenseId ?? ''} · atribución ${v?.attribution ?? ''} ${v?.attributionLink ?? ''}`);
+  }
+  const vars = await get("https://analisi.transparenciacatalunya.cat/resource/7bvh-jvq2.json?$select=codi_variable,nom_variable,unitat,count(*),min(data_lectura),max(data_lectura)&$where=codi_estacio='ZD'&$group=codi_variable,nom_variable,unitat&$limit=100");
+  out(`XEMA diarios (7bvh-jvq2) variables de la Tosa d'Alp (ZD) · HTTP ${vars.status}`);
+  for (const x of json(vars.text) ?? []) out(`  ${x.codi_variable} · ${x.nom_variable} · ${x.unitat} · ${x.count} días · ${x.min_data_lectura?.slice(0, 10)} → ${x.max_data_lectura?.slice(0, 10)}`);
+  const cover = await get("https://analisi.transparenciacatalunya.cat/resource/7bvh-jvq2.json?$select=codi_estacio,count(*),min(data_lectura),max(data_lectura)&$where=codi_estacio in('ZD','DG','Z2','Z7','Z1','ZE','Z8','ZC')&$group=codi_estacio&$limit=20");
+  out(`XEMA diarios · cobertura por estación · HTTP ${cover.status} · ${cover.text.replace(/\s+/g, ' ').slice(0, 1200)}`);
 }
 
 // Afluencia: catálogo de datos abiertos de FGC (no se descarga ningún conjunto, solo la lista).
