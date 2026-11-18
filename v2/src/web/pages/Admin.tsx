@@ -9,6 +9,7 @@ import { healthText, isLegitimateAbsence, instant, plural, RUN_STATUS_LABEL, SOU
 import { useResource } from '../hooks';
 import { Link, useLocation, usePageTitle } from '../router';
 import { RunsAdmin } from './AdminRuns';
+import { CrowdsAdmin } from './AdminCrowds';
 import { useProfile } from '../session';
 
 interface Health {
@@ -28,9 +29,10 @@ const RUN_LABEL: Record<string, string> = { ...RUN_STATUS_LABEL, running: 'en cu
 const WATCH_LABEL: Record<string, string> = { ok: 'Correcto', aislado: 'Aviso aislado', degradado: 'Degradación repetida', fallo: 'Fallo' };
 const WATCH_KIND: Record<string, string> = { check: 'comprobación', regression: 'funcionaba antes', pending: 'pendiente', absence: 'pendiente de invierno' };
 
-type Section = 'pistas' | 'antiguos' | 'cuentas' | 'vigilancia';
+type Section = 'pistas' | 'afluencia' | 'antiguos' | 'cuentas' | 'vigilancia';
 const SECTIONS: { id: Section; label: string; hint: string }[] = [
   { id: 'pistas', label: 'Pistas', hint: 'Total y colores del catálogo, con aportaciones manuales e historial.' },
+  { id: 'afluencia', label: 'Afluencia', hint: 'Observaciones históricas verificables de afluencia, con fuente, motivo e historial.' },
   { id: 'antiguos', label: 'Datos antiguos', hint: 'Hoja antigua: importar, vincular nombres, publicar comentarios y asignar disponibilidad.' },
   { id: 'cuentas', label: 'Cuentas', hint: 'Bloquear y desbloquear cuentas.' },
   { id: 'vigilancia', label: 'Vigilancia', hint: 'Salud de las fuentes, vigilancia diaria y últimas capturas.' },
@@ -65,6 +67,7 @@ export function AdminPage() {
       </nav>
       <p className="small muted">{current.hint}</p>
       {section === 'pistas' && <RunsAdmin />}
+      {section === 'afluencia' && <CrowdsAdmin />}
       {section === 'antiguos' && (
         <>
           <LegacyOverview rev={rev} onChanged={() => setRev((n) => n + 1)} />
