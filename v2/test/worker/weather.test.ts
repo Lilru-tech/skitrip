@@ -123,11 +123,13 @@ describe('ficha', () => {
     expect(r.json.notice).toMatch(/tope diario/);
   });
 
-  it('dos consultas simultáneas del mismo punto: una sola descarga', async () => {
+  it('dos consultas simultáneas del mismo punto: una sola descarga y las dos reciben la previsión', async () => {
     install({ delayMs: 50 });
     const t = today();
-    await Promise.all([get(`/api/public/areas/javalambre/forecast?desde=${t}`), get(`/api/public/areas/javalambre/forecast?desde=${t}`)]);
+    const both = await Promise.all([get(`/api/public/areas/javalambre/forecast?desde=${t}`), get(`/api/public/areas/javalambre/forecast?desde=${t}`)]);
     expect(mock.forecastCalls).toHaveLength(1);
+    // La que no descarga espera a la otra: las dos devuelven la previsión, ninguna «sin previsión».
+    expect(both.map((r) => r.json.points[0].freshness)).toEqual(['fresh', 'fresh']);
   });
 
   it('fechas no válidas', async () => {
@@ -144,14 +146,14 @@ describe('Comparar y cron', () => {
     const r = await get(`/api/public/forecast?areas=cerler,masella,no-existe&desde=${t}&hasta=${addDaysIso(t, 1)}`);
     expect(mock.forecastCalls).toHaveLength(0);
     expect(r.json.areas.map((a: any) => [a.areaId, a.summary.state])).toEqual([['cerler', 'none'], ['masella', 'none']]);
-    await worker.scheduled!({ scheduledTime: Date.parse(`${t}T10:17:00Z`), cron: '17 * * * *' } as any, env as any);
+    await worker.scheduled!({ scheduledTime: Date.parse(`${t}T10:17:00Z`), cron: '*/20 * * * *' } as any, env as any);
     expect(mock.forecastCalls).toHaveLength(1);
     expect(mock.forecastCalls[0].searchParams.get('latitude')!.split(',')).toHaveLength(2);
     const again = await get(`/api/public/forecast?areas=cerler,masella&desde=${addDaysIso(t, 1)}&hasta=${addDaysIso(t, 2)}`);
     expect(again.json.areas.map((a: any) => a.summary.state)).toEqual(['complete', 'complete']);
     // Sin consultas recientes, el cron no gasta.
     await env.DB.prepare('UPDATE weather_forecasts SET last_requested_at = 0, fetched_at = 0').run();
-    await worker.scheduled!({ scheduledTime: Date.now(), cron: '17 * * * *' } as any, env as any);
+    await worker.scheduled!({ scheduledTime: Date.now(), cron: '*/20 * * * *' } as any, env as any);
     expect(mock.forecastCalls).toHaveLength(1);
   });
 });

@@ -168,10 +168,14 @@ export default {
   // por pasada). La limpieza de contadores sigue siendo diaria, a las 03 UTC.
   async scheduled(ctrl: ScheduledController, env: AppEnv['Bindings']) {
     const nowMs = ctrl.scheduledTime || Date.now();
-    if (new Date(nowMs).getUTCHours() === 3) {
+    // Cada 20 min: previsión de hasta 3 estaciones consultadas (cabe en 10 ms de CPU). La pasada de las 03:00 UTC hace
+    // solo la limpieza diaria de contadores.
+    const d = new Date(nowMs);
+    if (d.getUTCHours() === 3 && d.getUTCMinutes() < 20) {
       await purgeRateLimits(env.DB);
       await purgeGeoUsage(env.DB);
       await purgeWeatherUsage(env.DB, nowMs);
+      return;
     }
     await cronRefreshForecasts(env.DB, env, nowMs);
   },

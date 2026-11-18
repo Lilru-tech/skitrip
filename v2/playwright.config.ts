@@ -13,7 +13,7 @@ import { E2E_WORKER_VARS, GEO_MOCK_PORT, PAGES_TEST_ENV, PAGES_URL } from './tes
 const CHROME = process.env.PW_CHROMIUM_PATH || undefined;
 const STATE = 'test/e2e/.state';
 const reuse = !process.env.CI;
-const vars = Object.entries(E2E_WORKER_VARS).map(([k, v]) => `--var ${k}:${v}`).join(' ');
+const vars = Object.entries(E2E_WORKER_VARS).map(([k, v]) => `--var '${k}:${v}'`).join(' ');
 
 export default defineConfig({
   testDir: 'test/e2e',

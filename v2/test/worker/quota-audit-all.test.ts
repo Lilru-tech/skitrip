@@ -389,6 +389,9 @@ describe('auditoría de consultas: resto de rutas', () => {
       await db.batch(cat.links.map((l: any) => db.prepare('INSERT OR IGNORE INTO area_links (parent_id, child_id, relation) VALUES (?1, ?2, ?3)').bind(l.parent, l.child, l.relation)));
       const dom = cat.links[0].parent;
       await m('GET /public/areas/:id/forecast', 'dominio con 2 estaciones, descarga de ambas', api(null, 'GET', `/api/public/areas/${dom}/forecast`));
+      // Peor caso: otra consulta tiene el bloqueo de los dos puntos y no termina (espera y relee hasta 8 veces).
+      await db.prepare('UPDATE weather_forecasts SET fetched_at = NULL, payload = NULL, refreshing_until = ?1').bind(Date.now() + 60_000).run();
+      await m('GET /public/areas/:id/forecast (esperando otra descarga)', 'dominio con 2 estaciones bloqueadas', api(null, 'GET', `/api/public/areas/${dom}/forecast`));
       const all = cat.areas.filter((a: any) => a.kind !== 'domain').map((a: any) => a.id).join(',');
       await m('GET /public/forecast', '21 estaciones', api(null, 'GET', `/api/public/forecast?areas=${all}`));
       spy.mockRestore();

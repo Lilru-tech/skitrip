@@ -14,9 +14,34 @@ function km([lon1, lat1], [lon2, lat2]) {
 }
 const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
 
+// Open-Meteo simulado: previsión horaria de 8 días con 3 modelos (MF solo 4 días, ICON 7,5) y meta.json de cada modelo.
+const H = { ecmwf_ifs: 192, icon_seamless: 180, meteofrance_seamless: 96 };
+function meteo(url, res) {
+  if (url.pathname.endsWith('/meta.json')) return json(res, 200, { last_run_initialisation_time: Math.floor(Date.now() / 1000 / 21600) * 21600 - 21600 });
+  if (url.pathname !== '/meteo/v1/forecast') return json(res, 404, { error: 'not found' });
+  const lats = (url.searchParams.get('latitude') || '').split(',');
+  const elev = (url.searchParams.get('elevation') || '').split(',');
+  const t0 = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`) / 1000 - 3600;
+  const time = Array.from({ length: 193 }, (_, i) => t0 + i * 3600);
+  const loc = (i) => {
+    const hourly = { time };
+    for (const [m, n] of Object.entries(H)) {
+      const v = (f) => time.map((_, h) => (h < n ? f(h) : null));
+      Object.assign(hourly, {
+        [`temperature_2m_${m}`]: v((h) => -4 + (h % 24) / 4), [`precipitation_${m}`]: v((h) => (m === 'icon_seamless' && h % 24 === 12 ? 2 : 0)),
+        [`rain_${m}`]: v(() => 0), [`snowfall_${m}`]: v((h) => (m === 'icon_seamless' && h % 24 === 12 ? 1.4 : 0)),
+        [`wind_speed_10m_${m}`]: v(() => 15), [`wind_gusts_10m_${m}`]: v((h) => (m === 'ecmwf_ifs' && h % 24 === 13 ? 65 : 35)),
+      });
+    }
+    return { latitude: Number(lats[i]), longitude: 1.6, elevation: Number(elev[i]), hourly };
+  };
+  return json(res, 200, lats.length === 1 ? loc(0) : lats.map((_, i) => loc(i)));
+}
+
 createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   if (url.pathname === '/health') return json(res, 200, { ok: true });
+  if (url.pathname.startsWith('/meteo/')) return meteo(url, res);
   if (url.searchParams.get('apiKey') !== 'e2e-geo-key-not-a-secret') return json(res, 401, { error: 'key' });
   if (url.pathname === '/v1/geocode/search') {
     const text = (url.searchParams.get('text') || '').toLowerCase();

@@ -16,6 +16,8 @@ export interface Env {
   OPEN_METEO_BASE_URL?: string;
   /** Tope propio de unidades de Open-Meteo al día (UTC). Por defecto 2000 (el plan gratuito da 10.000). */
   WEATHER_DAILY_UNITS?: string;
+  /** Solo E2E con AUTH_MODE emulator: puntos de previsión de estaciones sintéticas (JSON). */
+  WEATHER_TEST_POINTS?: string;
 }
 
 export interface AuthInfo {

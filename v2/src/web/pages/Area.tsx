@@ -17,6 +17,7 @@ import { legacyAnomalyText, routeProvenance } from '../../core/legacy';
 import { SnowKm } from './Compare';
 import { entryCatalogRuns, runCatalogView, runsNow, RUN_CATALOG_ISSUE_LABEL } from '../../core/runs';
 import { runEntry, type RunCatalog } from '../catalog';
+import { ForecastSection } from '../components/Forecast';
 import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Forfait = 'yes' | 'no' | 'unknown';
@@ -94,6 +95,8 @@ export function AreaPage({ areaId }: { areaId: string }) {
       </section>
 
       <RunsSection areaId={area.id} name={area.name} runs={d.data!.runs ?? null} memberRuns={d.data!.memberRuns ?? []} memberNames={new Map(children.map((c) => [c.child_id, c.child_name]))} latest={latest} />
+
+      <ForecastSection areaId={area.id} name={area.name} />
 
       <section className="panel stack" aria-labelledby="a-offers">
         <h2 id="a-offers">Ofertas y qué hacer</h2>

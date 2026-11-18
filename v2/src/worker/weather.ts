@@ -10,6 +10,19 @@ export interface WeatherPoint {
   altitudeSource: string; altitudeNote: string | null; location: string; locationSource: string;
 }
 export const WEATHER_POINTS: ReadonlyMap<string, WeatherPoint> = new Map((pointsDoc.points as WeatherPoint[]).map((p) => [p.areaId, p]));
+/**
+ * Puntos utilizables. Solo con el emulador de Auth (E2E locales; nunca en producción, que usa AUTH_MODE firebase) se
+ * pueden añadir puntos de estaciones sintéticas con WEATHER_TEST_POINTS (JSON), para probar la interfaz sin red.
+ */
+let testPoints: { raw: string; map: ReadonlyMap<string, WeatherPoint> } | null = null;
+export function weatherPoints(env: Env): ReadonlyMap<string, WeatherPoint> {
+  if (env.AUTH_MODE !== 'emulator' || !env.WEATHER_TEST_POINTS) return WEATHER_POINTS;
+  if (testPoints?.raw !== env.WEATHER_TEST_POINTS) {
+    const extra = JSON.parse(env.WEATHER_TEST_POINTS) as WeatherPoint[];
+    testPoints = { raw: env.WEATHER_TEST_POINTS, map: new Map([...WEATHER_POINTS, ...extra.map((p) => [p.areaId, p] as const)]) };
+  }
+  return testPoints.map;
+}
 export const WEATHER_ATTRIBUTION = 'Datos meteorológicos: Open-Meteo.com (CC BY 4.0), con modelos de ECMWF, DWD y Météo-France. SkiTrip agrega las horas en días y franja de esquí.';
 
 const base = (env: Env) => (env.OPEN_METEO_BASE_URL ?? 'https://api.open-meteo.com').replace(/\/$/, '');
@@ -34,7 +47,8 @@ async function reserveUnits(db: D1Database, env: Env, units: number, nowMs: numb
  * descarga los puntos cuyo bloqueo consigue: si otra petición ya está descargando uno, no se repite.
  */
 export async function refreshForecasts(db: D1Database, env: Env, areaIds: readonly string[], nowMs: number): Promise<{ refreshed: string[]; error?: WeatherUnavailable }> {
-  const pts = areaIds.map((id) => WEATHER_POINTS.get(id)).filter((p): p is WeatherPoint => !!p);
+  const points = weatherPoints(env);
+  const pts = areaIds.map((id) => points.get(id)).filter((p): p is WeatherPoint => !!p);
   if (!pts.length) return { refreshed: [] };
   // Bloqueo por punto: solo uno descarga; los demás leen lo guardado.
   const locks = await db.batch(pts.flatMap((p) => [
@@ -79,12 +93,15 @@ export async function refreshForecasts(db: D1Database, env: Env, areaIds: readon
   }
 }
 
-export interface ForecastRow { area_id: string; fetched_at: number | null; payload: string | null; last_error: string | null; last_error_at: number | null }
+export interface ForecastRow { area_id: string; fetched_at: number | null; payload: string | null; last_error: string | null; last_error_at: number | null; refreshing_until?: number | null }
 export const parseStored = (r: ForecastRow | undefined): StoredForecast | null => (r?.payload ? JSON.parse(r.payload) as StoredForecast : null);
 export const needsRefresh = (r: ForecastRow | undefined, nowMs: number) => !r?.fetched_at || nowMs - r.fetched_at > FORECAST_TTL_MS;
 
-/** Cron: refresca hasta `max` puntos caducados que alguien ha consultado en las últimas 48 h (lo demás no gasta). */
-export async function cronRefreshForecasts(db: D1Database, env: Env, nowMs: number, max = 6) {
+/**
+ * Cron (cada 20 min): refresca hasta `max` puntos caducados que alguien ha consultado en las últimas 48 h (lo demás no
+ * gasta). 3 puntos por pasada mantienen la agregación en pocos ms de CPU incluso con el isolate en frío.
+ */
+export async function cronRefreshForecasts(db: D1Database, env: Env, nowMs: number, max = 3) {
   const { results } = await db.prepare(`SELECT area_id FROM weather_forecasts WHERE last_requested_at >= ?1 AND (fetched_at IS NULL OR fetched_at < ?2)
                                         ORDER BY COALESCE(fetched_at, 0) LIMIT ?3`).bind(nowMs - 48 * 3600_000, nowMs - FORECAST_TTL_MS, max).all<{ area_id: string }>();
   if (!results.length) return { refreshed: [] as string[] };

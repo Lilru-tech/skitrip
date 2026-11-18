@@ -20,8 +20,8 @@
     "ALLOWED_ORIGINS": "https://lilru-tech.github.io",
     "MAX_PROFILES": "50"
   },
-  // Un solo cron (de los 5 gratuitos por cuenta), cada hora: previsión de las estaciones consultadas y, a las 03 UTC,
-  // limpieza de contadores (docs/METEO-AFLUENCIA.md, docs/QUOTAS.md).
-  "triggers": { "crons": ["17 * * * *"] },
+  // Un solo cron (de los 5 gratuitos por cuenta), cada 20 min: previsión de hasta 3 estaciones consultadas y, en la
+  // pasada de las 03:00 UTC, solo la limpieza de contadores (docs/METEO-AFLUENCIA.md, docs/QUOTAS.md).
+  "triggers": { "crons": ["*/20 * * * *"] },
   "observability": { "enabled": false }
 }

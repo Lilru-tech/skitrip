@@ -40,22 +40,35 @@ function lastSundayUtc1(year: number, month: number): number {
   const last = new Date(Date.UTC(year, month + 1, 0));
   return Date.UTC(year, month, last.getUTCDate() - last.getUTCDay(), 1);
 }
+/** Límites del horario de verano de la UE de un año (ms UTC), memorizados: se consultan miles de veces por descarga. */
+const dstCache = new Map<number, [number, number]>();
+function dstBounds(y: number): [number, number] {
+  let b = dstCache.get(y);
+  if (!b) dstCache.set(y, (b = [lastSundayUtc1(y, 2), lastSundayUtc1(y, 9)]));
+  return b;
+}
 /** Desfase de Europe/Madrid (peninsular) en horas para un instante: +2 en horario de verano de la UE, +1 el resto. */
 export function madridOffsetHours(utcMs: number): number {
-  const y = new Date(utcMs).getUTCFullYear();
-  return utcMs >= lastSundayUtc1(y, 2) && utcMs < lastSundayUtc1(y, 9) ? 2 : 1;
+  const [a, b] = dstBounds(new Date(utcMs).getUTCFullYear());
+  return utcMs >= a && utcMs < b ? 2 : 1;
 }
+const isoCache = new Map<number, string>();
+const isoOfDay = (dayNum: number) => {
+  let v = isoCache.get(dayNum);
+  if (v === undefined) isoCache.set(dayNum, (v = new Date(dayNum * 86400_000).toISOString().slice(0, 10)));
+  return v;
+};
 /** Fecha y hora local de Madrid de un instante (sin Intl: barato en el Worker). */
 export function madridLocal(utcMs: number): { date: string; hour: number } {
-  const d = new Date(utcMs + madridOffsetHours(utcMs) * 3600_000);
-  return { date: d.toISOString().slice(0, 10), hour: d.getUTCHours() };
+  const local = utcMs + madridOffsetHours(utcMs) * 3600_000;
+  const dayNum = Math.floor(local / 86400_000);
+  return { date: isoOfDay(dayNum), hour: Math.floor((local - dayNum * 86400_000) / 3600_000) };
 }
 /** Horas que tiene un día local (23 el de marzo, 25 el de octubre, 24 el resto). */
 export function hoursInMadridDay(date: string): number {
-  const start = Date.parse(`${date}T00:00:00Z`) - 3 * 3600_000;
-  let n = 0;
-  for (let t = start; t < start + 30 * 3600_000; t += 3600_000) if (madridLocal(t).date === date) n++;
-  return n;
+  const ms = Date.parse(`${date}T00:00:00Z`);
+  const [a, b] = dstBounds(new Date(ms).getUTCFullYear());
+  return ms === a - 3600_000 ? 23 : ms === b - 3600_000 ? 25 : 24;
 }
 export function addDaysIso(iso: string, n: number): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400_000).toISOString().slice(0, 10);
@@ -87,16 +100,34 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
  * La franja de esquí 09–17 h usa las horas que acaban entre las 10:00 y las 17:00 (sumas y rachas) y las temperaturas
  * de 09:00 a 17:00. Una hora sin todas las variables no cuenta y deja el día sin cubrir: no se rellena con ceros.
  */
+/** Día local de la hora que acumula cada valor y día y hora local de su sello. Los modelos de una descarga comparten la
+ * serie de tiempos, así que se calcula una vez por serie (por primer sello y longitud). */
+const localCacheTimes = new Map<string, { accDate: string[]; endDate: string[]; endHour: number[] }>();
+function localTimes(time: number[]) {
+  const key = `${time[0]}|${time.length}|${time[time.length - 1]}`;
+  let v = localCacheTimes.get(key);
+  if (!v) {
+    v = { accDate: [], endDate: [], endHour: [] };
+    for (const s of time) {
+      const end = madridLocal(s * 1000);
+      v.accDate.push(madridLocal(s * 1000 - 3600_000).date); v.endDate.push(end.date); v.endHour.push(end.hour);
+    }
+    if (localCacheTimes.size > 16) localCacheTimes.clear();
+    localCacheTimes.set(key, v);
+  }
+  return v;
+}
 export function dailyFromHourly(h: Hourly): ModelDay[] {
   const byDay = new Map<string, { hours: number; tMin: number; tMax: number; precip: number; rain: number; snow: number; windMax: number; gustMax: number;
     ski: { hours: number; rain: number; snow: number; gustMax: number; strong: number } }>();
+  const lt = localTimes(h.time);
+  const cols = HOURLY_VARS.map((k) => h[k]);
+  const ok = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
   for (let i = 0; i < h.time.length; i++) {
-    const vals = HOURLY_VARS.map((k) => h[k]?.[i]);
-    if (vals.some((v) => v == null || !Number.isFinite(v))) continue;
-    const [t, p, rain, snow, wind, gust] = vals as number[];
-    const endMs = h.time[i] * 1000;
-    const acc = madridLocal(endMs - 3600_000); // hora que acumula
-    const end = madridLocal(endMs);
+    const t = cols[0]?.[i], p = cols[1]?.[i], rain = cols[2]?.[i], snow = cols[3]?.[i], wind = cols[4]?.[i], gust = cols[5]?.[i];
+    if (!ok(t) || !ok(p) || !ok(rain) || !ok(snow) || !ok(wind) || !ok(gust)) continue;
+    const acc = { date: lt.accDate[i] }; // hora que acumula
+    const end = { date: lt.endDate[i], hour: lt.endHour[i] };
     let d = byDay.get(acc.date);
     if (!d) byDay.set(acc.date, (d = { hours: 0, tMin: Infinity, tMax: -Infinity, precip: 0, rain: 0, snow: 0, windMax: 0, gustMax: 0, ski: { hours: 0, rain: 0, snow: 0, gustMax: 0, strong: 0 } }));
     d.hours++;

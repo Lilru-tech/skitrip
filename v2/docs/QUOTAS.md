@@ -35,6 +35,8 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /geo/status` | 2 | — |
 | `PUT /trips/:id/expenses/:eid` | 11 | 8 beneficiarios |
 | `GET /public/areas/:id` | 12 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones, con sus aportaciones manuales activas) |
+| `GET /public/areas/:id/forecast` | 17 | dominio con 2 estaciones: 12 si descarga; 17 si otra consulta tiene el bloqueo y espera su resultado (8 relecturas como mucho) |
+| `GET /public/forecast` | 2 | 21 estaciones (solo caché) |
 | `POST /trips/:id/scenarios` | 9 | — |
 | `POST /shopping-lists/:lid/copy` | 9 | 299 decisiones: 150 altas, sumas y omisiones |
 | `POST /receipts/confirm` | 8 | 10 líneas asociadas |
@@ -203,6 +205,17 @@ Comprobado el 15/10/2026 en https://www.geoapify.com/pricing/ y https://www.geoa
 - **Uso previsto para 20 personas**: cambiar de origen cuesta unos 20 créditos (1 búsqueda + 19 estaciones). Si cada persona lo hace 2 veces por semana, son 800 créditos a la semana, unos 115 al día de media: un 4 % del plan. Un día de mucho uso (las 20 a la vez, 2 orígenes cada una) serían ~800 créditos (27 %).
 - **Reutilización**: las distancias calculadas se reutilizan en la pestaña sin volver a consultar; con «Recordar en este navegador» se guardan solo en ese navegador hasta 30 días. El Worker no guarda direcciones, coordenadas ni resultados.
 - **D1**: 4–5 sentencias por consulta (ver tabla de arriba) y una fila por persona y día en `geo_usage`, que el cron diario borra pasados 35 días.
+
+## Previsión meteorológica (Open-Meteo, uso gratuito no comercial)
+
+Condiciones comprobadas el 18/11/2026 (ver `docs/METEO-AFLUENCIA.md`): API gratuita para uso no comercial, sin clave, con 600 llamadas por minuto, 5.000 por hora y 10.000 al día; datos con licencia CC BY 4.0 (la atribución se muestra en la ficha). Una petición con más de 10 variables o más de 2 semanas cuenta como varias: la de SkiTrip (6 variables × 3 modelos, 8 días) cuenta **1,8 llamadas por punto**.
+
+- **Una descarga por punto y caché compartida** (tabla `weather_forecasts`): la ficha descarga solo si lo guardado tiene más de 3 h y alguna fecha pedida está en el horizonte (hoy a 7 días). Varias estaciones van en una sola petición (Open-Meteo admite varias coordenadas). Un bloqueo por punto de 60 s evita descargas repetidas; la consulta que llega mientras otra descarga espera su resultado (sin CPU) en lugar de responder «sin previsión».
+- **Comparar solo lee la caché** y marca las estaciones como consultadas; el cron (cada 20 min) descarga hasta 3 puntos caducados que alguien ha consultado en las últimas 48 h; caben 216 puntos al día, más que los 168 de refrescar las 21 estaciones cada 3 h. Lo que nadie mira no gasta.
+- **CPU**: agregar las horas de 6 puntos (3 modelos, 192 h) cuesta unos 3 ms con el isolate caliente y 11–15 ms en frío (medido en Node). Por eso el cron hace 3 puntos por pasada y la pasada de limpieza de las 03:00 UTC no descarga; la ficha descarga 1 o 2 puntos.
+- **Tope propio** (tabla `weather_usage`, por día UTC): 2.000 llamadas ponderadas (20 % del límite diario), ajustable con `WEATHER_DAILY_UNITS`. Se reserva antes de llamar; al llegar al tope o si Open-Meteo responde 429 o falla, la ficha lo dice y muestra lo último guardado con su antigüedad («antigua» a partir de 12 h). Nunca se activa un servicio de pago.
+- **Uso previsto**: 21 puntos refrescados cada 3 h durante todo el día serían 21 × 8 × 1,8 ≈ 300 llamadas al día (3 % del límite). Con 20 personas el uso real es menor, porque solo se refresca lo consultado.
+- **D1**: 2–17 sentencias por consulta (tabla de arriba), una fila por estación con previsión (unos 7 KB de días agregados, nunca las horas) y una fila al día en `weather_usage`, que el cron diario borra pasados 35 días.
 
 ## Ejecuciones de captura por partes
 
