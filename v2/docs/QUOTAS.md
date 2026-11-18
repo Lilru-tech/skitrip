@@ -37,6 +37,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /public/areas/:id` | 12 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones, con sus aportaciones manuales activas) |
 | `GET /public/areas/:id/forecast` | 17 | dominio con 2 estaciones: 12 si descarga; 17 si otra consulta tiene el bloqueo y espera su resultado (8 relecturas como mucho) |
 | `GET /public/forecast` | 2 | 21 estaciones (solo caché) |
+| `GET /public/crowds/habitual` | 2 | 40 estaciones × 31 días (Comparar, criterio «Afluencia histórica») |
 | `GET /public/areas/:id/climate` | 3 | dominio con 2 estaciones × 30 temporadas (D1 recorta cada temporada a su ventana) |
 | `POST /ingest/climate` | 1 | 12 temporadas (máximo por envío) |
 | `GET /ingest/climate-status` | 1 | 62 temporadas |

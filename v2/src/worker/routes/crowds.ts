@@ -5,7 +5,7 @@ import { ApiError, conflict, notFound, now, parseBody } from '../http';
 import { zId } from '../schemas';
 import { todayMadrid } from '../../core/dates';
 import {
-  CROWD_MEASURES, dailyIntensity, sameDaySummary, validateCrowdDraft, validMmdd, weekdayOf, yearsChecked,
+  CROWD_MEASURES, CROWD_MIN_YEARS, dailyIntensity, habitualIntensity, sameDaySummary, validateCrowdDraft, validMmdd, weekdayOf, yearsChecked,
   type CrowdDraft, type CrowdObservation, type SameDayKm,
 } from '../../core/crowds';
 
@@ -65,6 +65,30 @@ crowdPublicRoutes.get('/areas/:id/crowds', async (c) => {
       summary: sameDaySummary(rows, s.id, mmdd, checked),
     })),
   });
+});
+
+/**
+ * Afluencia habitual de varias estaciones para los días de un viaje (Comparar): mediana de la intensidad diaria de cada
+ * ámbito en esos días y meses, con los años que la tienen. 2 sentencias, sea cual sea el número de estaciones.
+ */
+crowdPublicRoutes.get('/crowds/habitual', async (c) => {
+  const ids = [...new Set((c.req.query('areas') ?? '').split(',').filter((x) => zId.safeParse(x).success))].slice(0, 40);
+  const days = [...new Set((c.req.query('dias') ?? '').split(','))];
+  if (!days.length || days.length > 31 || !days.every(validMmdd)) throw new ApiError(422, 'validation', 'Indica los días como MM-DD separados por comas (31 como mucho).');
+  if (!ids.length) return c.json({ areas: [] });
+  const db = c.env.DB;
+  const obs = (await db.prepare(`SELECT * FROM crowd_observations WHERE state = 'active' AND measure = 'daily_skiers' AND status = 'value' AND sample = 'regular'
+                                 AND area_id IN (SELECT value FROM json_each(?1)) AND substr(obs_date, 6) IN (SELECT value FROM json_each(?2))`)
+    .bind(JSON.stringify(ids), JSON.stringify(days)).all<any>()).results.map(obsFromRow);
+  let km: SameDayKm[] = [];
+  if (obs.length) {
+    const r = await db.prepare(`SELECT area_id, source_id, source_date, op_status, open_km, quality FROM snow_observations
+                                WHERE source_date IN (SELECT value FROM json_each(?1)) AND area_id IN (SELECT value FROM json_each(?2))`)
+      .bind(JSON.stringify([...new Set(obs.map((o) => o.date))]), JSON.stringify([...new Set(obs.map((o) => o.areaId))])).all<any>();
+    km = r.results.map((k) => ({ areaId: k.area_id, date: k.source_date, sourceDate: k.source_date, openKm: k.open_km, opStatus: k.op_status, quality: k.quality, sourceId: k.source_id }));
+  }
+  c.header('Cache-Control', 'public, max-age=120');
+  return c.json({ minYears: CROWD_MIN_YEARS, areas: ids.map((id) => ({ areaId: id, ...habitualIntensity(obs, km, id, days) })) });
 });
 
 // ---------- Administración ----------

@@ -151,6 +151,9 @@ describe('Comparar y cron', () => {
     expect(mock.forecastCalls[0].searchParams.get('latitude')!.split(',')).toHaveLength(2);
     const again = await get(`/api/public/forecast?areas=cerler,masella&desde=${addDaysIso(t, 1)}&hasta=${addDaysIso(t, 2)}`);
     expect(again.json.areas.map((a: any) => a.summary.state)).toEqual(['complete', 'complete']);
+    // Franja de esquí por día y modelo para el criterio meteorológico (solo previsión próxima).
+    expect(again.json.areas[0].ski.map((d: any) => d.date)).toEqual([addDaysIso(t, 1), addDaysIso(t, 2)]);
+    expect(again.json.areas[0].ski[0].models.find((m: any) => m.id === 'ecmwf_ifs')).toEqual({ id: 'ecmwf_ifs', rain: 0, strong: 8, hours: 8 });
     // Sin consultas recientes, el cron no gasta.
     await env.DB.prepare('UPDATE weather_forecasts SET last_requested_at = 0, fetched_at = 0').run();
     await worker.scheduled!({ scheduledTime: Date.now(), cron: '*/20 * * * *' } as any, env as any);
