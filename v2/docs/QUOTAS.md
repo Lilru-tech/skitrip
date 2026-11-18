@@ -19,7 +19,7 @@ No se recomienda ni se necesita el plan de pago: **las 131 rutas del Worker** qu
 
 Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test.ts` (el resto), contra D1 local (workerd). Se cuentan todas las sentencias de la petición: autenticación, límites de uso, lecturas, escrituras y cada sentencia de un batch. Los tests fallan si alguna pasa de 40.
 
-**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 01/10/2026: «Rutas definidas: 109 · medidas: 109»; con las listas generales de la migración 0010 y la guía de datos antiguos, 125 · 125 el 03/10/2026). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
+**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 01/10/2026: «Rutas definidas: 109 · medidas: 109»; con las listas generales de la migración 0010 y la guía de datos antiguos, 125 · 125 el 03/10/2026; 142 · 142 el 18/11/2026 con la afluencia). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
 
 | Ruta | Sentencias (máx.) | Volumen |
 |---|---|---|
@@ -55,6 +55,11 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `PUT /admin/runs/:areaId` | 7 | aportación nueva o edición (escritura e historial en un mismo batch) |
 | `POST /admin/runs/:areaId/withdraw` · `/restore` | 6 | — |
 | `GET /admin/runs` | 5 | 24 áreas con aportaciones e historial |
+| `GET /public/areas/:id/crowds` | 5 | dominio + 2 estaciones × 30 años del mismo día, con sus partes (afluencia, migración 0022) |
+| `PUT /admin/crowds` | 5 | observación nueva o corrección (escritura e historial en un mismo batch) |
+| `POST /admin/crowds/:obsId/withdraw` · `/restore` | 4 | — |
+| `GET /admin/crowds` | 3 | 500 observaciones (máximo) |
+| `GET /admin/crowds/:obsId/history` | 2 | 100 entradas (máximo) |
 | `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
 | `POST /friends/blocks` | 6 | 38 amigos |

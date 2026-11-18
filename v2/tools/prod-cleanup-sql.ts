@@ -78,6 +78,10 @@ export function cleanupStatements(m: CleanupManifest): string[] {
     // quedara, se borra la suya y el historial se conserva desvinculado de la cuenta.
     `UPDATE area_run_history SET actor_id = NULL WHERE actor_id IN (${T})`,
     `DELETE FROM area_run_contributions WHERE created_by IN (${T}) OR updated_by IN (${T})`,
+    // Afluencia: igual que pistas. Las observaciones de una cuenta de prueba se retiran del todo (no hay ninguna que
+    // conservar) y el historial se conserva sin autoría.
+    `UPDATE crowd_history SET actor_id = NULL WHERE actor_id IN (${T})`,
+    `DELETE FROM crowd_observations WHERE created_by IN (${T}) OR updated_by IN (${T})`,
     `DELETE FROM users WHERE id IN (${T})`,
   ];
 }
