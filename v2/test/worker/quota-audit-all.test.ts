@@ -375,6 +375,24 @@ describe('auditoría de consultas: resto de rutas', () => {
       await m('POST /admin/runs/:areaId/withdraw', '—', A('POST', `/runs/${AREA}/withdraw`, { contributionId, expectedVersion: 2, reason: 'Auditoría' }));
       await m('POST /admin/runs/:areaId/restore', '—', A('POST', `/runs/${AREA}/restore`, { contributionId, expectedVersion: 3, reason: 'Auditoría' }));
     }
+    {
+      // Previsión: la ficha de un dominio descarga sus estaciones (peor caso, con Open-Meteo simulado); Comparar lee 21.
+      const realFetch = globalThis.fetch;
+      const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: any, init?: any) => {
+        const url = new URL(typeof input === 'string' ? input : input.url);
+        if (url.hostname !== 'meteo.mock') return realFetch(input, init);
+        if (url.pathname.endsWith('meta.json')) return Response.json({ last_run_initialisation_time: 1 });
+        const n = url.searchParams.get('latitude')!.split(',').length;
+        const loc = { latitude: 1, longitude: 1, elevation: 2000, hourly: { time: [] } };
+        return Response.json(n === 1 ? loc : Array.from({ length: n }, () => loc));
+      });
+      await db.batch(cat.links.map((l: any) => db.prepare('INSERT OR IGNORE INTO area_links (parent_id, child_id, relation) VALUES (?1, ?2, ?3)').bind(l.parent, l.child, l.relation)));
+      const dom = cat.links[0].parent;
+      await m('GET /public/areas/:id/forecast', 'dominio con 2 estaciones, descarga de ambas', api(null, 'GET', `/api/public/areas/${dom}/forecast`));
+      const all = cat.areas.filter((a: any) => a.kind !== 'domain').map((a: any) => a.id).join(',');
+      await m('GET /public/forecast', '21 estaciones', api(null, 'GET', `/api/public/forecast?areas=${all}`));
+      spy.mockRestore();
+    }
 
     // ---------- Destructivas, al final ----------
     await m('DELETE /trips/:id/members/:userId', `${MEMBERS + 1} miembros`, api(o.token, 'DELETE', `${T}/members/${m7.id}`));

@@ -20,7 +20,8 @@
     "ALLOWED_ORIGINS": "https://lilru-tech.github.io",
     "MAX_PROFILES": "50"
   },
-  // Limpieza diaria de contadores de límite de peticiones (1 de los 5 cron gratuitos por cuenta).
-  "triggers": { "crons": ["17 3 * * *"] },
+  // Un solo cron (de los 5 gratuitos por cuenta), cada hora: previsión de las estaciones consultadas y, a las 03 UTC,
+  // limpieza de contadores (docs/METEO-AFLUENCIA.md, docs/QUOTAS.md).
+  "triggers": { "crons": ["17 * * * *"] },
   "observability": { "enabled": false }
 }

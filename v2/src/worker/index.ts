@@ -17,6 +17,8 @@ import { expenseRoutes } from './routes/expenses';
 import { socialRoutes } from './routes/social';
 import { geoRoutes } from './routes/geo';
 import { runAdminRoutes } from './routes/runs-admin';
+import { weatherRoutes } from './routes/weather';
+import { cronRefreshForecasts, purgeWeatherUsage } from './weather';
 import { purgeGeoUsage } from './geo';
 import { purgeRateLimits } from './ratelimit';
 import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
@@ -140,6 +142,7 @@ app.route('/api', shoppingListRoutes);
 app.route('/api', socialRoutes);
 app.route('/api/geo', geoRoutes);
 app.route('/api/admin/runs', runAdminRoutes);
+app.route('/api/public', weatherRoutes);
 
 app.all('/api/*', () => {
   throw new ApiError(404, 'not_found', 'Ruta no encontrada.');
@@ -161,9 +164,16 @@ app.onError((err, c) => {
 
 export default {
   fetch: app.fetch,
-  async scheduled(_ctrl: ScheduledController, env: AppEnv['Bindings']) {
-    await purgeRateLimits(env.DB);
-    await purgeGeoUsage(env.DB);
+  // Cada hora (minuto 17): refresca la previsión caducada de las estaciones consultadas en las últimas 48 h (como mucho 6
+  // por pasada). La limpieza de contadores sigue siendo diaria, a las 03 UTC.
+  async scheduled(ctrl: ScheduledController, env: AppEnv['Bindings']) {
+    const nowMs = ctrl.scheduledTime || Date.now();
+    if (new Date(nowMs).getUTCHours() === 3) {
+      await purgeRateLimits(env.DB);
+      await purgeGeoUsage(env.DB);
+      await purgeWeatherUsage(env.DB, nowMs);
+    }
+    await cronRefreshForecasts(env.DB, env, nowMs);
   },
 } satisfies ExportedHandler<AppEnv['Bindings']>;
 
