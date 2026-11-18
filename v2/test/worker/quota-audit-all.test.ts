@@ -409,6 +409,33 @@ describe('auditoría de consultas: resto de rutas', () => {
       await m('GET /ingest/climate-status', `${2 * CLIMATE_SEASONS.length} temporadas`, api(INGEST, 'GET', '/api/ingest/climate-status'));
       await m('GET /public/areas/:id/climate', 'dominio con 2 estaciones × 30 temporadas', api(null, 'GET', `/api/public/areas/${dom}/climate?desde=2027-01-15&hasta=2027-01-20`));
     }
+    {
+      // Afluencia: 500 observaciones (el máximo que lista Administración), 30 años del mismo día en un dominio con sus
+      // estaciones, partes de nieve de esos días e historial de 100 entradas.
+      const dom = cat.links[0].parent;
+      const scopes = [dom, ...cat.links.filter((l: any) => l.parent === dom).map((l: any) => l.child)];
+      await db.batch(cat.links.map((l: any) => db.prepare('INSERT OR IGNORE INTO area_links (parent_id, child_id, relation) VALUES (?1, ?2, ?3)').bind(l.parent, l.child, l.relation)));
+      const obs = [];
+      for (let y = 1996; y <= 2025; y++) for (const a of scopes) obs.push(db.prepare(`INSERT INTO crowd_observations (area_id, obs_date, measure, status, value, sample, source_ref, reason, origin, created_at, updated_at)
+        VALUES (?1, ?2, 'daily_skiers', 'value', ?3, 'regular', 'https://example.invalid/a', 'Auditoría', 'admin', ?4, ?4)`).bind(a, `${y}-02-15`, 1000 + y, t0));
+      for (let i = obs.length; i < 500; i++) obs.push(db.prepare(`INSERT INTO crowd_observations (area_id, obs_date, measure, status, value, sample, source_ref, reason, origin, created_at, updated_at)
+        VALUES (?1, ?2, 'visitors', 'value', 1, 'regular', 'https://example.invalid/a', 'Auditoría', 'admin', ?3, ?3)`).bind(AREA, addDays('2000-01-01', i), t0));
+      for (let i = 0; i < obs.length; i += 50) await db.batch(obs.slice(i, i + 50));
+      const snow = snowSources.find((s: any) => s.area === dom || s.scope === dom) ?? snowSources[0];
+      await db.batch(Array.from({ length: 30 }, (_, i) => db.prepare(`INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date, op_status, open_km, quality, content_hash, extractor)
+        VALUES (?1, ?2, ?3, ?4, ?5, 'open', 20, 'ok', ?1, 'audit')`).bind(`aud-crowd-${i}`, dom, snow.id, t0, `${1996 + i}-02-15`)));
+      await m('GET /public/areas/:id/crowds', `dominio + estaciones × 30 años del mismo día, con partes`, api(null, 'GET', `/api/public/areas/${dom}/crowds?dia=02-15`));
+      const crowdBody = { observationId: null, expectedVersion: null, areaId: AREA, date: '2026-02-14', measure: 'daily_skiers', status: 'value', value: 1200, sample: 'regular',
+        sourceRef: 'https://example.invalid/noticia', sourceTitle: null, sourcePublished: null, note: null, reason: 'Auditoría' };
+      const created = await m('PUT /admin/crowds', 'observación nueva', A('PUT', '/crowds', crowdBody));
+      const obsId = created.json.id;
+      await m('PUT /admin/crowds (edición)', 'observación existente', A('PUT', '/crowds', { ...crowdBody, observationId: obsId, expectedVersion: 1, value: 1300 }));
+      await db.batch(Array.from({ length: 100 }, (_, i) => db.prepare(`INSERT INTO crowd_history (observation_id, area_id, action, actor_id, at, reason, version) VALUES (?1, ?2, 'update', ?3, ?4, 'histórico', ?5)`).bind(obsId, AREA, adm.id, t0 - i, i + 1)));
+      await m('GET /admin/crowds', '500 observaciones (máximo)', A('GET', '/crowds'));
+      await m('GET /admin/crowds/:obsId/history', '100 entradas (máximo)', A('GET', `/crowds/${obsId}/history`));
+      await m('POST /admin/crowds/:obsId/withdraw', '—', A('POST', `/crowds/${obsId}/withdraw`, { expectedVersion: 2, reason: 'Auditoría' }));
+      await m('POST /admin/crowds/:obsId/restore', '—', A('POST', `/crowds/${obsId}/restore`, { expectedVersion: 3, reason: 'Auditoría' }));
+    }
 
     // ---------- Destructivas, al final ----------
     await m('DELETE /trips/:id/members/:userId', `${MEMBERS + 1} miembros`, api(o.token, 'DELETE', `${T}/members/${m7.id}`));

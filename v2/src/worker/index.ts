@@ -19,6 +19,7 @@ import { geoRoutes } from './routes/geo';
 import { runAdminRoutes } from './routes/runs-admin';
 import { weatherRoutes } from './routes/weather';
 import { cronRefreshForecasts, purgeWeatherUsage } from './weather';
+import { crowdAdminRoutes, crowdPublicRoutes } from './routes/crowds';
 import { purgeGeoUsage } from './geo';
 import { purgeRateLimits } from './ratelimit';
 import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
@@ -143,6 +144,8 @@ app.route('/api', socialRoutes);
 app.route('/api/geo', geoRoutes);
 app.route('/api/admin/runs', runAdminRoutes);
 app.route('/api/public', weatherRoutes);
+app.route('/api/public', crowdPublicRoutes);
+app.route('/api/admin/crowds', crowdAdminRoutes);
 
 app.all('/api/*', () => {
   throw new ApiError(404, 'not_found', 'Ruta no encontrada.');
