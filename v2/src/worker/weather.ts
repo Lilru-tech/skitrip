@@ -42,6 +42,12 @@ async function reserveUnits(db: D1Database, env: Env, units: number, nowMs: numb
   if (!r.meta.changes || units > weatherDailyCap(env)) throw new WeatherUnavailable('quota', 'Se ha alcanzado el tope diario de consultas meteorológicas de SkiTrip. Se muestra la última previsión guardada, si la hay.');
 }
 
+/** Parámetros de la petición de previsión (también los usa la comprobación real tools/weather-real-check.ts). */
+export const forecastQuery = (pts: readonly Pick<WeatherPoint, 'lat' | 'lon' | 'elevation'>[]) => new URLSearchParams({
+  latitude: pts.map((p) => p.lat).join(','), longitude: pts.map((p) => p.lon).join(','), elevation: pts.map((p) => p.elevation).join(','),
+  hourly: HOURLY_VARS.join(','), models: FORECAST_MODELS.map((m) => m.id).join(','), forecast_days: String(FORECAST_DAYS), timezone: 'GMT', timeformat: 'unixtime',
+});
+
 /**
  * Descarga y agrega la previsión de varios puntos en una sola petición (Open-Meteo admite varias coordenadas). Solo
  * descarga los puntos cuyo bloqueo consigue: si otra petición ya está descargando uno, no se repite.
@@ -62,10 +68,7 @@ export async function refreshForecasts(db: D1Database, env: Env, areaIds: readon
   ).bind(...(extra.error ? [p.areaId, extra.error, nowMs] : [p.areaId]))));
   try {
     await reserveUnits(db, env, UNITS_PER_POINT * mine.length, nowMs);
-    const q = new URLSearchParams({
-      latitude: mine.map((p) => p.lat).join(','), longitude: mine.map((p) => p.lon).join(','), elevation: mine.map((p) => p.elevation).join(','),
-      hourly: HOURLY_VARS.join(','), models: FORECAST_MODELS.map((m) => m.id).join(','), forecast_days: String(FORECAST_DAYS), timezone: 'GMT', timeformat: 'unixtime',
-    });
+    const q = forecastQuery(mine);
     const [res, ...metas] = await Promise.all([
       fetch(`${base(env)}/v1/forecast?${q}`, { headers: { 'user-agent': 'SkiTrip (private non-commercial trip planner)' } }),
       ...FORECAST_MODELS.map((m) => fetch(`${base(env)}/data/${m.meta}/static/meta.json`).then((r) => (r.ok ? r.json<any>() : null)).catch(() => null)),

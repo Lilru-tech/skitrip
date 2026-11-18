@@ -4,6 +4,7 @@ import { ApiError, notFound } from '../http';
 import { zId } from '../schemas';
 import { todayMadrid } from '../../core/dates';
 import { addDaysIso, daysBetweenIso, FORECAST_MODELS, forecastDays, freshnessOf, HORIZON_LABEL, TREND_MAX_LEAD, tripSummary } from '../../core/weather';
+import { CLIMATE_FIRST_YEAR, CLIMATE_LAST_YEAR, CLIMATE_SOURCE_LABEL, CLIMATE_VARS, CLIMATE_WINDOW_DAYS, climateWindows, PRECIP_DAY_MM, SNOW_DAY_CM, STRONG_GUST_KMH, summarizeSlices, windowSlices, type ClimateSlice, type ClimateVar } from '../../core/climate';
 import { needsRefresh, parseStored, refreshForecasts, WEATHER_ATTRIBUTION, weatherPoints, type ForecastRow, type WeatherPoint } from '../weather';
 
 // Previsión pública por estación (ficha) y resumen de varias estaciones (Comparar). La ficha puede pedir una descarga
@@ -112,3 +113,45 @@ weatherRoutes.get('/forecast', async (c) => {
     }),
   });
 });
+
+/**
+ * Clima habitual (ERA5, «Histórico reconstruido») de la estación o de cada estación de un dominio para unas fechas:
+ * ventana de ±7 días en cada año de 1996 a 2025. Solo lee las temporadas guardadas (2 sentencias, sin red).
+ */
+weatherRoutes.get('/areas/:id/climate', async (c) => {
+  const r = zId.safeParse(c.req.param('id'));
+  if (!r.success) throw notFound('Estación');
+  const db = c.env.DB;
+  const today = todayMadrid();
+  const { from, to } = range(c, today);
+  const points = weatherPoints(c.env);
+  const { scopes } = await scopesOf(db, points, r.data);
+  const check = climateWindows(from, to);
+  const slices = check.ok ? windowSlices(check.windows) : [];
+  // D1 recorta cada temporada a los días de su ventana (el Worker no analiza 30 temporadas enteras: CPU).
+  const sub = (k: string) => `(SELECT json_group_array(d.value) FROM json_each(c.payload, '$.${k}') d WHERE d.key BETWEEN w.a AND w.b) AS ${k}`;
+  const rows = scopes.length && slices.length
+    ? (await db.prepare(`WITH w AS (SELECT json_extract(value, '$.season') AS season, json_extract(value, '$.year') AS year, json_extract(value, '$.a') AS a, json_extract(value, '$.b') AS b FROM json_each(?2))
+                         SELECT c.area_id, w.year, c.requested_elevation, c.cell_lat, c.cell_lon, c.cell_elevation, ${CLIMATE_VARS.map(sub).join(', ')}
+                         FROM climate_seasons c JOIN w ON w.season = c.season
+                         WHERE c.source = 'era5' AND c.area_id IN (SELECT value FROM json_each(?1))`)
+      .bind(JSON.stringify(scopes.map((s) => s.id)), JSON.stringify(slices)).all<ClimateRow>()).results
+    : [];
+  c.header('Cache-Control', 'no-store');
+  return c.json({
+    from, to, source: CLIMATE_SOURCE_LABEL, period: { from: CLIMATE_FIRST_YEAR, to: CLIMATE_LAST_YEAR }, windowDays: CLIMATE_WINDOW_DAYS,
+    thresholds: { precipMm: PRECIP_DAY_MM, snowCm: SNOW_DAY_CM, gustKmh: STRONG_GUST_KMH },
+    state: check.ok ? 'ok' : check.reason,
+    points: scopes.map((s) => {
+      const mine = rows.filter((x) => x.area_id === s.id);
+      const last = mine[0];
+      return {
+        areaId: s.id, name: s.name, point: pointOut(points, s.id),
+        cell: last ? { lat: last.cell_lat, lon: last.cell_lon, elevation: last.cell_elevation, requestedElevation: last.requested_elevation } : null,
+        seasonsStored: mine.length, seasonsNeeded: slices.length,
+        summary: check.ok && mine.length ? summarizeSlices(mine.map((x) => ({ year: x.year, vals: Object.fromEntries(CLIMATE_VARS.map((k) => [k, JSON.parse(x[k]) as (number | null)[]])) as ClimateSlice['vals'] })), check.windows.length, slices[0].b - slices[0].a + 1) : null,
+      };
+    }),
+  });
+});
+interface ClimateRow extends Record<ClimateVar, string> { area_id: string; year: number; requested_elevation: number | null; cell_lat: number | null; cell_lon: number | null; cell_elevation: number | null }

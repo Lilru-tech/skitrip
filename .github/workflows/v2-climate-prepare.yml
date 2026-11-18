@@ -1,0 +1,48 @@
+# SkiTrip v2 · preparación del clima habitual (ERA5 vía Open-Meteo Historical). Manual y reanudable: cada ejecución
+# descarga solo las temporadas que faltan, hasta un tope de unidades (por defecto 3.500; el límite gratuito es 5.000 por
+# hora y 10.000 por día). Hacen falta unas 3 ejecuciones, como mucho 2 al día. Escribe en producción solo por la ingesta
+# del Worker (SKITRIP_INGEST_TOKEN); el resultado queda en el registro (el contenedor no descarga artefactos).
+name: v2 · clima habitual (preparación)
+on:
+  workflow_dispatch:
+    inputs:
+      max_units:
+        description: 'Tope de unidades de Open-Meteo de esta ejecución'
+        required: false
+        default: '3500'
+      dry_run:
+        description: 'Solo contar lo pendiente (no descarga ni envía)'
+        type: boolean
+        required: false
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: v2-climate-prepare
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: v2
+    env:
+      SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL || secrets.SKITRIP_API_URL }}
+      SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
+      MAX_UNITS: ${{ inputs.max_units }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - run: |
+          if ! [[ "$MAX_UNITS" =~ ^[0-9]+$ ]] || [ "$MAX_UNITS" -gt 4500 ]; then echo "::error::max_units debe ser un entero ≤ 4500"; exit 1; fi
+          args=(--max-units "$MAX_UNITS")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          npx tsx tools/climate-prepare.ts "${args[@]}"

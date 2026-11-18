@@ -18,6 +18,7 @@ import { SnowKm } from './Compare';
 import { entryCatalogRuns, runCatalogView, runsNow, RUN_CATALOG_ISSUE_LABEL } from '../../core/runs';
 import { runEntry, type RunCatalog } from '../catalog';
 import { ForecastSection } from '../components/Forecast';
+import { ClimateSection } from '../components/Climate';
 import { CrowdSection } from '../components/Crowds';
 import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
@@ -98,6 +99,8 @@ export function AreaPage({ areaId }: { areaId: string }) {
       <RunsSection areaId={area.id} name={area.name} runs={d.data!.runs ?? null} memberRuns={d.data!.memberRuns ?? []} memberNames={new Map(children.map((c) => [c.child_id, c.child_name]))} latest={latest} />
 
       <ForecastSection areaId={area.id} name={area.name} />
+
+      <ClimateSection areaId={area.id} name={area.name} />
 
       <CrowdSection areaId={area.id} name={area.name} mmddParam={query.get('afluencia')} />
 
