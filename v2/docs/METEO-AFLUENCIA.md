@@ -93,8 +93,7 @@ Cloudflare; un 429 se muestra como «previsión no disponible ahora», nunca se 
 **Efecto del parámetro `elevation` (comprobado, 3 días, mismo punto):** al pedir 2.478 m, Open-Meteo baja la
 temperatura media (ECMWF 6,65 → −0,39 °C; ICON 6,14 → 0,94; Météo-France 1,95 → −0,45) y, en ECMWF y Météo-France,
 también cambian precipitación y rachas (ECMWF lluvia 9,2 → 11,8 mm, racha máx. 52,9 → 41,0 km/h), lo que indica que
-además elige otra celda vecina más parecida en altitud. En ICON solo cambia la temperatura. **Esta es la decisión
-pendiente** (ver final).
+además elige otra celda vecina más parecida en altitud. En ICON solo cambia la temperatura. Decisión: ver el final del documento.
 
 ### Política de horizonte
 
@@ -216,9 +215,9 @@ mes en ≥ 3 años, sin muestras de récord, para todas las estaciones comparada
 4. Clima habitual: preparación acotada en Actions, lectura y resumen ±7 días en la ficha.
 5. Puntuación: los dos pesos a 0 con la fórmula de arriba, tras tu visto bueno.
 
-## Decisión pendiente
+## Decisión tomada (David, 18/11/2026)
 
-Temperatura y altitud de la previsión: (a) pasar a Open-Meteo la altitud documentada del punto en pistas, de modo que
-el proveedor ajusta la temperatura y puede elegir una celda vecina de altitud más parecida (comprobado: también cambia
-lluvia y rachas en ECMWF y Météo-France), rotulado «ajustado por Open-Meteo a X m»; o (b) usar la celda tal cual
-(`elevation=nan`) y mostrar al lado su altitud, que en la Tosa d'Alp queda entre 600 y 1.100 m por debajo de las pistas.
+Altitud de la previsión: se pasa a Open-Meteo la altitud documentada del punto en pistas (`elevation`). El proveedor
+ajusta la temperatura a esa cota y puede elegir una celda vecina de altitud más parecida (comprobado: en ECMWF y
+Météo-France cambian también lluvia y rachas). Se rotula «ajustado por Open-Meteo a X m» y SkiTrip no añade ninguna
+corrección propia.
