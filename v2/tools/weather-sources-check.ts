@@ -7,6 +7,7 @@
  *
  *   npx tsx tools/weather-sources-check.ts
  */
+export {};
 const UA = 'SkiTrip-v2-source-check (read-only; private non-commercial trip planner)';
 const out = (s: string) => console.log(s);
 
