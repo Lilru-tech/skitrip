@@ -1,0 +1,35 @@
+# SkiTrip v2 · comprobación real de previsión y clima (solo lectura, sin claves): la misma petición que el Worker a
+# Open-Meteo para 2 puntos, agregada con el mismo código, y una temporada de ERA5 validada como en la preparación.
+# Unas 18 llamadas ponderadas de Open-Meteo por ejecución. El resultado queda en el registro.
+name: v2 · comprobación real del tiempo
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'v2/src/core/weather.ts'
+      - 'v2/src/core/climate.ts'
+      - 'v2/src/worker/weather.ts'
+      - 'v2/data/weather-points.json'
+      - 'v2/tools/weather-real-check.ts'
+      - 'v2/tools/climate-prepare.ts'
+      - '.github/workflows/v2-weather-real-check.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - run: npx tsx tools/weather-real-check.ts
+      - run: npx tsx tools/climate-prepare.ts --probe

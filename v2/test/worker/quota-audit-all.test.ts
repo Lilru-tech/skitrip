@@ -3,6 +3,7 @@
 // Cada petición cuenta todas sus sentencias (autenticación, límites de uso, lecturas, escrituras y cada sentencia de
 // un batch). El Worker corta a 40 (503 query_budget); D1 Free admite 50. Al final se comprueba que ambas auditorías
 // juntas cubren todas las rutas definidas en src/worker (mismo cálculo que tools/check-audit-coverage.ts).
+import { CLIMATE_SEASONS, seasonLength, seasonStart } from '../../src/core/climate';
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import catalog from '../../data/catalog.json';
@@ -395,6 +396,18 @@ describe('auditoría de consultas: resto de rutas', () => {
       const all = cat.areas.filter((a: any) => a.kind !== 'domain').map((a: any) => a.id).join(',');
       await m('GET /public/forecast', '21 estaciones', api(null, 'GET', `/api/public/forecast?areas=${all}`));
       spy.mockRestore();
+      // Clima habitual: 12 temporadas por envío (máximo) y la ficha de un dominio con las 31 temporadas de sus 2 estaciones.
+      const season = (areaId: string, y: number) => {
+        const n = seasonLength(y);
+        const col = () => Array.from({ length: n }, () => 1.5);
+        return { areaId, season: y, requestedElevation: 2000, cell: { lat: 1, lon: 1, elevation: 2000 }, series: { start: seasonStart(y), tmax: col(), tmin: col(), precip: col(), rain: col(), snow: col(), gust: col() } };
+      };
+      const [c1, c2] = [cat.links[0].child, cat.links[1]?.parent === dom ? cat.links[1].child : cat.links[0].child];
+      for (const id of [c1, c2]) for (let i = 0; i < CLIMATE_SEASONS.length; i += 12) {
+        await m('POST /ingest/climate', '12 temporadas (máximo por envío)', api(INGEST, 'POST', '/api/ingest/climate', { rows: CLIMATE_SEASONS.slice(i, i + 12).map((y) => season(id, y)) }));
+      }
+      await m('GET /ingest/climate-status', `${2 * CLIMATE_SEASONS.length} temporadas`, api(INGEST, 'GET', '/api/ingest/climate-status'));
+      await m('GET /public/areas/:id/climate', 'dominio con 2 estaciones × 30 temporadas', api(null, 'GET', `/api/public/areas/${dom}/climate?desde=2027-01-15&hasta=2027-01-20`));
     }
 
     // ---------- Destructivas, al final ----------

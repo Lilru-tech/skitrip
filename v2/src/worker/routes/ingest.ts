@@ -1,4 +1,5 @@
 import { forfaitState, offerConditionsKey } from '../../core/offer-identity';
+import { CLIMATE_SEASONS, CLIMATE_VARS, seasonLength, seasonStart } from '../../core/climate';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { classifySnow } from '../../core/parsers/snow';
@@ -379,4 +380,40 @@ ingestRoutes.get('/snow-sources', async (c) => {
      WHERE s.kind = 'snow' AND s.status IN ('verified','unverified') AND s.adapter IS NOT NULL ORDER BY s.priority`,
   ).all();
   return c.json({ sources: results });
+});
+
+// ---------- Clima habitual (ERA5, preparación única desde Actions: tools/climate-prepare.ts) ----------
+const zNum = z.number().finite().nullable();
+const zClimateRow = z.object({
+  areaId: zId,
+  season: z.number().int().min(CLIMATE_SEASONS[0]).max(CLIMATE_SEASONS[CLIMATE_SEASONS.length - 1]),
+  requestedElevation: z.number().int().min(0).max(5000),
+  cell: z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180), elevation: z.number().min(-500).max(9000) }),
+  series: z.object({ start: zDate, tmax: z.array(zNum).max(400), tmin: z.array(zNum).max(400), precip: z.array(zNum).max(400), rain: z.array(zNum).max(400), snow: z.array(zNum).max(400), gust: z.array(zNum).max(400) }),
+}).superRefine((r, ctx) => {
+  const n = seasonLength(r.season);
+  if (r.series.start !== seasonStart(r.season)) ctx.addIssue({ code: 'custom', message: 'series.start no es el inicio de la temporada' });
+  for (const k of CLIMATE_VARS) if (r.series[k].length !== n) ctx.addIssue({ code: 'custom', message: `series.${k} debe tener ${n} días` });
+});
+
+/** Guarda temporadas (1 sentencia; reenviar la misma temporada la sustituye). Solo áreas existentes. */
+ingestRoutes.post('/climate', async (c) => {
+  const body = await parseBody(c, z.object({ rows: z.array(zClimateRow).min(1).max(12) }));
+  const at = now();
+  const rows = body.rows.map((r) => ({ ...r, payload: JSON.stringify(r.series) }));
+  const J = (k: string) => `json_extract(value, '$.${k}')`;
+  const res = await c.env.DB.prepare(
+    `INSERT INTO climate_seasons (area_id, source, season, requested_elevation, cell_lat, cell_lon, cell_elevation, payload, fetched_at)
+     SELECT ${J('areaId')}, 'era5', ${J('season')}, ${J('requestedElevation')}, ${J('cell.lat')}, ${J('cell.lon')}, ${J('cell.elevation')}, ${J('payload')}, ?2
+     FROM json_each(?1) WHERE ${J('areaId')} IN (SELECT id FROM areas)
+     ON CONFLICT(area_id, source, season) DO UPDATE SET requested_elevation = excluded.requested_elevation, cell_lat = excluded.cell_lat,
+       cell_lon = excluded.cell_lon, cell_elevation = excluded.cell_elevation, payload = excluded.payload, fetched_at = excluded.fetched_at`,
+  ).bind(JSON.stringify(rows), at).run();
+  return c.json({ written: res.meta.changes ?? 0, received: rows.length });
+});
+
+/** Temporadas ya guardadas (para reanudar la preparación sin volver a descargar). 1 sentencia. */
+ingestRoutes.get('/climate-status', async (c) => {
+  const { results } = await c.env.DB.prepare(`SELECT area_id AS areaId, season, requested_elevation AS requestedElevation FROM climate_seasons WHERE source = 'era5' ORDER BY area_id, season`).all();
+  return c.json({ seasons: results });
 });

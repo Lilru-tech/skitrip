@@ -37,6 +37,9 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /public/areas/:id` | 12 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones, con sus aportaciones manuales activas) |
 | `GET /public/areas/:id/forecast` | 17 | dominio con 2 estaciones: 12 si descarga; 17 si otra consulta tiene el bloqueo y espera su resultado (8 relecturas como mucho) |
 | `GET /public/forecast` | 2 | 21 estaciones (solo caché) |
+| `GET /public/areas/:id/climate` | 3 | dominio con 2 estaciones × 30 temporadas (D1 recorta cada temporada a su ventana) |
+| `POST /ingest/climate` | 1 | 12 temporadas (máximo por envío) |
+| `GET /ingest/climate-status` | 1 | 62 temporadas |
 | `POST /trips/:id/scenarios` | 9 | — |
 | `POST /shopping-lists/:lid/copy` | 9 | 299 decisiones: 150 altas, sumas y omisiones |
 | `POST /receipts/confirm` | 8 | 10 líneas asociadas |
@@ -216,6 +219,12 @@ Condiciones comprobadas el 18/11/2026 (ver `docs/METEO-AFLUENCIA.md`): API gratu
 - **Tope propio** (tabla `weather_usage`, por día UTC): 2.000 llamadas ponderadas (20 % del límite diario), ajustable con `WEATHER_DAILY_UNITS`. Se reserva antes de llamar; al llegar al tope o si Open-Meteo responde 429 o falla, la ficha lo dice y muestra lo último guardado con su antigüedad («antigua» a partir de 12 h). Nunca se activa un servicio de pago.
 - **Uso previsto**: 21 puntos refrescados cada 3 h durante todo el día serían 21 × 8 × 1,8 ≈ 300 llamadas al día (3 % del límite). Con 20 personas el uso real es menor, porque solo se refresca lo consultado.
 - **D1**: 2–17 sentencias por consulta (tabla de arriba), una fila por estación con previsión (unos 7 KB de días agregados, nunca las horas) y una fila al día en `weather_usage`, que el cron diario borra pasados 35 días.
+
+## Clima habitual (Open-Meteo Historical, ERA5)
+
+- **Preparación única** desde GitHub Actions (`v2 · clima habitual (preparación)`, manual): 21 puntos × 31 temporadas (del 20/10 al 10/05, de 1995-96 a 2025-26) × ~14,5 llamadas ponderadas ≈ **9.400 llamadas**, en 3 ejecuciones de 3.500 como mucho (límite gratuito: 5.000 por hora y 10.000 al día; como mucho 2 ejecuciones al día). Reanudable: solo descarga lo que falta, y vuelve a preparar un punto si cambia su altitud. Una petición cada 2,5 s.
+- **D1**: 651 filas de unos 6 KB (≈ 4 MB) escritas una vez por la ingesta. La ficha lee como mucho 31 filas por estación y D1 devuelve solo los días de la ventana (`json_each` sobre la serie), así el Worker no analiza temporadas enteras: analizarlas costaba unos 5 ms de CPU en un dominio con 2 estaciones.
+- **Al abrir la ficha no se llama a Open-Meteo.**
 
 ## Ejecuciones de captura por partes
 
