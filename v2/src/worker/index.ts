@@ -20,6 +20,7 @@ import { runAdminRoutes } from './routes/runs-admin';
 import { weatherRoutes } from './routes/weather';
 import { cronRefreshForecasts, purgeWeatherUsage } from './weather';
 import { holidayRoutes } from './routes/holidays';
+import { kmHistoryRoutes } from './routes/km-history';
 import { purgeGeoUsage } from './geo';
 import { purgeRateLimits } from './ratelimit';
 import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
@@ -145,6 +146,7 @@ app.route('/api/geo', geoRoutes);
 app.route('/api/admin/runs', runAdminRoutes);
 app.route('/api/public', weatherRoutes);
 app.route('/api/public', holidayRoutes);
+app.route('/api/public', kmHistoryRoutes);
 
 app.all('/api/*', () => {
   throw new ApiError(404, 'not_found', 'Ruta no encontrada.');

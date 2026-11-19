@@ -60,6 +60,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `PUT /admin/runs/:areaId` | 7 | aportación nueva o edición (escritura e historial en un mismo batch) |
 | `POST /admin/runs/:areaId/withdraw` · `/restore` | 6 | — |
 | `GET /admin/runs` | 5 | 24 áreas con aportaciones e historial |
+| `GET /public/areas/:id/km-history` | 5 | 30 temporadas × 31 días con partes (comparador de km, migración 0026) |
 | `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
 | `POST /friends/blocks` | 6 | 38 amigos |

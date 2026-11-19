@@ -417,6 +417,14 @@ describe('auditoría de consultas: resto de rutas', () => {
       await m('POST /ingest/holidays', '2.500 periodos (máximo por envío)', api(INGEST, 'POST', '/api/ingest/holidays', { from: '2026-01-01', to: '2027-12-31', periods }));
       await m('GET /public/holidays', '31 días con 2.500 periodos guardados', api(null, 'GET', '/api/public/holidays?desde=2027-02-01&hasta=2027-03-03'));
     }
+    {
+      // Comparador de km: 30 temporadas con parte (el 15/02 de 1996 a 2025) y el máximo de 31 días por temporada.
+      const dom = cat.links[0].parent;
+      const snow = snowSources.find((s: any) => s.area === dom || s.scope === dom) ?? snowSources[0];
+      await db.batch(Array.from({ length: 30 }, (_, i) => db.prepare(`INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date, op_status, open_km, quality, content_hash, extractor)
+        VALUES (?1, ?2, ?3, ?4, ?5, 'open', 20, 'ok', ?1, 'audit')`).bind(`aud-km-${i}`, dom, snow.id, t0, `${1996 + i}-02-15`)));
+      await m('GET /public/areas/:id/km-history', '30 temporadas × 31 días, con partes', api(null, 'GET', `/api/public/areas/${dom}/km-history?desde=02-01&hasta=03-02`));
+    }
 
     // ---------- Destructivas, al final ----------
     await m('DELETE /trips/:id/members/:userId', `${MEMBERS + 1} miembros`, api(o.token, 'DELETE', `${T}/members/${m7.id}`));
