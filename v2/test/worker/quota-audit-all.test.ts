@@ -423,7 +423,11 @@ describe('auditoría de consultas: resto de rutas', () => {
       const snow = snowSources.find((s: any) => s.area === dom || s.scope === dom) ?? snowSources[0];
       await db.batch(Array.from({ length: 30 }, (_, i) => db.prepare(`INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date, op_status, open_km, quality, content_hash, extractor)
         VALUES (?1, ?2, ?3, ?4, ?5, 'open', 20, 'ok', ?1, 'audit')`).bind(`aud-km-${i}`, dom, snow.id, t0, `${1996 + i}-02-15`)));
-      await m('GET /public/areas/:id/km-history', '30 temporadas × 31 días, con partes', api(null, 'GET', `/api/public/areas/${dom}/km-history?desde=02-01&hasta=03-02`));
+      // Copias archivadas: 400 días (el máximo por envío del recolector; la API admite 500).
+      const arc = Array.from({ length: 500 }, (_, i) => ({ areaId: dom, obsDate: addDays('2010-12-01', i), dateBasis: 'copy', opStatus: 'open', openKm: 10, totalKm: 20,
+        provider: 'esquiades', originalUrl: 'https://example.com/p', archiveUrl: `https://web.archive.org/web/20100101000000/https://example.com/p${i}`, capturedAt: t0, extractor: 'audit' }));
+      await m('POST /ingest/km-archive', '500 días (máximo por envío)', api(INGEST, 'POST', '/api/ingest/km-archive', { rows: arc }));
+      await m('GET /public/areas/:id/km-history', '30 temporadas × 31 días, con partes y copias archivadas', api(null, 'GET', `/api/public/areas/${dom}/km-history?desde=02-01&hasta=03-02`));
     }
 
     // ---------- Destructivas, al final ----------

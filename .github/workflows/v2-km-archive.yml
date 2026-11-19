@@ -1,0 +1,40 @@
+# SkiTrip v2 · km de partes archivados (Wayback Machine) para el comparador de km entre temporadas (docs/KM-HISTORICO.md).
+# A mano. Por defecto no guarda nada: imprime en el registro lo que encontraría. Con «guardar» lo envía a la API
+# (repetirlo no duplica). En una PR que cambie el recolector se ejecuta siempre en seco (sin guardar). Consulta el archivo con pausas de 2 s; no toca las webs de las estaciones.
+name: v2 · km archivados
+on:
+  workflow_dispatch:
+    inputs:
+      guardar:
+        description: 'Guardar en SkiTrip (si no, solo muestra lo que encontraría)'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'v2/tools/collectors/km-archive.ts'
+      - '.github/workflows/v2-km-archive.yml'
+permissions:
+  contents: read
+concurrency:
+  group: v2-km-archive
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: v2
+    env:
+      SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL || secrets.SKITRIP_API_URL }}
+      SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - run: npx tsx tools/collectors/km-archive.ts ${{ github.event_name == 'workflow_dispatch' && inputs.guardar && '--send' || '' }}

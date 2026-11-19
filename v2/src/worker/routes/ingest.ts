@@ -445,3 +445,30 @@ ingestRoutes.post('/holidays', async (c) => {
   ]);
   return c.json({ deleted: del.meta.changes ?? 0, written: ins.meta.changes ?? 0, received: body.periods.length });
 });
+
+// ---------- Km de partes archivados (Wayback Machine; workflow manual «v2 · km archivados»: tools/collectors/km-archive.ts) ----------
+const zArchiveRow = z.object({
+  areaId: zId, obsDate: zDate, dateBasis: z.enum(['report', 'copy']),
+  opStatus: z.enum(['open', 'partial', 'closed_confirmed', 'out_of_season']),
+  openKm: z.number().min(0).max(1000).nullable(), totalKm: z.number().positive().max(1000).nullable(),
+  provider: z.string().regex(/^[a-z0-9-]{2,40}$/),
+  originalUrl: z.string().url().max(500).startsWith('https://'),
+  archiveUrl: z.string().max(600).regex(/^https:\/\/web\.archive\.org\/web\/\d{14}\/https?:\/\/\S+$/),
+  capturedAt: z.number().int().positive(),
+  extractor: z.string().min(1).max(80),
+}).refine((r) => r.openKm == null || r.totalKm == null || r.openKm <= r.totalKm, 'abiertos > totales')
+  .refine((r) => r.opStatus === 'closed_confirmed' || r.opStatus === 'out_of_season' || r.openKm != null, 'abierta sin km');
+
+/** Guarda días archivados (1 sentencia; repetir un envío no duplica). Solo áreas existentes y días ya pasados. */
+ingestRoutes.post('/km-archive', async (c) => {
+  const body = await parseBody(c, z.object({ rows: z.array(zArchiveRow).min(1).max(500) }));
+  const at = now();
+  const J = (k: string) => `json_extract(value, '$.${k}')`;
+  const res = await c.env.DB.prepare(
+    `INSERT OR IGNORE INTO km_archive_observations (area_id, obs_date, date_basis, op_status, open_km, total_km, provider, original_url, archive_url, captured_at, extractor, imported_at)
+     SELECT ${J('areaId')}, ${J('obsDate')}, ${J('dateBasis')}, ${J('opStatus')}, ${J('openKm')}, ${J('totalKm')}, ${J('provider')}, ${J('originalUrl')}, ${J('archiveUrl')},
+            ${J('capturedAt')}, ${J('extractor')}, ?2
+     FROM json_each(?1) WHERE ${J('areaId')} IN (SELECT id FROM areas) AND ${J('obsDate')} < date('now')`,
+  ).bind(JSON.stringify(body.rows), at).run();
+  return c.json({ written: res.meta.changes ?? 0, received: body.rows.length });
+});

@@ -55,6 +55,10 @@ INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date,
   -- Beta: un parte de una temporada pasada (10/02/2025) para el comparador de km entre años; no es el último de la fuente.
   ('e2e-s7', 'e2e-beta', 'e2e-beta-snow', 1739181600000, '2025-02-10', 'open', 30, 90, 'h7', 'e2e');
 
+-- Beta: una copia archivada (sintética) del 12/02/2016 con fecha de copia, para el comparador de km.
+INSERT INTO km_archive_observations (area_id, obs_date, date_basis, op_status, open_km, total_km, provider, original_url, archive_url, captured_at, extractor, imported_at) VALUES
+  ('e2e-beta', '2016-02-12', 'copy', 'open', 55, 90, 'esquiades', 'https://example.invalid/estado', 'https://web.archive.org/web/20160212120000/https://example.invalid/estado', 1455278400000, 'e2e', 0);
+
 INSERT INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, imported_at) VALUES ('e2e-legacy', 'open_km_history', 'sintetico.json', 'e2e-sha', 1, 1, 0);
 INSERT INTO legacy_snow_observations (file_id, legacy_resort_id, obs_date, open_km, total_km, anomalies, scope_area_id) VALUES
   ('e2e-legacy', 'beta', '2026-02-10', 0, 90, '["cero posiblemente «-»"]', 'e2e-beta'),
