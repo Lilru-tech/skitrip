@@ -1,5 +1,6 @@
 import { forfaitState, offerConditionsKey } from '../../core/offer-identity';
 import { CLIMATE_SEASONS, CLIMATE_VARS, seasonLength, seasonStart } from '../../core/climate';
+import { HOLIDAY_CALENDARS } from '../../core/holidays';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { classifySnow } from '../../core/parsers/snow';
@@ -416,4 +417,31 @@ ingestRoutes.post('/climate', async (c) => {
 ingestRoutes.get('/climate-status', async (c) => {
   const { results } = await c.env.DB.prepare(`SELECT area_id AS areaId, season, requested_elevation AS requestedElevation FROM climate_seasons WHERE source = 'era5' ORDER BY area_id, season`).all();
   return c.json({ seasons: results });
+});
+
+// ---------- Festivos y vacaciones escolares (OpenHolidays, cada semana desde Actions: tools/holidays-sync.ts) ----------
+const CAL_IDS = HOLIDAY_CALENDARS.map((c) => c.id) as [string, ...string[]];
+const zHolidayPeriod = z.object({
+  calendarId: z.enum(CAL_IDS), kind: z.enum(['public', 'school']), start: zDate, end: zDate,
+  name: z.string().trim().min(1).max(120), scope: z.enum(['all', 'part']), parts: z.string().max(120).nullable(),
+}).refine((p) => p.end >= p.start, 'end anterior a start');
+
+/**
+ * Sustituye los periodos que empiezan dentro de [from, to] por los enviados (2 sentencias en un lote: si falla una, no
+ * cambia nada). Un envío vacío dentro de una ventana no borra nada: lo rechaza, porque sería un fallo de la descarga.
+ */
+ingestRoutes.post('/holidays', async (c) => {
+  const body = await parseBody(c, z.object({ from: zDate, to: zDate, periods: z.array(zHolidayPeriod).min(1).max(2500) })
+    .refine((b) => b.to >= b.from && b.periods.every((p) => p.start >= b.from && p.start <= b.to), 'periodos fuera de la ventana'));
+  const at = now();
+  const J = (k: string) => `json_extract(value, '$.${k}')`;
+  const [del, ins] = await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM holiday_periods WHERE start_date BETWEEN ?1 AND ?2`).bind(body.from, body.to),
+    c.env.DB.prepare(
+      `INSERT INTO holiday_periods (calendar_id, kind, start_date, end_date, name, scope, parts, fetched_at)
+       SELECT ${J('calendarId')}, ${J('kind')}, ${J('start')}, ${J('end')}, ${J('name')}, ${J('scope')}, ${J('parts')}, ?2 FROM json_each(?1) WHERE true
+       ON CONFLICT(calendar_id, kind, start_date, name) DO UPDATE SET end_date = excluded.end_date, scope = excluded.scope, parts = excluded.parts, fetched_at = excluded.fetched_at`,
+    ).bind(JSON.stringify(body.periods), at),
+  ]);
+  return c.json({ deleted: del.meta.changes ?? 0, written: ins.meta.changes ?? 0, received: body.periods.length });
 });

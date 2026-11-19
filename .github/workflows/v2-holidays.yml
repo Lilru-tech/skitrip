@@ -1,0 +1,43 @@
+# SkiTrip v2 · festivos y vacaciones escolares (OpenHolidays API, datos ODbL 1.0). Cada lunes y a mano: descarga los de
+# España, Francia y Andorra (6 peticiones) y los envía a la ingesta del Worker (SKITRIP_INGEST_TOKEN), que sustituye los
+# de la ventana descargada. Si la descarga está incompleta no envía nada. El resultado queda en el registro.
+name: v2 · festivos y vacaciones
+on:
+  schedule:
+    - cron: '40 5 * * 1'   # lunes 05:40 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Solo descargar y contar (no envía)'
+        type: boolean
+        required: false
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: v2-holidays
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: v2
+    env:
+      SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL || secrets.SKITRIP_API_URL }}
+      SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
+      DRY_RUN: ${{ inputs.dry_run || false }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          npx tsx tools/holidays-sync.ts "${args[@]}"

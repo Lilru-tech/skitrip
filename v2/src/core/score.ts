@@ -12,14 +12,12 @@ export interface ScoreRow {
   runs?: number | null;
   /** Condiciones meteorológicas: 1 − índice desfavorable medio del viaje (escala absoluta 0–1, no min–max). */
   weather?: number | null;
-  /** Afluencia histórica: mediana de la intensidad diaria (esquiadores por km abierto); menos es mejor. */
-  crowd?: number | null;
 }
 // «runs» (Variedad de pistas) empieza a 0: con ese peso la puntuación es exactamente la de antes.
-// «weather» y «crowd» también empiezan a 0 (docs/METEO-AFLUENCIA.md §4): con los tres a 0 la puntuación es la de antes.
-export type Weights = { cost: number; distance: number; size: number; snowNow: number; vibe: number; runs: number; weather: number; crowd: number };
-export const DEFAULT_WEIGHTS: Weights = { cost: 0.4, distance: 0.2, size: 0.15, snowNow: 0.15, vibe: 0.1, runs: 0, weather: 0, crowd: 0 };
-type OptionalWeights = 'runs' | 'weather' | 'crowd';
+// «weather» también empieza a 0 (docs/METEO-AFLUENCIA.md §4): con los dos a 0 la puntuación es la de antes.
+export type Weights = { cost: number; distance: number; size: number; snowNow: number; vibe: number; runs: number; weather: number };
+export const DEFAULT_WEIGHTS: Weights = { cost: 0.4, distance: 0.2, size: 0.15, snowNow: 0.15, vibe: 0.1, runs: 0, weather: 0 };
+type OptionalWeights = 'runs' | 'weather';
 
 export interface ScoreDetail { key: keyof Weights; weight: number; value: number | null; normalized: number | null; points: number }
 export interface Scored { id: string; score: number; coverage: number; details: ScoreDetail[]; missing: (keyof Weights)[] }
@@ -38,7 +36,7 @@ export function scoreRows(rows: readonly ScoreRow[], weights: Omit<Weights, Opti
     const v = rows.map(f).filter((x): x is number => x != null);
     return v.length ? [Math.min(...v), Math.max(...v)] : [0, 0];
   };
-  const rc = range((r) => r.costPerPersonCents), rd = range((r) => r.roadKm), rs = range((r) => r.totalKm), rn = range((r) => r.openKmNow), rv = range((r) => r.vibe), rr = range((r) => r.runs ?? null), ra = range((r) => r.crowd ?? null);
+  const rc = range((r) => r.costPerPersonCents), rd = range((r) => r.roadKm), rs = range((r) => r.totalKm), rn = range((r) => r.openKmNow), rv = range((r) => r.vibe), rr = range((r) => r.runs ?? null);
   const totalW = Object.values(weights).reduce((a, b) => a + Math.max(0, b), 0) || 1;
   return rows.map((r) => {
     const parts: [keyof Weights, number | null, number | null][] = [
@@ -50,7 +48,6 @@ export function scoreRows(rows: readonly ScoreRow[], weights: Omit<Weights, Opti
       ['runs', r.runs ?? null, norm(r.runs ?? null, rr[0], rr[1], true, true)],
       // Absoluta: dos estaciones con casi el mismo tiempo no quedan a 0 y 100 por una diferencia pequeña.
       ['weather', r.weather ?? null, r.weather == null ? null : Math.min(1, Math.max(0, r.weather))],
-      ['crowd', r.crowd ?? null, norm(r.crowd ?? null, ra[0], ra[1], false)],
     ];
     const details = parts.map(([key, value, n]) => {
       const w = Math.max(0, (weights as Partial<Weights>)[key] ?? 0) / totalW;
