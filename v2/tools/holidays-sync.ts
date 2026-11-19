@@ -10,7 +10,7 @@
  */
 import { addDays, todayMadrid } from '../src/core/dates';
 import manualDoc from '../data/school-holidays-es.json';
-import { HOLIDAY_CALENDARS, HOLIDAY_COUNTRIES, HOLIDAY_LANG, manualSchoolPeriods, periodsFromOpenHolidays, type ManualCourse, type HolidayKind, type HolidayPeriod, type OpenHolidayItem } from '../src/core/holidays';
+import { HOLIDAY_CALENDARS, HOLIDAY_COUNTRIES, HOLIDAY_LANG, manualPublicPeriods, manualSchoolPeriods, periodsFromOpenHolidays, type ManualCourse, type ManualPublicYear, type HolidayKind, type HolidayPeriod, type OpenHolidayItem } from '../src/core/holidays';
 
 const API = (process.env.SKITRIP_API_URL ?? '').replace(/\/$/, '');
 const TOKEN = process.env.SKITRIP_INGEST_TOKEN ?? '';
@@ -46,7 +46,12 @@ async function main() {
     const n = manual.filter((p) => p.calendarId === c.calendarId && p.start >= `${y}-09-01` && p.start <= `${y + 1}-08-31`).length;
     console.log(`Manual ${c.calendarId} ${c.course}: ${n ? `${n} periodos añadidos (${c.source})` : 'no hace falta: OpenHolidays ya lo tiene'}`);
   }
-  periods.push(...manual);
+  const manualPub = manualPublicPeriods(manualDoc.publicYears as ManualPublicYear[], periods).filter((p) => p.start >= from && p.start <= to);
+  for (const y of manualDoc.publicYears as ManualPublicYear[]) {
+    const cals = [...new Set(manualPub.filter((p) => p.start.startsWith(`${y.year}-`)).map((p) => p.calendarId))];
+    console.log(`Festivos a mano ${y.year}: ${cals.length ? `${cals.join(', ')} (${y.source})` : 'no hace falta: OpenHolidays ya los tiene'}`);
+  }
+  periods.push(...manual, ...manualPub);
   const empty: string[] = [];
   for (const cal of HOLIDAY_CALENDARS) {
     const p = periods.filter((x) => x.calendarId === cal.id && x.scope === 'all');

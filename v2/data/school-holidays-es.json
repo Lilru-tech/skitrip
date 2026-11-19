@@ -1,67 +1,343 @@
 {
-  "note": "Vacaciones escolares de España que OpenHolidays aún no publica (comprobado el 19/11/2026: ninguna comunidad tiene el curso 2026-27). tools/holidays-sync.ts las añade solo si OpenHolidays no tiene ningún periodo escolar de ese calendario en ese curso. Verano: desde el día siguiente al último día lectivo general hasta el 31/08 (o la víspera del curso siguiente si está fijado); solo sirve para marcar el curso como publicado. Euskadi: mínimos comunes de la resolución (cada centro puede ampliarlos).",
+  "note": "Vacaciones escolares y festivos de España que OpenHolidays aún no publica (comprobado el 19/11/2026: ninguna comunidad tiene el curso 2026-27). tools/holidays-sync.ts las añade solo si OpenHolidays no tiene ningún periodo escolar de ese calendario en ese curso. Verano: desde el día siguiente al último día lectivo general hasta el 31/08 (o la víspera del curso siguiente si está fijado); solo sirve para marcar el curso como publicado. Euskadi: mínimos comunes de la resolución (cada centro puede ampliarlos). Festivos: tabla del BOE por comunidad; se añaden solo si OpenHolidays no trae ningún festivo de ese calendario en ese año.",
   "checked": "2026-11-19",
   "courses": [
     {
-      "calendarId": "es-ct", "course": "2026-27",
+      "calendarId": "es-ct",
+      "course": "2026-27",
       "source": "Ordre EDF/66/2026, de 22 d'abril (DOGC núm. 9653, 27/04/2026), art. 3.2 i 3.4",
       "url": "https://educacio.paeria.cat/ca/escolaritzacio/copy_of_calendari-escolar/ordre-edf662026-de-22-dabril-per-la-qual-sestableix-el-calendari-escolar-dels-cursos-2026-2027-2027-2028-2028-2029.pdf",
       "periods": [
-        { "start": "2026-12-22", "end": "2027-01-07", "name": "Vacaciones de Navidad" },
-        { "start": "2027-03-20", "end": "2027-03-29", "name": "Vacaciones de Semana Santa" },
-        { "start": "2027-06-22", "end": "2027-09-07", "name": "Vacaciones de verano" }
+        {
+          "start": "2026-12-22",
+          "end": "2027-01-07",
+          "name": "Vacaciones de Navidad"
+        },
+        {
+          "start": "2027-03-20",
+          "end": "2027-03-29",
+          "name": "Vacaciones de Semana Santa"
+        },
+        {
+          "start": "2027-06-22",
+          "end": "2027-09-07",
+          "name": "Vacaciones de verano"
+        }
       ]
     },
     {
-      "calendarId": "es-ar", "course": "2026-27",
+      "calendarId": "es-ar",
+      "course": "2026-27",
       "source": "Calendario escolar de Aragón 2026-27 según zaragozala.com (cita el calendario del Departamento de Educación)",
       "url": "https://zaragozala.com/actualidad/calendario-escolar-zaragoza-2026-2027/",
       "periods": [
-        { "start": "2026-12-23", "end": "2027-01-06", "name": "Vacaciones de Navidad" },
-        { "start": "2027-03-25", "end": "2027-04-02", "name": "Vacaciones de Semana Santa" },
-        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+        {
+          "start": "2026-12-23",
+          "end": "2027-01-06",
+          "name": "Vacaciones de Navidad"
+        },
+        {
+          "start": "2027-03-25",
+          "end": "2027-04-02",
+          "name": "Vacaciones de Semana Santa"
+        },
+        {
+          "start": "2027-06-19",
+          "end": "2027-08-31",
+          "name": "Vacaciones de verano"
+        }
       ]
     },
     {
-      "calendarId": "es-md", "course": "2026-27",
+      "calendarId": "es-md",
+      "course": "2026-27",
       "source": "Calendario escolar de la Comunidad de Madrid 2026-27 según elDiario.es",
       "url": "https://www.eldiario.es/madrid/somos/calendario-escolar-2026-2027-madrid-curso-puentes-inicio-final-adelantado_1_13322933.html",
       "periods": [
-        { "start": "2026-12-23", "end": "2027-01-10", "name": "Vacaciones de Navidad" },
-        { "start": "2027-02-12", "end": "2027-02-12", "name": "Semana blanca (día no lectivo)" },
-        { "start": "2027-02-15", "end": "2027-02-15", "name": "Semana blanca (día no lectivo)" },
-        { "start": "2027-03-19", "end": "2027-03-29", "name": "Vacaciones de Semana Santa" },
-        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+        {
+          "start": "2026-12-23",
+          "end": "2027-01-10",
+          "name": "Vacaciones de Navidad"
+        },
+        {
+          "start": "2027-02-12",
+          "end": "2027-02-12",
+          "name": "Semana blanca (día no lectivo)"
+        },
+        {
+          "start": "2027-02-15",
+          "end": "2027-02-15",
+          "name": "Semana blanca (día no lectivo)"
+        },
+        {
+          "start": "2027-03-19",
+          "end": "2027-03-29",
+          "name": "Vacaciones de Semana Santa"
+        },
+        {
+          "start": "2027-06-19",
+          "end": "2027-08-31",
+          "name": "Vacaciones de verano"
+        }
       ]
     },
     {
-      "calendarId": "es-vc", "course": "2026-27",
+      "calendarId": "es-vc",
+      "course": "2026-27",
       "source": "Calendario escolar de la Comunitat Valenciana 2026-27 según El Debate (Conselleria de Educación)",
       "url": "https://www.eldebate.com/espana/comunidad-valenciana/20260612/curso-escolar-20262027-empezara-9-septiembre-acabara-18-junio-comunidad-valenciana_428112.html",
       "periods": [
-        { "start": "2026-12-22", "end": "2027-01-06", "name": "Vacaciones de Navidad" },
-        { "start": "2027-03-25", "end": "2027-04-05", "name": "Vacaciones de Pascua" },
-        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+        {
+          "start": "2026-12-22",
+          "end": "2027-01-06",
+          "name": "Vacaciones de Navidad"
+        },
+        {
+          "start": "2027-03-25",
+          "end": "2027-04-05",
+          "name": "Vacaciones de Pascua"
+        },
+        {
+          "start": "2027-06-19",
+          "end": "2027-08-31",
+          "name": "Vacaciones de verano"
+        }
       ]
     },
     {
-      "calendarId": "es-pv", "course": "2026-27",
+      "calendarId": "es-pv",
+      "course": "2026-27",
       "source": "Resolución del calendario escolar 2026-27 de Educación Infantil y Primaria (Gobierno Vasco), mínimos comunes",
       "url": "https://www.euskadi.eus/contenidos/informacion/cee_organizacioncentros_calend/es_def/adjuntos/2026_2027/Resolucion-calendario-Primaria-2026_27-cast-.pdf",
       "periods": [
-        { "start": "2026-12-24", "end": "2027-01-06", "name": "Vacaciones de Navidad (mínimo común)" },
-        { "start": "2027-03-25", "end": "2027-03-29", "name": "Vacaciones de Semana Santa (mínimo común)" },
-        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+        {
+          "start": "2026-12-24",
+          "end": "2027-01-06",
+          "name": "Vacaciones de Navidad (mínimo común)"
+        },
+        {
+          "start": "2027-03-25",
+          "end": "2027-03-29",
+          "name": "Vacaciones de Semana Santa (mínimo común)"
+        },
+        {
+          "start": "2027-06-19",
+          "end": "2027-08-31",
+          "name": "Vacaciones de verano"
+        }
       ]
     },
     {
-      "calendarId": "es-nc", "course": "2026-27",
+      "calendarId": "es-nc",
+      "course": "2026-27",
       "source": "Calendario escolar de Navarra 2026-27 según el blog de Euskaltel (Departamento de Educación)",
       "url": "https://blog.euskaltel.com/calendario-escolar-navarra/",
       "periods": [
-        { "start": "2026-12-23", "end": "2027-01-10", "name": "Vacaciones de Navidad" },
-        { "start": "2027-03-25", "end": "2027-04-04", "name": "Vacaciones de Semana Santa" },
-        { "start": "2027-06-23", "end": "2027-08-31", "name": "Vacaciones de verano" }
+        {
+          "start": "2026-12-23",
+          "end": "2027-01-10",
+          "name": "Vacaciones de Navidad"
+        },
+        {
+          "start": "2027-03-25",
+          "end": "2027-04-04",
+          "name": "Vacaciones de Semana Santa"
+        },
+        {
+          "start": "2027-06-23",
+          "end": "2027-08-31",
+          "name": "Vacaciones de verano"
+        }
+      ]
+    }
+  ],
+  "publicYears": [
+    {
+      "year": 2027,
+      "source": "Resolución de 8 de octubre de 2026, de la Dirección General de Trabajo (BOE 13/10/2026, BOE-A-2026-21254), anexo",
+      "url": "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-21254",
+      "note": "En Arán, el Lunes de Pascua (29/03) se sustituye por el 17/06 (nota 2 del BOE); se muestra el general de Cataluña.",
+      "holidays": [
+        {
+          "date": "2027-01-01",
+          "name": "Año Nuevo",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-01-06",
+          "name": "Epifanía del Señor",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-03-19",
+          "name": "San José",
+          "calendars": [
+            "es-md",
+            "es-nc",
+            "es-vc"
+          ]
+        },
+        {
+          "date": "2027-03-25",
+          "name": "Jueves Santo",
+          "calendars": [
+            "es-ar",
+            "es-md",
+            "es-nc",
+            "es-pv"
+          ]
+        },
+        {
+          "date": "2027-03-26",
+          "name": "Viernes Santo",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-03-29",
+          "name": "Lunes de Pascua",
+          "calendars": [
+            "es-ct",
+            "es-nc",
+            "es-pv",
+            "es-vc"
+          ]
+        },
+        {
+          "date": "2027-04-23",
+          "name": "San Jorge / Día de Aragón",
+          "calendars": [
+            "es-ar"
+          ]
+        },
+        {
+          "date": "2027-05-01",
+          "name": "Fiesta del Trabajo",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-06-24",
+          "name": "San Juan",
+          "calendars": [
+            "es-ct"
+          ]
+        },
+        {
+          "date": "2027-08-16",
+          "name": "Lunes siguiente a la Asunción de la Virgen",
+          "calendars": [
+            "es-ar",
+            "es-md"
+          ]
+        },
+        {
+          "date": "2027-09-11",
+          "name": "Fiesta Nacional de Cataluña",
+          "calendars": [
+            "es-ct"
+          ]
+        },
+        {
+          "date": "2027-10-07",
+          "name": "Aniversario del primer Gobierno Vasco",
+          "calendars": [
+            "es-pv"
+          ]
+        },
+        {
+          "date": "2027-10-09",
+          "name": "Día de la Comunitat Valenciana",
+          "calendars": [
+            "es-vc"
+          ]
+        },
+        {
+          "date": "2027-10-12",
+          "name": "Fiesta Nacional de España",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-11-01",
+          "name": "Todos los Santos",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-12-06",
+          "name": "Día de la Constitución Española",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-12-08",
+          "name": "Inmaculada Concepción",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        },
+        {
+          "date": "2027-12-25",
+          "name": "Natividad del Señor",
+          "calendars": [
+            "es-ct",
+            "es-ar",
+            "es-md",
+            "es-vc",
+            "es-pv",
+            "es-nc"
+          ]
+        }
       ]
     }
   ]

@@ -66,6 +66,9 @@ Vasco, Navarra, Francia zonas A, B y C, y Andorra (`src/core/holidays.ts`). Regl
   | Navarra | 23/12–10/01 | 25/03–04/04 | [Blog de Euskaltel](https://blog.euskaltel.com/calendario-escolar-navarra/) (prensa) |
 
   Cuatro vienen de prensa que cita el calendario de la comunidad; si aparece la orden oficial, se cambia la fuente.
+  Tampoco tiene los festivos españoles de 2027: se añaden desde el anexo de la [Resolución de 8 de octubre de 2026
+  (BOE-A-2026-21254)](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-21254), con la misma regla (solo si
+  OpenHolidays no trae ningún festivo de ese calendario ese año).
 - Los festivos son los mismos para todas las estaciones, así que no puntúan en Comparar: el peso «Afluencia histórica»
   desaparece. Las tablas de la migración 0022, con sus 3 observaciones, se conservan sin uso.
 
