@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'v2/tools/km-history-sources-check.mjs'
+      - 'v2/tools/km-history-esquiades-probe.ts'
       - '.github/workflows/v2-km-history-sources-check.yml'
 permissions:
   contents: read
@@ -22,7 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tools/km-history-sources-check.mjs sample
+      - run: npm ci --no-audit --no-fund
+      - run: npx --yes tsx@4 tools/km-history-esquiades-probe.ts
   discover:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
