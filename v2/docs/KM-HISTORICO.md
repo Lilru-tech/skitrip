@@ -8,7 +8,7 @@ Fecha: 19/11/2026. Petición de David: en la ficha de una estación («Estado ac
 |---|---|---|
 | Partes capturados por SkiTrip v2 (`snow_observations`) | Desde octubre de 2026, cada día, todas las estaciones con fuente de nieve | Sí. Solo partes con **fecha publicada por la fuente** (`source_date`) igual al día, calidad `ok` y estado conocido. Con varias fuentes del mismo ámbito, la de menor `priority` (oficial antes que agregador) y, en ella, la última captura del día. |
 | SkiTrip antiguo (`legacy_snow_observations`, Esquiades) | 21/12/2025 – 03/10/2026, 19 estaciones (toda la temporada 2025-26) | Sí, marcado «sin verificar». Fecha = día de captura del recolector antiguo. Un 0 puede ser un «-» convertido: se muestra «0 o sin dato» y no entra en la media. |
-| Wayback Machine (copias archivadas de partes) | 2–9 días por temporada y página; muchas webs pintan los km con JavaScript y la copia no los guarda | No en esta versión (ver abajo). |
+| Wayback Machine (copias archivadas de partes) | 2–9 días por temporada y página; muchas webs pintan los km con JavaScript y la copia no los guarda | Sí, desde la decisión de David del 19/11/2026: días sueltos con enlace a la copia (`km_archive_observations`, migración 0027). |
 | Skiinfo / OnTheSnow «historique» | Nevadas y grosor por temporada o mes, sin km abiertos | No sirve. |
 | ICGC InfoGruixNEU | Grosor de nieve diario desde 1985 (Núria, Boí, Bonaigua…), sin km | No sirve para km. |
 | Prensa (ATUDEM, Europa Press, Nevasport…) | Resúmenes de algún fin de semana, sumas de varias estaciones | No: esporádico y a menudo agregado. |
@@ -34,3 +34,11 @@ Conclusión: no existe una fuente pública con los km abiertos día a día de te
 - Por temporada: media de los días con dato, días con dato sobre días del intervalo, mínimo y máximo. «Cerrada» (cierre confirmado o fuera de temporada según el parte) cuenta como 0 km. No se rellenan días ni se toman de otra fecha o estación.
 - Interfaz: «Comparar con otros años» dentro de «Estado actual» de la ficha; fechas en la dirección (`kmdesde`, `kmhasta`); «Ver día a día» con la tabla y «Ver detalles» con fuentes y metodología.
 - Lógica en `src/core/km-history.ts`; pruebas en `test/core/km-history.test.ts`, `test/worker/km-history.test.ts` y `test/e2e/km-compare.spec.ts`.
+
+## Días archivados (decisión de David, 19/11/2026: «propios + días archivados»)
+
+- Tabla `km_archive_observations` (migración 0027), separada de `snow_observations`: nunca cuenta como «último parte» ni entra en Comparar.
+- Recolector `tools/collectors/km-archive.ts`, workflow manual «v2 · km archivados» (en seco por defecto; «guardar» envía a `POST /api/ingest/km-archive`, que ignora duplicados, áreas desconocidas y fechas no pasadas). Recorre las mismas fuentes de nieve que la captura diaria; para cada página, las copias HTTP 200 de noviembre a mayo del índice CDX, la más tardía de cada día primero, con 2 s de pausa. Cada copia se lee con el mismo adaptador que la página actual (Esquiades por alias exacto; webs oficiales con su adaptador). Lo que no se reconoce queda sin dato.
+- Fecha: la publicada en el parte si es de los 3 días anteriores a la copia como mucho (`dateBasis = report`); sin fecha publicada, la de la copia en hora de Madrid, solo si la copia es de las 09:00 o más tarde (`dateBasis = copy`, marcada «†» en la interfaz).
+- Mismo día con varias copias: oficial antes que agregador, fecha publicada antes que fecha de copia, y la copia más tardía. Preferencia entre procedencias: parte de v2 > copia archivada > SkiTrip antiguo.
+- Las temporadas sin ningún dato para las fechas elegidas se agrupan en una sola línea «Sin dato en …».

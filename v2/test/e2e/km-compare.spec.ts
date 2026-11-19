@@ -15,10 +15,18 @@ test('ficha: km de las mismas fechas en otras temporadas, «0 o sin dato», «Si
   const seasons = box.getByTestId('km-season');
   await expect(seasons.filter({ hasText: '2024-25' })).toContainText('30 km de media (1 de 3 días con dato)');
   await expect(seasons.filter({ hasText: '2025-26' })).toContainText('Sin dato en los 3 días (2 con «0 o sin dato»)');
+  // Copia archivada (2015-16): cifra con enlace a la copia y aviso de que la fecha es la de la copia; las temporadas sin
+  // nada, agrupadas en una línea.
+  await expect(seasons.filter({ hasText: '2015-16' })).toContainText('55 km de media (1 de 3 días con dato)');
+  await expect(box.getByTestId('km-season-empty')).toContainText('2016-17');
   await box.getByText('Ver día a día').click();
   const table = box.getByRole('table');
   await expect(table.getByRole('row', { name: /^10\/02/ })).toContainText('0 o sin dato');
   await expect(table.getByRole('row', { name: /^10\/02/ })).toContainText('30 km de 90');
+  const r12 = table.getByRole('row', { name: /^12\/02/ });
+  await expect(r12).toContainText('55 km de 90');
+  await expect(r12.getByRole('link', { name: /copia/ })).toHaveAttribute('href', 'https://web.archive.org/web/20160212120000/https://example.invalid/estado');
+  await expect(box).toContainText('† Fecha de la copia archivada');
   await box.getByText('Ver detalles').click();
   await expect(box).toContainText('no predice lo que habrá');
   await expectNoHorizontalOverflow(page, 'comparador de km');
@@ -31,7 +39,7 @@ test('ficha: km de las mismas fechas en otras temporadas, «0 o sin dato», «Si
   await box.getByLabel('Desde').fill(d.slice(0, 5) + '03-20');
   await expect(page).toHaveURL(/kmdesde=03-20/);
   await expect(box).not.toContainText('30 km');
-  await expect(seasons.filter({ hasText: '2024-25' })).toContainText('Sin dato');
+  await expect(box.getByTestId('km-season-empty')).toContainText('2024-25');
 
   // Intervalo al revés o demasiado largo: aviso, sin consulta.
   await page.goto('/#/estaciones/e2e-beta?kmdesde=03-10&kmhasta=02-01');

@@ -22,11 +22,20 @@ function dayText(d: KmDay) {
   return <span className="muted">Sin dato</span>;
 }
 
+/** Enlace a la copia archivada de la que sale la cifra (y si la fecha es la de la copia, no la del parte). */
+function ArchiveMark({ d, short }: { d: KmDay; short?: boolean }) {
+  if (d.origin !== 'archivo' || !d.archiveUrl) return null;
+  return (
+    <>{' '}<a className="small" href={d.archiveUrl} target="_blank" rel="noopener noreferrer">{short ? 'copia' : 'copia archivada'}<span className="visually-hidden"> del {numDate(d.date)} (se abre en otra pestaña)</span></a>
+      {d.dateBasis === 'copy' && <span className="small muted">{short ? ' †' : ' (fecha de la copia: el parte no la indica)'}</span>}</>
+  );
+}
+
 function SeasonSummary({ s, single }: { s: KmSeason; single: boolean }) {
   const { summary: m } = s;
   if (single) {
     const d = s.dates.find((x) => x.status !== 'future')!;
-    return <><strong>{s.season}</strong> · {dayLong(d.date)}: {dayText(d)}{d.origin === 'antiguo' && <> <span className="tag tag-quiet">sin verificar</span></>}</>;
+    return <><strong>{s.season}</strong> · {dayLong(d.date)}: {dayText(d)}{d.origin === 'antiguo' && <> <span className="tag tag-quiet">sin verificar</span></>}<ArchiveMark d={d} /></>;
   }
   if (m.withData === 0) return <><strong>{s.season}</strong> · <span className="muted">Sin dato</span> en {m.days === 1 ? 'el día' : `los ${m.days} días`}{m.doubtfulZeros > 0 && ` (${m.doubtfulZeros} con «0 o sin dato»)`}</>;
   return (
@@ -54,7 +63,9 @@ export function KmCompare({ areaId, name, fromParam, toParam }: { areaId: string
   const onTo = (v: string) => { if (v) setRange(from, v.slice(5)); };
   const data = r.data && r.data.from === from && r.data.to === to ? r.data : null;
   const single = mmdds?.length === 1;
+  // Temporadas con algo que decir (cifra o «0 o sin dato»); las demás se agrupan en una línea «Sin dato en …».
   const withRows = data?.seasons.filter((s) => s.summary.withData > 0 || s.summary.doubtfulZeros > 0) ?? [];
+  const empty = data?.seasons.filter((s) => !withRows.includes(s)) ?? [];
   const providers = [...new Set((data?.seasons ?? []).flatMap((s) => s.dates).map((d) => d.provider).filter((p): p is string => !!p))];
   return (
     <div className="stack-s km-compare" data-testid="km-compare">
@@ -77,7 +88,8 @@ export function KmCompare({ areaId, name, fromParam, toParam }: { areaId: string
       ) : (
         <>
           <ul className="list km-compare-list" aria-label={`Km esquiables ${single ? `el ${ddmm(from)}` : `del ${ddmm(from)} al ${ddmm(to)}`} por temporada`}>
-            {data.seasons.map((s) => <li key={s.season} data-testid="km-season"><SeasonSummary s={s} single={single} /></li>)}
+            {withRows.map((s) => <li key={s.season} data-testid="km-season"><SeasonSummary s={s} single={single} /></li>)}
+            {empty.length > 0 && <li data-testid="km-season-empty"><span className="muted">Sin dato</span> en {empty.map((s) => s.season).join(', ')}.</li>}
           </ul>
           {!single && withRows.length > 0 && (
             <details className="area-more">
@@ -85,24 +97,26 @@ export function KmCompare({ areaId, name, fromParam, toParam }: { areaId: string
               <div className="table-scroll">
                 <table className="data-table">
                   <caption className="visually-hidden">Km abiertos por día y temporada</caption>
-                  <thead><tr><th scope="col">Día</th>{data.seasons.map((s) => <th key={s.season} scope="col">{s.season}</th>)}</tr></thead>
+                  <thead><tr><th scope="col">Día</th>{withRows.map((s) => <th key={s.season} scope="col">{s.season}</th>)}</tr></thead>
                   <tbody>{mmdds.map((m) => (
-                    <tr key={m}><th scope="row">{ddmm(m)}</th>{data.seasons.map((s) => {
+                    <tr key={m}><th scope="row">{ddmm(m)}</th>{withRows.map((s) => {
                       const d = s.dates.find((x) => x.date.slice(5) === m);
-                      return <td key={s.season}>{d ? <>{dayText(d)}{d.origin === 'antiguo' && d.status === 'value' && <span className="muted"> *</span>}</> : <span className="muted">no existe</span>}</td>;
+                      return <td key={s.season}>{d ? <>{dayText(d)}{d.origin === 'antiguo' && d.status === 'value' && <span className="muted"> *</span>}<ArchiveMark d={d} short /></> : <span className="muted">no existe</span>}</td>;
                     })}</tr>
                   ))}</tbody>
                 </table>
               </div>
               {data.seasons.some((s) => s.dates.some((d) => d.origin === 'antiguo' && d.status === 'value')) && <p className="small muted">* Dato del SkiTrip antiguo, sin verificar.</p>}
+              {withRows.some((s) => s.dates.some((d) => d.dateBasis === 'copy')) && <p className="small muted">† Fecha de la copia archivada: el parte no indica la suya.</p>}
             </details>
           )}
           <details className="area-more">
             <summary>Ver detalles<span className="visually-hidden"> de la comparación de km de {name}</span></summary>
             <ul className="small muted run-notes">
-              <li>Temporadas revisadas: desde la primera con algún dato de {name}{data.firstDataDate && ` (${numDate(data.firstDataDate)})`} hasta la actual. Antes no hay ninguna fuente diaria que se pueda leer.</li>
+              <li>Temporadas revisadas: desde la primera con algún dato de {name}{data.firstDataDate && ` (${numDate(data.firstDataDate)})`} hasta la actual. No existe ninguna fuente pública con los km de cada día de temporadas pasadas.</li>
               <li>{KM_ORIGIN_LABEL.parte[0].toUpperCase() + KM_ORIGIN_LABEL.parte.slice(1)}: solo partes con la fecha publicada por la fuente igual a ese día, del mismo ámbito y sin avisos de calidad. Si hay varias fuentes, la preferente (la oficial antes que un agregador){providers.length > 0 && `; usadas aquí: ${providers.map((p) => PROVIDER_LABEL[p] ?? p).join(', ')}`}.</li>
               <li>«Cerrada»: el parte confirma la estación cerrada o fuera de temporada; cuenta como 0 km esquiables.</li>
+              <li>{KM_ORIGIN_LABEL.archivo[0].toUpperCase() + KM_ORIGIN_LABEL.archivo.slice(1)}: días sueltos de temporadas pasadas guardados por Internet Archive (Esquiades desde 2015-16 y algunas webs oficiales), leídos con el mismo lector que la página actual y con enlace a cada copia. Fecha: la publicada en el parte; si la copia no la trae, la de la copia, solo si se hizo a partir de las 09:00. Solo hay unos pocos días por temporada, así que la mayoría de fechas no tienen dato.</li>
               <li>{KM_ORIGIN_LABEL.antiguo}: la serie que guardaba la versión anterior de SkiTrip (Esquiades, desde el 21/12/2025), con la fecha en que se capturó y sin comprobar. Un 0 de esa serie puede ser un «-» (sin dato), así que se muestra como «0 o sin dato» y no entra en la media.</li>
               <li>La media es la de los días con dato de cada temporada; no se rellenan días que faltan ni se toman de otra fecha o de otra estación.</li>
               <li>Lo que había otros años no predice lo que habrá en un viaje futuro.</li>

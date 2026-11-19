@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareSeasons, datesToRead, legacyDay, liveDay, rangeMmdds, seasonDates, seasonLabel, seasonStartOf, summarize, type KmLiveRow } from '../../src/core/km-history';
+import { archiveDay, archiveDayOf, compareSeasons, datesToRead, legacyDay, liveDay, rangeMmdds, seasonDates, seasonLabel, seasonStartOf, summarize, type KmArchiveRow, type KmLiveRow } from '../../src/core/km-history';
 
 const live = (p: Partial<KmLiveRow>): KmLiveRow => ({ source_date: '2025-12-28', observed_at: 1, op_status: 'open', open_km: 100, total_km: 215, quality: 'ok', priority: 10, provider: 'official', ...p });
 
@@ -79,5 +79,38 @@ describe('comparación entre temporadas', () => {
   it('media con decimales redondeada a una cifra', () => {
     const d = (openKm: number) => ({ date: 'x', status: 'value' as const, openKm, totalKm: null, origin: 'parte' as const, provider: null });
     expect(summarize([d(10), d(10), d(11)]).mean).toBe(10.3);
+  });
+});
+
+describe('copias archivadas', () => {
+  const arc = (p: Partial<KmArchiveRow>): KmArchiveRow => ({ obs_date: '2016-01-10', date_basis: 'report', op_status: 'open', open_km: 150, total_km: 210, provider: 'esquiades',
+    archive_url: 'https://web.archive.org/web/20160110120000/https://www.esquiades.com/x', captured_at: 2, ...p });
+  it('oficial antes que agregador, fecha publicada antes que fecha de copia, y la copia más tardía', () => {
+    expect(archiveDay([arc({ open_km: 100 }), arc({ provider: 'official', open_km: 120, date_basis: 'copy' })])).toMatchObject({ openKm: 120, provider: 'official', dateBasis: 'copy' });
+    expect(archiveDay([arc({ open_km: 100, date_basis: 'copy' }), arc({ open_km: 110 })])).toMatchObject({ openKm: 110, dateBasis: 'report' });
+    expect(archiveDay([arc({ open_km: 100, captured_at: 1 }), arc({ open_km: 105, captured_at: 3 })])).toMatchObject({ openKm: 105, origin: 'archivo' });
+    expect(archiveDay([arc({ op_status: 'closed_confirmed', open_km: null })])).toMatchObject({ status: 'closed', openKm: 0 });
+    expect(archiveDay([])).toBeNull();
+  });
+  it('el parte de v2 prevalece; la copia, sobre el SkiTrip antiguo; se marca en el resumen', () => {
+    const r = compareSeasons({
+      mmdds: ['01-10', '01-11'], today: '2026-11-19', firstDataDate: '2016-01-10', live: [],
+      legacy: [{ obs_date: '2026-01-10', open_km: 190, total_km: 215 }],
+      archive: [arc({}), arc({ obs_date: '2026-01-10', open_km: 200, total_km: 215 })],
+    });
+    expect(r.map((s) => s.season)).toHaveLength(11);
+    const s25 = r.find((s) => s.season === '2025-26')!;
+    expect(s25.dates[0]).toMatchObject({ openKm: 200, origin: 'archivo' });
+    expect(s25.summary).toMatchObject({ usesArchive: true, usesLegacy: false });
+    expect(r.find((s) => s.season === '2015-16')!.summary).toMatchObject({ withData: 1, mean: 150, usesArchive: true });
+    expect(r.find((s) => s.season === '2017-18')!.summary.withData).toBe(0);
+  });
+  it('fecha de una copia: publicada (hasta 3 días antes) o la de la copia desde las 09:00 de Madrid', () => {
+    expect(archiveDayOf('2016-01-09', Date.UTC(2016, 0, 10, 8, 30))).toEqual({ obsDate: '2016-01-09', dateBasis: 'report' });
+    expect(archiveDayOf('2016-01-05', Date.UTC(2016, 0, 10, 8, 30))).toBeNull();
+    expect(archiveDayOf('2016-01-11', Date.UTC(2016, 0, 10, 8, 30))).toBeNull();
+    expect(archiveDayOf(null, Date.UTC(2016, 0, 10, 8, 30))).toEqual({ obsDate: '2016-01-10', dateBasis: 'copy' }); // 09:30 en Madrid
+    expect(archiveDayOf(null, Date.UTC(2016, 0, 10, 7, 30))).toBeNull(); // 08:30 en Madrid
+    expect(archiveDayOf(null, Date.UTC(2016, 0, 9, 23, 30))).toBeNull(); // 00:30 del 10 en Madrid
   });
 });

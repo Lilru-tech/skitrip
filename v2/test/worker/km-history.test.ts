@@ -60,3 +60,30 @@ describe('GET /api/public/areas/:id/km-history', () => {
     expect((await km('no-existe', 'desde=01-01')).status).toBe(404);
   });
 });
+
+describe('copias archivadas (POST /api/ingest/km-archive)', () => {
+  const INGEST = 'test-ingest-token';
+  const row = (o: Record<string, unknown> = {}) => ({
+    areaId: 'grandvalira', obsDate: '2016-01-10', dateBasis: 'copy', opStatus: 'open', openKm: 148, totalKm: 210, provider: 'esquiades',
+    originalUrl: 'https://www.esquiades.com/informacion-interes/estado-pistas/',
+    archiveUrl: 'https://web.archive.org/web/20160110120000/https://www.esquiades.com/informacion-interes/estado-pistas/',
+    capturedAt: Date.UTC(2016, 0, 10, 12), extractor: 'esquiades-status@test+wayback', ...o,
+  });
+  it('sin la credencial de ingesta: 401; datos incoherentes: 422', async () => {
+    expect((await api(null, 'POST', '/api/ingest/km-archive', { rows: [row()] })).status).toBe(401);
+    expect((await api(INGEST, 'POST', '/api/ingest/km-archive', { rows: [row({ openKm: 300 })] })).status).toBe(422);
+    expect((await api(INGEST, 'POST', '/api/ingest/km-archive', { rows: [row({ openKm: null })] })).status).toBe(422);
+    expect((await api(INGEST, 'POST', '/api/ingest/km-archive', { rows: [row({ archiveUrl: 'https://example.com/x' })] })).status).toBe(422);
+  });
+  it('guarda (sin duplicar al repetir; ignora áreas desconocidas) y el comparador lo muestra con su enlace', async () => {
+    const body = { rows: [row(), row({ areaId: 'no-existe' })] };
+    expect((await api(INGEST, 'POST', '/api/ingest/km-archive', body)).json).toMatchObject({ written: 1, received: 2 });
+    expect((await api(INGEST, 'POST', '/api/ingest/km-archive', body)).json).toMatchObject({ written: 0 });
+    const r = (await km('grandvalira', 'desde=01-10')).json;
+    expect(r.firstDataDate).toBe('2016-01-10');
+    const s = season(r, '2015-16');
+    expect(s.dates[0]).toMatchObject({ status: 'value', openKm: 148, totalKm: 210, origin: 'archivo', dateBasis: 'copy', archiveUrl: row().archiveUrl });
+    expect(s.summary).toMatchObject({ withData: 1, usesArchive: true });
+    expect(season(r, '2016-17').summary.withData).toBe(0);
+  });
+});
