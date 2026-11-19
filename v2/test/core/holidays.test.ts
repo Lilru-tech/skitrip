@@ -1,7 +1,9 @@
 // Reparto de OpenHolidays entre los calendarios de SkiTrip y cruce con las fechas. Elementos con la forma real de la API
 // (consultada el 19/11/2026: /PublicHolidays y /SchoolHolidays de ES, FR y AD); sin red.
 import { describe, expect, it } from 'vitest';
-import { calendarDays, HOLIDAY_CALENDARS, periodsFromOpenHolidays, type HolidayPeriod, type OpenHolidayItem } from '../../src/core/holidays';
+import manualDoc from '../../data/school-holidays-es.json';
+import { isValidDate } from '../../src/core/dates';
+import { calendarDays, HOLIDAY_CALENDARS, manualSchoolPeriods, periodsFromOpenHolidays, type ManualCourse, type HolidayPeriod, type OpenHolidayItem } from '../../src/core/holidays';
 
 const it_ = (startDate: string, endDate: string, text: string, nationwide: boolean, codes: string[] = []): OpenHolidayItem =>
   ({ startDate, endDate, name: [{ language: 'ES', text }], nationwide, temporalScope: 'FullDay', ...(codes.length ? { subdivisions: codes.map((code) => ({ code, shortName: code.replace(/^[A-Z]{2}-/, '') })) } : {}) });
@@ -58,5 +60,34 @@ describe('cruce con las fechas', () => {
     expect(r.find((c) => c.calendarId === 'es-ct')!.unknownDays).toEqual(['2027-02-28', '2027-03-01']);
     expect(r.find((c) => c.calendarId === 'ad')!.unknownDays).toEqual(days);
     expect(r.find((c) => c.calendarId === 'es-ar')!.unknownDays).toEqual([]);
+  });
+});
+
+describe('cursos españoles a mano (data/school-holidays-es.json)', () => {
+  const courses = manualDoc.courses as ManualCourse[];
+  it('fechas válidas, dentro de su curso, sin solaparse, con fuente y de un calendario español', () => {
+    for (const c of courses) {
+      expect(HOLIDAY_CALENDARS.find((x) => x.id === c.calendarId)?.country).toBe('ES');
+      expect(c.source.length).toBeGreaterThan(10);
+      expect(c.url).toMatch(/^https:\/\//);
+      const y = Number(c.course.slice(0, 4));
+      const sorted = [...c.periods].sort((a, b) => a.start.localeCompare(b.start));
+      sorted.forEach((p, i) => {
+        expect(isValidDate(p.start) && isValidDate(p.end) && p.end >= p.start).toBe(true);
+        expect(p.start >= `${y}-09-01` && p.start <= `${y + 1}-08-31`).toBe(true);
+        if (i) expect(p.start > sorted[i - 1].end).toBe(true);
+      });
+      // El verano marca el curso como publicado hasta después de la temporada de esquí.
+      expect(sorted.at(-1)!.name).toBe('Vacaciones de verano');
+    }
+    expect(new Set(courses.map((c) => `${c.calendarId}|${c.course}`)).size).toBe(courses.length);
+  });
+  it('solo se añaden si OpenHolidays no trae nada de ese calendario en ese curso', () => {
+    const oh = [{ calendarId: 'es-ct', kind: 'school' as const, start: '2026-12-21', end: '2027-01-07', name: 'Navidad', scope: 'all' as const, parts: null },
+      { calendarId: 'es-ar', kind: 'school' as const, start: '2027-02-19', end: '2027-02-19', name: 'Día no lectivo', scope: 'part' as const, parts: 'AR-TE' }];
+    const add = manualSchoolPeriods(courses, oh);
+    expect(add.some((p) => p.calendarId === 'es-ct')).toBe(false);
+    expect(add.filter((p) => p.calendarId === 'es-ar').map((p) => p.name)).toEqual(['Vacaciones de Navidad', 'Vacaciones de Semana Santa', 'Vacaciones de verano']);
+    expect(add.every((p) => p.kind === 'school' && p.scope === 'all')).toBe(true);
   });
 });

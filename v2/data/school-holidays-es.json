@@ -1,0 +1,68 @@
+{
+  "note": "Vacaciones escolares de España que OpenHolidays aún no publica (comprobado el 19/11/2026: ninguna comunidad tiene el curso 2026-27). tools/holidays-sync.ts las añade solo si OpenHolidays no tiene ningún periodo escolar de ese calendario en ese curso. Verano: desde el día siguiente al último día lectivo general hasta el 31/08 (o la víspera del curso siguiente si está fijado); solo sirve para marcar el curso como publicado. Euskadi: mínimos comunes de la resolución (cada centro puede ampliarlos).",
+  "checked": "2026-11-19",
+  "courses": [
+    {
+      "calendarId": "es-ct", "course": "2026-27",
+      "source": "Ordre EDF/66/2026, de 22 d'abril (DOGC núm. 9653, 27/04/2026), art. 3.2 i 3.4",
+      "url": "https://educacio.paeria.cat/ca/escolaritzacio/copy_of_calendari-escolar/ordre-edf662026-de-22-dabril-per-la-qual-sestableix-el-calendari-escolar-dels-cursos-2026-2027-2027-2028-2028-2029.pdf",
+      "periods": [
+        { "start": "2026-12-22", "end": "2027-01-07", "name": "Vacaciones de Navidad" },
+        { "start": "2027-03-20", "end": "2027-03-29", "name": "Vacaciones de Semana Santa" },
+        { "start": "2027-06-22", "end": "2027-09-07", "name": "Vacaciones de verano" }
+      ]
+    },
+    {
+      "calendarId": "es-ar", "course": "2026-27",
+      "source": "Calendario escolar de Aragón 2026-27 según zaragozala.com (cita el calendario del Departamento de Educación)",
+      "url": "https://zaragozala.com/actualidad/calendario-escolar-zaragoza-2026-2027/",
+      "periods": [
+        { "start": "2026-12-23", "end": "2027-01-06", "name": "Vacaciones de Navidad" },
+        { "start": "2027-03-25", "end": "2027-04-02", "name": "Vacaciones de Semana Santa" },
+        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+      ]
+    },
+    {
+      "calendarId": "es-md", "course": "2026-27",
+      "source": "Calendario escolar de la Comunidad de Madrid 2026-27 según elDiario.es",
+      "url": "https://www.eldiario.es/madrid/somos/calendario-escolar-2026-2027-madrid-curso-puentes-inicio-final-adelantado_1_13322933.html",
+      "periods": [
+        { "start": "2026-12-23", "end": "2027-01-10", "name": "Vacaciones de Navidad" },
+        { "start": "2027-02-12", "end": "2027-02-12", "name": "Semana blanca (día no lectivo)" },
+        { "start": "2027-02-15", "end": "2027-02-15", "name": "Semana blanca (día no lectivo)" },
+        { "start": "2027-03-19", "end": "2027-03-29", "name": "Vacaciones de Semana Santa" },
+        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+      ]
+    },
+    {
+      "calendarId": "es-vc", "course": "2026-27",
+      "source": "Calendario escolar de la Comunitat Valenciana 2026-27 según El Debate (Conselleria de Educación)",
+      "url": "https://www.eldebate.com/espana/comunidad-valenciana/20260612/curso-escolar-20262027-empezara-9-septiembre-acabara-18-junio-comunidad-valenciana_428112.html",
+      "periods": [
+        { "start": "2026-12-22", "end": "2027-01-06", "name": "Vacaciones de Navidad" },
+        { "start": "2027-03-25", "end": "2027-04-05", "name": "Vacaciones de Pascua" },
+        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+      ]
+    },
+    {
+      "calendarId": "es-pv", "course": "2026-27",
+      "source": "Resolución del calendario escolar 2026-27 de Educación Infantil y Primaria (Gobierno Vasco), mínimos comunes",
+      "url": "https://www.euskadi.eus/contenidos/informacion/cee_organizacioncentros_calend/es_def/adjuntos/2026_2027/Resolucion-calendario-Primaria-2026_27-cast-.pdf",
+      "periods": [
+        { "start": "2026-12-24", "end": "2027-01-06", "name": "Vacaciones de Navidad (mínimo común)" },
+        { "start": "2027-03-25", "end": "2027-03-29", "name": "Vacaciones de Semana Santa (mínimo común)" },
+        { "start": "2027-06-19", "end": "2027-08-31", "name": "Vacaciones de verano" }
+      ]
+    },
+    {
+      "calendarId": "es-nc", "course": "2026-27",
+      "source": "Calendario escolar de Navarra 2026-27 según el blog de Euskaltel (Departamento de Educación)",
+      "url": "https://blog.euskaltel.com/calendario-escolar-navarra/",
+      "periods": [
+        { "start": "2026-12-23", "end": "2027-01-10", "name": "Vacaciones de Navidad" },
+        { "start": "2027-03-25", "end": "2027-04-04", "name": "Vacaciones de Semana Santa" },
+        { "start": "2027-06-23", "end": "2027-08-31", "name": "Vacaciones de verano" }
+      ]
+    }
+  ]
+}

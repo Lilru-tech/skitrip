@@ -52,6 +52,20 @@ Vasco, Navarra, Francia zonas A, B y C, y Andorra (`src/core/holidays.ts`). Regl
 - Lo descarga cada lunes el workflow «v2 · festivos y vacaciones» (`tools/holidays-sync.ts`, 6 peticiones) desde hace un
   año hasta dentro de unos 23 meses y lo envía a la ingesta, que sustituye los periodos de esa ventana. Si un país no
   devuelve nada o algún calendario se queda sin festivos o sin vacaciones, no envía nada.
+- **Hueco de OpenHolidays (19/11/2026):** no tiene las vacaciones escolares del curso 2026-27 de ninguna comunidad
+  española (Francia y Andorra sí). Mientras falten, se añaden a mano desde `data/school-holidays-es.json`, solo para
+  el calendario y curso que OpenHolidays no trae; cuando lo publique, manda lo suyo. Fuentes del curso 2026-27:
+
+  | Comunidad | Navidad | Semana Santa | Fuente |
+  |---|---|---|---|
+  | Cataluña | 22/12–07/01 | 20/03–29/03 | [Ordre EDF/66/2026 (DOGC 9653)](https://educacio.paeria.cat/ca/escolaritzacio/copy_of_calendari-escolar/ordre-edf662026-de-22-dabril-per-la-qual-sestableix-el-calendari-escolar-dels-cursos-2026-2027-2027-2028-2028-2029.pdf) |
+  | Aragón | 23/12–06/01 | 25/03–02/04 | [zaragozala.com](https://zaragozala.com/actualidad/calendario-escolar-zaragoza-2026-2027/) (prensa) |
+  | Madrid | 23/12–10/01 (y semana blanca 12 y 15/02) | 19/03–29/03 | [elDiario.es](https://www.eldiario.es/madrid/somos/calendario-escolar-2026-2027-madrid-curso-puentes-inicio-final-adelantado_1_13322933.html) (prensa) |
+  | C. Valenciana | 22/12–06/01 | 25/03–05/04 | [El Debate](https://www.eldebate.com/espana/comunidad-valenciana/20260612/curso-escolar-20262027-empezara-9-septiembre-acabara-18-junio-comunidad-valenciana_428112.html) (prensa) |
+  | País Vasco | 24/12–06/01 (mínimo) | 25/03–29/03 (mínimo) | [Resolución de Infantil y Primaria](https://www.euskadi.eus/contenidos/informacion/cee_organizacioncentros_calend/es_def/adjuntos/2026_2027/Resolucion-calendario-Primaria-2026_27-cast-.pdf) |
+  | Navarra | 23/12–10/01 | 25/03–04/04 | [Blog de Euskaltel](https://blog.euskaltel.com/calendario-escolar-navarra/) (prensa) |
+
+  Cuatro vienen de prensa que cita el calendario de la comunidad; si aparece la orden oficial, se cambia la fuente.
 - Los festivos son los mismos para todas las estaciones, así que no puntúan en Comparar: el peso «Afluencia histórica»
   desaparece. Las tablas de la migración 0022, con sus 3 observaciones, se conservan sin uso.
 
