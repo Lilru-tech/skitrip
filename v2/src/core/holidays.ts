@@ -31,7 +31,7 @@ export const HOLIDAY_CALENDARS: readonly HolidayCalendar[] = [
 ];
 export const HOLIDAY_COUNTRIES = ['ES', 'FR', 'AD'] as const;
 export const HOLIDAY_LANG: Record<(typeof HOLIDAY_COUNTRIES)[number], string> = { ES: 'ES', FR: 'FR', AD: 'CA' };
-export const HOLIDAY_SOURCE = 'Festivos y vacaciones escolares: OpenHolidays API (openholidaysapi.org), datos ODbL 1.0.';
+export const HOLIDAY_SOURCE = 'Festivos y vacaciones escolares: OpenHolidays API (openholidaysapi.org), datos ODbL 1.0. Las vacaciones escolares de las comunidades españolas que OpenHolidays aún no tiene se añaden a mano desde el calendario de cada comunidad (fuentes en docs/METEO-AFLUENCIA.md).';
 /** Como mucho tantos días por consulta (igual que la previsión y el clima). */
 export const HOLIDAY_MAX_DAYS = 31;
 
@@ -104,4 +104,23 @@ export function calendarDays(days: readonly string[], periods: readonly HolidayP
     const unknownDays = days.filter((d) => !known.public || !known.school || known.public < d || known.school < d);
     return { calendarId: cal.id, label: cal.label, knownUntil: known, periods: mine, unknownDays };
   });
+}
+
+/** Curso escolar español añadido a mano (data/school-holidays-es.json) mientras OpenHolidays no lo publica. */
+export interface ManualCourse { calendarId: string; course: string; source: string; url: string; periods: { start: string; end: string; name: string }[] }
+
+/**
+ * Periodos escolares a mano que hay que añadir: los de cada curso solo si OpenHolidays no trae ningún periodo escolar de
+ * todo el territorio de ese calendario que empiece en ese curso (del 1/09 al 31/08). Cuando OpenHolidays lo publique,
+ * manda lo suyo y lo manual deja de enviarse solo.
+ */
+export function manualSchoolPeriods(courses: readonly ManualCourse[], fromOpenHolidays: readonly HolidayPeriod[]): HolidayPeriod[] {
+  const out: HolidayPeriod[] = [];
+  for (const c of courses) {
+    const y = Number(c.course.slice(0, 4));
+    const a = `${y}-09-01`, b = `${y + 1}-08-31`;
+    if (fromOpenHolidays.some((p) => p.calendarId === c.calendarId && p.kind === 'school' && p.scope === 'all' && p.start >= a && p.start <= b)) continue;
+    for (const p of c.periods) out.push({ calendarId: c.calendarId, kind: 'school', start: p.start, end: p.end, name: p.name, scope: 'all', parts: null });
+  }
+  return out;
 }

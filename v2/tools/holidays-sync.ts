@@ -1,7 +1,7 @@
 /**
  * Festivos y vacaciones escolares (core/holidays.ts): descarga de OpenHolidays API (openholidaysapi.org, datos ODbL 1.0)
  * los de España, Francia y Andorra desde hace un año hasta dentro de ~23 meses, los reparte entre los calendarios de
- * SkiTrip y los envía a la ingesta del Worker, que sustituye los periodos de esa ventana. 6 peticiones por ejecución.
+ * SkiTrip (más los cursos escolares españoles de data/school-holidays-es.json que OpenHolidays aún no tiene) y los envía a la ingesta del Worker, que sustituye los periodos de esa ventana. 6 peticiones por ejecución.
  *
  *   SKITRIP_API_URL=… SKITRIP_INGEST_TOKEN=… npx tsx tools/holidays-sync.ts [--dry-run]
  *
@@ -9,7 +9,8 @@
  * descarga incompleta nunca borra lo que ya hay. No imprime la credencial.
  */
 import { addDays, todayMadrid } from '../src/core/dates';
-import { HOLIDAY_CALENDARS, HOLIDAY_COUNTRIES, HOLIDAY_LANG, periodsFromOpenHolidays, type HolidayKind, type HolidayPeriod, type OpenHolidayItem } from '../src/core/holidays';
+import manualDoc from '../data/school-holidays-es.json';
+import { HOLIDAY_CALENDARS, HOLIDAY_COUNTRIES, HOLIDAY_LANG, manualSchoolPeriods, periodsFromOpenHolidays, type ManualCourse, type HolidayKind, type HolidayPeriod, type OpenHolidayItem } from '../src/core/holidays';
 
 const API = (process.env.SKITRIP_API_URL ?? '').replace(/\/$/, '');
 const TOKEN = process.env.SKITRIP_INGEST_TOKEN ?? '';
@@ -39,11 +40,18 @@ async function main() {
       periods.push(...mine);
     }
   }
+  const manual = manualSchoolPeriods(manualDoc.courses as ManualCourse[], periods).filter((p) => p.start >= from && p.start <= to);
+  for (const c of manualDoc.courses as ManualCourse[]) {
+    const y = Number(c.course.slice(0, 4));
+    const n = manual.filter((p) => p.calendarId === c.calendarId && p.start >= `${y}-09-01` && p.start <= `${y + 1}-08-31`).length;
+    console.log(`Manual ${c.calendarId} ${c.course}: ${n ? `${n} periodos añadidos (${c.source})` : 'no hace falta: OpenHolidays ya lo tiene'}`);
+  }
+  periods.push(...manual);
   const empty: string[] = [];
   for (const cal of HOLIDAY_CALENDARS) {
     const p = periods.filter((x) => x.calendarId === cal.id && x.scope === 'all');
     const pub = p.filter((x) => x.kind === 'public'), sch = p.filter((x) => x.kind === 'school');
-    const until = (xs: HolidayPeriod[]) => xs.reduce((m, x) => (x.end > m ? x.end : m), '—');
+    const until = (xs: HolidayPeriod[]) => xs.reduce((m, x) => (x.end > m ? x.end : m), '') || '—';
     console.log(`  ${cal.label}: ${pub.length} festivos (hasta ${until(pub)}), ${sch.length} vacaciones (hasta ${until(sch)})`);
     if (!pub.length || !sch.length) empty.push(cal.label);
   }
