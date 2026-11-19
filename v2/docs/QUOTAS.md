@@ -228,7 +228,7 @@ Condiciones comprobadas el 18/11/2026 (ver `docs/METEO-AFLUENCIA.md`): API gratu
 
 ## Clima habitual (Open-Meteo Historical, ERA5)
 
-- **Preparación única** desde GitHub Actions (`v2 · clima habitual (preparación)`, manual): 21 puntos × 31 temporadas (del 20/10 al 10/05, de 1995-96 a 2025-26) × ~14,5 llamadas ponderadas ≈ **9.400 llamadas**, en 3 ejecuciones de 3.500 como mucho (límite gratuito: 5.000 por hora y 10.000 al día; como mucho 2 ejecuciones al día). Reanudable: solo descarga lo que falta, y vuelve a preparar un punto si cambia su altitud. Una petición cada 2,5 s.
+- **Preparación única** desde GitHub Actions (`v2 · clima habitual (preparación)`, programada a las 06:10 y 18:10 UTC y también manual): 21 puntos × 31 temporadas (del 20/10 al 10/05, de 1995-96 a 2025-26) × ~14,5 llamadas ponderadas ≈ **9.400 llamadas**, en 3 ejecuciones de 3.500 como mucho (límite gratuito: 5.000 por hora y 10.000 al día; como mucho 2 ejecuciones al día; la programación ya hace 2, separadas 12 h). Cuando no falta nada, cada ejecución programada solo consulta el estado (1 petición al Worker, 0 a Open-Meteo). Reanudable: solo descarga lo que falta, y vuelve a preparar un punto si cambia su altitud. Una petición cada 2,5 s.
 - **D1**: 651 filas de unos 6 KB (≈ 4 MB) escritas una vez por la ingesta. La ficha lee como mucho 31 filas por estación y D1 devuelve solo los días de la ventana (`json_each` sobre la serie), así el Worker no analiza temporadas enteras: analizarlas costaba unos 5 ms de CPU en un dominio con 2 estaciones.
 - **Al abrir la ficha no se llama a Open-Meteo.**
 

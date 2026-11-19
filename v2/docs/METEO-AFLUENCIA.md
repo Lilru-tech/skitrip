@@ -204,7 +204,7 @@ mes en ≥ 3 años, sin muestras de récord, para todas las estaciones comparada
 | D1 filas leídas | Ficha: 1 (previsión) + 30 (clima) + ~10 (afluencia). Comparar: 1 por estación | 5 M/día |
 | D1 almacenamiento | Clima ≈ 630 filas × ~8 KB ≈ 5 MB | 5 GB |
 | Worker CPU | Una previsión de un punto ≈ 30 KB JSON; la agregación diaria se guarda ya hecha | 10 ms |
-| GitHub Actions | Un workflow manual de preparación del clima y la comprobación de fuentes | Repositorio público |
+| GitHub Actions | Un workflow de preparación del clima (programado 2 veces al día, reanudable) y la comprobación de fuentes | Repositorio público |
 
 ## 6. Orden de las PR
 
