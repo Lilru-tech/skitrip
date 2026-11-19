@@ -1,8 +1,7 @@
 // Criterios opcionales de Comparar ligados a las fechas del viaje (docs/METEO-AFLUENCIA.md §4, aprobado por David el
 // 18/11/2026). Cada uno se aplica a TODAS las estaciones comparadas o a ninguna (con el motivo): la falta de previsión
-// o de registros nunca cuenta como buen tiempo ni como poca gente, y el clima habitual no sustituye a la previsión.
+// nunca cuenta como buen tiempo, y el clima habitual no sustituye a la previsión.
 import { addDaysIso, daysBetweenIso, NEAR_MAX_LEAD, type Freshness } from './weather';
-import { CROWD_MIN_YEARS } from './crowds';
 
 /** Lluvia en la franja de esquí que cuenta como «del todo desfavorable» (mm) y racha fuerte (km/h): umbrales de SkiTrip. */
 export const RAIN_FULL_MM = 10;
@@ -62,23 +61,5 @@ export function weatherCriterion(from: string | null, to: string | null, today: 
     value.set(e.id, Math.round((1 - worst) * 1000) / 1000);
     detail.set(e.id, `índice desfavorable ${pct(worst)} %${e.points.length > 1 ? ` (${worstName}, la más desfavorable)` : ''}`);
   }
-  return { active: true, value, detail };
-}
-
-/** Afluencia habitual de cada entrada (su propio ámbito), calculada en el servidor. */
-export interface CrowdStat { median: number | null; years: number }
-/** Afluencia histórica: solo si TODAS las estaciones tienen intensidad diaria en ≥ 3 años; menos es mejor. */
-export function crowdCriterion(entries: readonly CriterionEntry[], stats: ReadonlyMap<string, CrowdStat> | null, hasDates: boolean): Criterion {
-  if (!hasDates) return { active: false, reason: 'Elige un viaje con fechas para que la afluencia pueda puntuar.' };
-  if (!stats) return { active: false, reason: 'Cargando los registros de afluencia…' };
-  const ok = entries.filter((e) => { const s = stats.get(e.id); return s?.median != null && s.years >= CROWD_MIN_YEARS; });
-  if (!entries.length) return { active: false, reason: 'No hay estaciones que comparar.' };
-  if (ok.length < entries.length) {
-    return { active: false, reason: ok.length === 0
-      ? `Ninguna estación tiene la intensidad diaria (esquiadores por km abierto) de esas fechas en al menos ${CROWD_MIN_YEARS} años, sin contar récords: la afluencia no puntúa.`
-      : `Faltan registros de ${entries.length - ok.length} de ${entries.length} estaciones (hacen falta ${CROWD_MIN_YEARS} años de intensidad diaria): la afluencia no puntúa para ninguna.` };
-  }
-  const value = new Map(entries.map((e) => [e.id, stats.get(e.id)!.median!] as const));
-  const detail = new Map(entries.map((e) => { const s = stats.get(e.id)!; return [e.id, `mediana ${s.median!.toLocaleString('es-ES')} esquiadores por km abierto en ${s.years} años`] as const; }));
   return { active: true, value, detail };
 }

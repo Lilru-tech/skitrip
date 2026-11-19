@@ -19,7 +19,7 @@ No se recomienda ni se necesita el plan de pago: **las 131 rutas del Worker** qu
 
 Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test.ts` (el resto), contra D1 local (workerd). Se cuentan todas las sentencias de la petición: autenticación, límites de uso, lecturas, escrituras y cada sentencia de un batch. Los tests fallan si alguna pasa de 40.
 
-**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 01/10/2026: «Rutas definidas: 109 · medidas: 109»; con las listas generales de la migración 0010 y la guía de datos antiguos, 125 · 125 el 03/10/2026; 142 · 142 el 18/11/2026 con la afluencia). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
+**Cobertura comprobada:** `quota-audit-all.test.ts` lee las definiciones de rutas de `src/worker/index.ts` y `src/worker/routes/*.ts` y falla si alguna no aparece medida. Lo mismo desde Node: `npx tsx tools/check-audit-coverage.ts` (resultado del 01/10/2026: «Rutas definidas: 109 · medidas: 109»; con las listas generales de la migración 0010 y la guía de datos antiguos, 125 · 125 el 03/10/2026; 142 · 142 el 18/11/2026 con la afluencia; 143 · 143 el 19/11/2026 al cambiar la afluencia por festivos y vacaciones). Las tablas se imprimen con `npx vitest run test/worker/quota-audit*.test.ts --reporter=verbose`. Algunas rutas tienen una fila por variante (p. ej. `accept`/`reject`/`cancel`).
 
 | Ruta | Sentencias (máx.) | Volumen |
 |---|---|---|
@@ -37,10 +37,11 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `GET /public/areas/:id` | 12 | — (incluye las rutas desde cada origen y el catálogo de pistas del área y de sus estaciones, con sus aportaciones manuales activas) |
 | `GET /public/areas/:id/forecast` | 17 | dominio con 2 estaciones: 12 si descarga; 17 si otra consulta tiene el bloqueo y espera su resultado (8 relecturas como mucho) |
 | `GET /public/forecast` | 2 | 21 estaciones (solo caché) |
-| `GET /public/crowds/habitual` | 2 | 40 estaciones × 31 días (Comparar, criterio «Afluencia histórica») |
 | `GET /public/areas/:id/climate` | 3 | dominio con 2 estaciones × 30 temporadas (D1 recorta cada temporada a su ventana) |
 | `POST /ingest/climate` | 1 | 12 temporadas (máximo por envío) |
 | `GET /ingest/climate-status` | 1 | 62 temporadas |
+| `POST /ingest/holidays` | 2 | 2.500 periodos (máximo por envío; uno real lleva unos 650) |
+| `GET /public/holidays` | 1 | 31 días con 2.500 periodos guardados |
 | `POST /trips/:id/scenarios` | 9 | — |
 | `POST /shopping-lists/:lid/copy` | 9 | 299 decisiones: 150 altas, sumas y omisiones |
 | `POST /receipts/confirm` | 8 | 10 líneas asociadas |
@@ -59,12 +60,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `PUT /admin/runs/:areaId` | 7 | aportación nueva o edición (escritura e historial en un mismo batch) |
 | `POST /admin/runs/:areaId/withdraw` · `/restore` | 6 | — |
 | `GET /admin/runs` | 5 | 24 áreas con aportaciones e historial |
-| `GET /public/areas/:id/crowds` | 5 | dominio + 2 estaciones × 30 años del mismo día, con sus partes (afluencia, migración 0022) |
-| `GET /public/areas/:id/km-history` | 5 | 30 temporadas × 31 días con partes (comparador de km, migración 0025) |
-| `PUT /admin/crowds` | 5 | observación nueva o corrección (escritura e historial en un mismo batch) |
-| `POST /admin/crowds/:obsId/withdraw` · `/restore` | 4 | — |
-| `GET /admin/crowds` | 3 | 500 observaciones (máximo) |
-| `GET /admin/crowds/:obsId/history` | 2 | 100 entradas (máximo) |
+| `GET /public/areas/:id/km-history` | 5 | 30 temporadas × 31 días con partes (comparador de km, migración 0026) |
 | `GET /trips/:id/shopping` | 6 | 150 artículos, 30 productos × 10 fechas |
 | `PATCH /trips/:id/shopping/items/:itemId` | 6 | lista de 150 |
 | `POST /friends/blocks` | 6 | 38 amigos |

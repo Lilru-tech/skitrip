@@ -29,7 +29,7 @@ Conclusión: no existe una fuente pública con los km abiertos día a día de te
 
 ## Comparador
 
-- API: `GET /api/public/areas/:id/km-history?desde=MM-DD&hasta=MM-DD` (hasta 31 días dentro de una temporada; puede cruzar el año, p. ej. 12-28 → 01-03). 3 sentencias D1 (índice nuevo `snow_obs_area_source_date`, migración 0025).
+- API: `GET /api/public/areas/:id/km-history?desde=MM-DD&hasta=MM-DD` (hasta 31 días dentro de una temporada; puede cruzar el año, p. ej. 12-28 → 01-03). 3 sentencias D1 (índice nuevo `snow_obs_area_source_date`, migración 0026).
 - Temporada de julio a junio. Se listan desde la primera con algún dato del área hasta la actual; la actual solo si alguno de los días ya ha llegado. El 29/02 solo existe en años bisiestos.
 - Por temporada: media de los días con dato, días con dato sobre días del intervalo, mínimo y máximo. «Cerrada» (cierre confirmado o fuera de temporada según el parte) cuenta como 0 km. No se rellenan días ni se toman de otra fecha o estación.
 - Interfaz: «Comparar con otros años» dentro de «Estado actual» de la ficha; fechas en la dirección (`kmdesde`, `kmhasta`); «Ver día a día» con la tabla y «Ver detalles» con fuentes y metodología.

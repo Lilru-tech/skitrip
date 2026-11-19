@@ -26,39 +26,51 @@ Tres tipos de información que no se mezclan:
 | Nevasport / ATUDEM (documentación) | Rankings de días de esquí por temporada | Temporada | No |
 
 **Conclusión.** No existe ninguna fuente gratuita y abierta con afluencia diaria por estación. Solo hay observaciones
-sueltas en noticias de récords o de puentes. La función se construye para guardar y consultar **observaciones
-verificables** que un administrador añade con su fuente, y empieza con 3 observaciones diarias por estación (las de
-Pirineu365, marcadas como **muestra de récord**). Todo lo demás es «Sin dato».
+sueltas en noticias de récords o de puentes.
 
-### Cobertura por estación (afluencia)
+### Segunda revisión (19/11/2026) y cambio
 
-| Estación | Observaciones diarias verificables encontradas |
-|---|---|
-| La Molina | 1 (15/02/2026, 8.564 esquiadores, récord) |
-| Boí Taüll | 1 (21/02/2026, 4.123 esquiadores, récord) |
-| Port Ainé | 1 (21/02/2026, 3.368 esquiadores, récord) |
-| Resto (21 áreas) | Sin dato |
+Con la sección casi siempre en «Sin dato», se revisaron más fuentes:
 
-El año 2026 de las tres fechas se deduce de que el artículo trata la temporada 2025-26; se guarda así en la nota.
+| Fuente | Qué hay | ¿Sirve? |
+|---|---|---|
+| Prensa (Nevasport, Pirineu365, Aramón, Grandvalira, Masella, Baqueira) | Récords sueltos, totales de puentes y de temporada | No: muestra seleccionada, sin serie diaria |
+| [Estadística del flujo de vehículos de Andorra](https://www.altaveu.com/uploads/s1/25/35/74/4/a118-20260625-a.pdf) (Departament d'Estadística, A118) | Entradas por frontera, **mensuales** | No: ni diario ni por estación |
+| Datos abiertos de FGC, aforos de tráfico (Idescat, Servei Català de Trànsit) | Sin esquiadores; tráfico anual o mensual | No |
+| «Horas punta» de Google Maps | Sin API oficial; los servicios que la revenden (p. ej. [BestTime](https://besttime.app/subscription/pricing), desde 29 $/mes) son de pago y rascar Google incumple sus condiciones | No (coste y condiciones) |
+| Apps y redes de las estaciones | No publican la cifra del día de forma regular | No |
+| [OpenHolidays API](https://www.openholidaysapi.org/) ([datos ODbL 1.0](https://github.com/openpotato/openholidaysapi.data)) | Festivos y vacaciones escolares oficiales de España por comunidad, Francia por zona y Andorra | **Sí**: gratuito, abierto y verificable |
 
-### Métricas y reglas
+**Decisión (David, 19/11/2026): se quita la afluencia y se muestra qué festivos y vacaciones escolares coinciden con las
+fechas.** No es una cifra de gente, y se dice así. Calendarios: Cataluña, Aragón, Madrid, Comunidad Valenciana, País
+Vasco, Navarra, Francia zonas A, B y C, y Andorra (`src/core/holidays.ts`). Reglas:
 
-- Tipos de medida separados, nunca sumados ni comparados entre sí: `visitors` (visitantes), `daily_skiers`
-  (esquiadores del día), `skier_days_sold` (días de esquí vendidos) y `lift_passages` (pasos por remontes).
-- Ámbito: estación o dominio del catálogo. Una cifra de dominio no se reparte entre sus estaciones ni al revés.
-- Estado de cada observación: `value` (cifra, puede ser 0 **confirmado**), `closed` (cierre confirmado, sin cifra: un
-  cierre no demuestra 0 visitantes). La ausencia de observación es «Sin dato», no se guarda como fila.
-- Selección: un día y un mes; se listan los años con esa misma fecha exacta (29/02 solo en bisiestos, sin sustituir).
-- Media: solo entre observaciones del mismo tipo de medida, ámbito y unidad; muestra años incluidos, ausentes y número
-  de observaciones. Si alguna es de una muestra de récord o seleccionada, no se presenta como «afluencia habitual».
-- **Intensidad diaria** = esquiadores del día / km abiertos ese mismo día, solo con km del parte de ese día para el
-  mismo ámbito (estación o dominio), de un parte válido (`snow_observations` con calidad ok y fecha de parte igual) y km
-  > 0. Nunca km del catálogo ni de otro día. Los km del histórico legacy no valen: tienen ceros que no distinguen cierre
-  de fallo de captura, y van por dominio (Alp 2500) y no por estación (La Molina). Hoy ninguna de las 3 observaciones
-  tiene km válidos del mismo día y ámbito: **no calculable**, y se dice por qué.
-- **Porcentaje de capacidad**: no calculable. No se ha encontrado ningún aforo documentado de asistencia diaria; la
-  capacidad de remontes por hora, los aparcamientos o los récords no son aforo.
-- Aviso fijo: el histórico no predice cuánta gente habrá en una fecha futura.
+- Festivo nacional o de la comunidad: cuenta para todo el calendario. Uno de solo algunas provincias o academias se
+  muestra como «solo en parte» y no cuenta como fiesta del calendario entero. No incluye fiestas locales.
+- Un día sin calendario publicado (OpenHolidays aún no tiene ese curso o ese año) es «sin calendario», nunca «sin
+  fiesta». Un calendario cubre un día si tiene algún periodo de todo su territorio que acaba ese día o después.
+- Lo descarga cada lunes el workflow «v2 · festivos y vacaciones» (`tools/holidays-sync.ts`, 6 peticiones) desde hace un
+  año hasta dentro de unos 23 meses y lo envía a la ingesta, que sustituye los periodos de esa ventana. Si un país no
+  devuelve nada o algún calendario se queda sin festivos o sin vacaciones, no envía nada.
+- **Hueco de OpenHolidays (19/11/2026):** no tiene las vacaciones escolares del curso 2026-27 de ninguna comunidad
+  española (Francia y Andorra sí). Mientras falten, se añaden a mano desde `data/school-holidays-es.json`, solo para
+  el calendario y curso que OpenHolidays no trae; cuando lo publique, manda lo suyo. Fuentes del curso 2026-27:
+
+  | Comunidad | Navidad | Semana Santa | Fuente |
+  |---|---|---|---|
+  | Cataluña | 22/12–07/01 | 20/03–29/03 | [Ordre EDF/66/2026 (DOGC 9653)](https://educacio.paeria.cat/ca/escolaritzacio/copy_of_calendari-escolar/ordre-edf662026-de-22-dabril-per-la-qual-sestableix-el-calendari-escolar-dels-cursos-2026-2027-2027-2028-2028-2029.pdf) |
+  | Aragón | 23/12–06/01 | 25/03–02/04 | [zaragozala.com](https://zaragozala.com/actualidad/calendario-escolar-zaragoza-2026-2027/) (prensa) |
+  | Madrid | 23/12–10/01 (y semana blanca 12 y 15/02) | 19/03–29/03 | [elDiario.es](https://www.eldiario.es/madrid/somos/calendario-escolar-2026-2027-madrid-curso-puentes-inicio-final-adelantado_1_13322933.html) (prensa) |
+  | C. Valenciana | 22/12–06/01 | 25/03–05/04 | [El Debate](https://www.eldebate.com/espana/comunidad-valenciana/20260612/curso-escolar-20262027-empezara-9-septiembre-acabara-18-junio-comunidad-valenciana_428112.html) (prensa) |
+  | País Vasco | 24/12–06/01 (mínimo) | 25/03–29/03 (mínimo) | [Resolución de Infantil y Primaria](https://www.euskadi.eus/contenidos/informacion/cee_organizacioncentros_calend/es_def/adjuntos/2026_2027/Resolucion-calendario-Primaria-2026_27-cast-.pdf) |
+  | Navarra | 23/12–10/01 | 25/03–04/04 | [Blog de Euskaltel](https://blog.euskaltel.com/calendario-escolar-navarra/) (prensa) |
+
+  Cuatro vienen de prensa que cita el calendario de la comunidad; si aparece la orden oficial, se cambia la fuente.
+  Tampoco tiene los festivos españoles de 2027: se añaden desde el anexo de la [Resolución de 8 de octubre de 2026
+  (BOE-A-2026-21254)](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-21254), con la misma regla (solo si
+  OpenHolidays no trae ningún festivo de ese calendario ese año).
+- Los festivos son los mismos para todas las estaciones, así que no puntúan en Comparar: el peso «Afluencia histórica»
+  desaparece. Las tablas de la migración 0022, con sus 3 observaciones, se conservan sin uso.
 
 ## 2. Previsión para las fechas del viaje
 
@@ -174,7 +186,7 @@ remite a las licencias de datos abiertos de la Generalitat (cuyo texto no se pue
 
 ## 4. Puntuación opcional (propuesta; se implementa después de tu visto bueno)
 
-Dos pesos nuevos en Comparar, **«Afluencia histórica»** y **«Condiciones meteorológicas»**, ambos a 0. Con los dos a 0 la
+Dos pesos nuevos en Comparar, **«Afluencia histórica»** (retirado el 19/11/2026, ver §1) y **«Condiciones meteorológicas»**, ambos a 0. Con los dos a 0 la
 clasificación es exactamente la actual (se comprueba con tests sobre `scoreRows`). Los pesos se conservan aunque el
 criterio no pueda aplicarse.
 
@@ -190,7 +202,7 @@ criterio no pueda aplicarse.
   diferencias pequeñas). La nieve nueva y la temperatura no puntúan; 60 km/h y 10 mm son umbrales de SkiTrip, no
   límites oficiales de seguridad ni de cierre de remontes.
 
-**Afluencia histórica**: métrica = mediana de la intensidad diaria (esquiadores del día por km abierto) del mismo día y
+**Afluencia histórica** (retirada el 19/11/2026): métrica = mediana de la intensidad diaria (esquiadores del día por km abierto) del mismo día y
 mes en ≥ 3 años, sin muestras de récord, para todas las estaciones comparadas. Con los datos actuales **queda inactiva**
 (ninguna estación cumple) y se explica qué falta. Menos visitantes absolutos o la falta de registros nunca dan ventaja.
 
@@ -200,11 +212,11 @@ mes en ≥ 3 años, sin muestras de récord, para todas las estaciones comparada
 |---|---|---|
 | Open-Meteo previsión | 21 puntos × 3 modelos × 6 variables horarias × 8 días ≈ 1,8 unidades por punto. Caché compartida de 3 h por punto en D1 y una sola descarga simultánea por punto. Peor caso: 21 × 8 refrescos/día × 1,8 ≈ **300 unidades/día**. Tope propio 2.000/día | 10.000/día |
 | Open-Meteo histórico | Preparación única: 21 puntos × 30 años × ~203 días (≈14,5 unidades) ≈ **9.100 unidades**, repartidas en 3 ejecuciones de ≤ 3.500 y reanudables | 10.000/día |
-| D1 filas escritas | Previsión: ≤ 21 × 8 = 168/día. Histórico: 630 filas una vez. Afluencia: manual | 100.000/día |
-| D1 filas leídas | Ficha: 1 (previsión) + 30 (clima) + ~10 (afluencia). Comparar: 1 por estación | 5 M/día |
+| D1 filas escritas | Previsión: ≤ 21 × 8 = 168/día. Histórico: 630 filas una vez. Festivos: ~650 filas por semana | 100.000/día |
+| D1 filas leídas | Ficha: 1 (previsión) + 30 (clima) + ~650 (festivos: se lee la tabla para saber hasta cuándo hay calendario). Comparar: 1 por estación | 5 M/día |
 | D1 almacenamiento | Clima ≈ 630 filas × ~8 KB ≈ 5 MB | 5 GB |
 | Worker CPU | Una previsión de un punto ≈ 30 KB JSON; la agregación diaria se guarda ya hecha | 10 ms |
-| GitHub Actions | Un workflow de preparación del clima (programado 2 veces al día, reanudable) y la comprobación de fuentes | Repositorio público |
+| GitHub Actions | Un workflow de preparación del clima (programado 2 veces al día, reanudable), festivos (semanal) y la comprobación de fuentes | Repositorio público |
 
 ## 6. Orden de las PR
 

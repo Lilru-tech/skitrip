@@ -4,13 +4,16 @@
 //
 // Procedencias, de más a menos preferente para un mismo día:
 //   parte   → parte de nieve capturado por SkiTrip v2 con fecha publicada por la fuente igual a ese día y calidad ok
-//             (la misma regla que la intensidad de afluencia: core/crowds.ts dailyIntensity).
+//             (nunca la fecha de captura: un parte capturado hoy puede ser de ayer).
 //   antiguo → serie del SkiTrip antiguo (legacy_snow_observations): fecha de captura del recolector antiguo, sin verificar;
 //             un 0 puede ser un «-» convertido, así que un 0 antiguo no es cifra: «0 o sin dato» y no entra en la media.
 import { addDays, isValidDate } from './dates';
-import { validMmdd } from './crowds';
 
 export const KM_RANGE_MAX_DAYS = 31;
+
+const MMDD_RE = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+/** ¿Existe ese día y mes en algún año? (02-29 sí, 02-30 y 04-31 no). */
+export const validMmdd = (mmdd: string) => MMDD_RE.test(mmdd) && isValidDate(`2024-${mmdd}`);
 
 export type KmOrigin = 'parte' | 'antiguo';
 export const KM_ORIGIN_LABEL: Record<KmOrigin, string> = {

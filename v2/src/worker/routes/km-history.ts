@@ -22,7 +22,7 @@ kmHistoryRoutes.get('/areas/:id/km-history', async (c) => {
   const db = c.env.DB;
   const [area, firstLive, firstLegacy] = await db.batch([
     db.prepare('SELECT id, name FROM areas WHERE id = ?1').bind(id),
-    // Índices snow_obs_area_source_date (migración 0025) y legacy_snow_scope: un MIN por índice cada uno.
+    // Índices snow_obs_area_source_date (migración 0026) y legacy_snow_scope: un MIN por índice cada uno.
     db.prepare('SELECT MIN(source_date) AS d FROM snow_observations WHERE area_id = ?1').bind(id),
     db.prepare('SELECT MIN(obs_date) AS d FROM legacy_snow_observations WHERE scope_area_id = ?1').bind(id),
   ]);

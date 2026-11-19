@@ -6,8 +6,7 @@ import { setQuery } from '../router';
 import { dayLong, kmText, numDate, PROVIDER_LABEL } from '../format';
 import { ErrorState, Loading } from './States';
 import { todayMadrid } from '../../core/dates';
-import { KM_ORIGIN_LABEL, KM_RANGE_MAX_DAYS, rangeMmdds, seasonDates, seasonStartOf, type KmDay, type KmSeason } from '../../core/km-history';
-import { validMmdd } from '../../core/crowds';
+import { KM_ORIGIN_LABEL, KM_RANGE_MAX_DAYS, rangeMmdds, validMmdd, seasonDates, seasonStartOf, type KmDay, type KmSeason } from '../../core/km-history';
 
 interface KmHistoryResponse { areaId: string; from: string; to: string; today: string; firstDataDate: string | null; seasons: KmSeason[] }
 
