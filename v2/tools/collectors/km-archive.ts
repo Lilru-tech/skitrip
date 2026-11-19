@@ -50,13 +50,21 @@ async function captures(url: string): Promise<string[]> {
   return rows.slice(1).map((x) => x[0]).filter(inSeason).sort().reverse();
 }
 
+/** Motivos de descarte, para el registro. */
+const skipped = new Map<string, number>();
+const skip = (why: string) => { skipped.set(why, (skipped.get(why) ?? 0) + 1); return null; };
+
 function rowOf(base: Omit<ArchiveRow, 'obsDate' | 'dateBasis' | 'opStatus' | 'openKm' | 'totalKm'>, d: { opStatus: string; openKm: number | null; totalKm: number | null; sourceDate?: string | null }): ArchiveRow | null {
   const day = dayOf(d.sourceDate, base.capturedAt);
-  if (!day) return null;
+  if (!day) return skip(d.sourceDate ? 'fecha del parte fuera de los 3 días anteriores a la copia' : 'copia sin fecha de parte hecha antes de las 09:00');
   const closed = d.opStatus === 'closed_confirmed' || d.opStatus === 'out_of_season';
-  if (!closed && (d.openKm == null || d.opStatus === 'unknown')) return null;
-  if (d.openKm != null && d.totalKm != null && d.openKm > d.totalKm) return null;
-  return { ...base, ...day, opStatus: d.opStatus, openKm: closed ? null : d.openKm, totalKm: d.totalKm };
+  if (!closed && d.openKm == null) return skip('sin km abiertos');
+  if (d.openKm != null && d.totalKm != null && d.openKm > d.totalKm) return skip('abiertos > totales');
+  // Las copias antiguas de Esquiades no traen el texto de estado: con km abiertos publicados (> 0) la estación estaba
+  // abierta; con 0 y estado desconocido no se sabe si era cierre o «sin dato», y se descarta.
+  let opStatus = d.opStatus;
+  if (opStatus === 'unknown') { if (!(d.openKm! > 0)) return skip('0 km sin estado'); opStatus = 'open'; }
+  return { ...base, ...day, opStatus, openKm: closed ? null : d.openKm, totalKm: d.totalKm };
 }
 
 if (!requireConfig()) process.exit(0);
@@ -92,6 +100,7 @@ for (const [key, group] of groups) {
     let found = 0;
     if (official) {
       const d = official.parse(html);
+      if (!d) skip(`${adapterId}: la copia no tiene un parte reconocible`);
       if (d) for (const s of group) {
         const row = rowOf({ areaId: s.scope_area_id, provider: s.provider, originalUrl: url, archiveUrl, capturedAt: at, extractor: `${adapterId}@${official.version}+wayback` }, d);
         if (row) { out.push(row); found++; }
@@ -100,7 +109,9 @@ for (const [key, group] of groups) {
       const rows: StatusRow[] = esquiadesAdapter.parse(html);
       for (const s of group) {
         const aliases: string[] = s.match_aliases ? JSON.parse(s.match_aliases) : [s.area_name];
-        const hit = aggregatorSnowOutcome(rows, aliases).data;
+        const o = aggregatorSnowOutcome(rows, aliases);
+        const hit = o.data;
+        if (!hit) skip(`esquiades: ${o.reason ?? o.status}`);
         const row = hit && rowOf({ areaId: s.scope_area_id, provider: s.provider, originalUrl: url, archiveUrl, capturedAt: at, extractor: `${esquiadesAdapter.id}@${esquiadesAdapter.version}+wayback` }, hit);
         if (row) { out.push(row); found++; }
       }
@@ -114,6 +125,7 @@ for (const [key, group] of groups) {
 // Resumen por estación y temporada.
 const by = new Map<string, number>();
 for (const r of out) { const k = `${r.areaId} ${r.obsDate.slice(0, 4)}`; by.set(k, (by.get(k) ?? 0) + 1); }
+for (const [k, n] of [...skipped].sort((a, b) => b[1] - a[1])) console.log(`   descartadas · ${k}: ${n}`);
 console.log(`Filas: ${out.length} · fecha publicada ${out.filter((r) => r.dateBasis === 'report').length} · fecha de copia ${out.filter((r) => r.dateBasis === 'copy').length}`);
 for (const [k, n] of [...by].sort()) console.log(`   ${k}: ${n}`);
 for (const r of out.slice(0, 15)) console.log(`   ej. ${r.areaId} ${r.obsDate} (${r.dateBasis}) ${r.openKm ?? r.opStatus}/${r.totalKm ?? '–'} ${r.archiveUrl}`);
