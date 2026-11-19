@@ -1,9 +1,14 @@
-# SkiTrip v2 · preparación del clima habitual (ERA5 vía Open-Meteo Historical). Manual y reanudable: cada ejecución
-# descarga solo las temporadas que faltan, hasta un tope de unidades (por defecto 3.500; el límite gratuito es 5.000 por
-# hora y 10.000 por día). Hacen falta unas 3 ejecuciones, como mucho 2 al día. Escribe en producción solo por la ingesta
+# SkiTrip v2 · preparación del clima habitual (ERA5 vía Open-Meteo Historical). Automática y reanudable: se ejecuta sola
+# dos veces al día, separadas 12 h (y también a mano), y cada ejecución descarga solo las temporadas que faltan, hasta un
+# tope de unidades (por defecto 3.500; el límite gratuito es 5.000 por hora y 10.000 por día). Hacen falta unas 3
+# ejecuciones; cuando ya no falta nada, la ejecución solo pregunta qué hay guardado y termina sin llamar a Open-Meteo.
+# Si un punto cambia de altitud o se añade uno, se prepara solo en las siguientes ejecuciones. No lances más de una a
+# mano el mismo día que las programadas (como mucho 2 al día en total). Escribe en producción solo por la ingesta
 # del Worker (SKITRIP_INGEST_TOKEN); el resultado queda en el registro (el contenedor no descarga artefactos).
 name: v2 · clima habitual (preparación)
 on:
+  schedule:
+    - cron: '10 6,18 * * *'   # 06:10 y 18:10 UTC: 2 al día, 12 h entre ellas
   workflow_dispatch:
     inputs:
       max_units:
@@ -31,8 +36,8 @@ jobs:
     env:
       SKITRIP_API_URL: ${{ vars.VITE_API_BASE_URL || secrets.SKITRIP_API_URL }}
       SKITRIP_INGEST_TOKEN: ${{ secrets.SKITRIP_INGEST_TOKEN }}
-      MAX_UNITS: ${{ inputs.max_units }}
-      DRY_RUN: ${{ inputs.dry_run }}
+      MAX_UNITS: ${{ inputs.max_units || '3500' }}   # en las programadas no hay inputs
+      DRY_RUN: ${{ inputs.dry_run || false }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
