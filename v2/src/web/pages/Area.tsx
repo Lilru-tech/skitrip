@@ -20,6 +20,7 @@ import { runEntry, type RunCatalog } from '../catalog';
 import { ForecastSection } from '../components/Forecast';
 import { ClimateSection } from '../components/Climate';
 import { CrowdSection } from '../components/Crowds';
+import { KmCompare } from '../components/KmCompare';
 import { CatalogRunsText, NowRunsText, RUNS_CRITERION, RunsIssueDetail, RunsProvenance } from '../components/Runs';
 
 type Forfait = 'yes' | 'no' | 'unknown';
@@ -94,6 +95,7 @@ export function AreaPage({ areaId }: { areaId: string }) {
             <li>Las condiciones actuales no predicen las de un viaje futuro.</li>
           </ul>
         </details>
+        <KmCompare areaId={area.id} name={area.name} fromParam={query.get('kmdesde')} toParam={query.get('kmhasta')} />
       </section>
 
       <RunsSection areaId={area.id} name={area.name} runs={d.data!.runs ?? null} memberRuns={d.data!.memberRuns ?? []} memberNames={new Map(children.map((c) => [c.child_id, c.child_name]))} latest={latest} />

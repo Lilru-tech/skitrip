@@ -51,7 +51,9 @@ INSERT INTO snow_observations (id, area_id, source_id, observed_at, source_date,
   -- Gamma: capturada hace 1 h, pero la fuente publica un parte de hace 7 días.
   ('e2e-s5', 'e2e-lejana', 'e2e-lejana-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now', '-7 days'), 'partial', 200, 300, 'h5', 'e2e'),
   -- Épsilon: parte de hoy, cerrada, sin km publicados (open_km y total_km NULL).
-  ('e2e-s6', 'e2e-cerrada', 'e2e-cerrada-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now'), 'closed_confirmed', NULL, NULL, 'h6', 'e2e');
+  ('e2e-s6', 'e2e-cerrada', 'e2e-cerrada-snow', CAST(strftime('%s','now') AS INTEGER) * 1000 - 3600000, date('now'), 'closed_confirmed', NULL, NULL, 'h6', 'e2e'),
+  -- Beta: un parte de una temporada pasada (10/02/2025) para el comparador de km entre años; no es el último de la fuente.
+  ('e2e-s7', 'e2e-beta', 'e2e-beta-snow', 1739181600000, '2025-02-10', 'open', 30, 90, 'h7', 'e2e');
 
 INSERT INTO legacy_import_files (id, kind, file_name, sha256, bytes, records, imported_at) VALUES ('e2e-legacy', 'open_km_history', 'sintetico.json', 'e2e-sha', 1, 1, 0);
 INSERT INTO legacy_snow_observations (file_id, legacy_resort_id, obs_date, open_km, total_km, anomalies, scope_area_id) VALUES

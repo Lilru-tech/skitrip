@@ -20,6 +20,7 @@ import { runAdminRoutes } from './routes/runs-admin';
 import { weatherRoutes } from './routes/weather';
 import { cronRefreshForecasts, purgeWeatherUsage } from './weather';
 import { crowdAdminRoutes, crowdPublicRoutes } from './routes/crowds';
+import { kmHistoryRoutes } from './routes/km-history';
 import { purgeGeoUsage } from './geo';
 import { purgeRateLimits } from './ratelimit';
 import { countingDb, QUERY_BUDGET, type Counter } from './d1budget';
@@ -145,6 +146,7 @@ app.route('/api/geo', geoRoutes);
 app.route('/api/admin/runs', runAdminRoutes);
 app.route('/api/public', weatherRoutes);
 app.route('/api/public', crowdPublicRoutes);
+app.route('/api/public', kmHistoryRoutes);
 app.route('/api/admin/crowds', crowdAdminRoutes);
 
 app.all('/api/*', () => {

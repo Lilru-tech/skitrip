@@ -60,6 +60,7 @@ Medido con `test/worker/quota-audit.test.ts` y `test/worker/quota-audit-all.test
 | `POST /admin/runs/:areaId/withdraw` · `/restore` | 6 | — |
 | `GET /admin/runs` | 5 | 24 áreas con aportaciones e historial |
 | `GET /public/areas/:id/crowds` | 5 | dominio + 2 estaciones × 30 años del mismo día, con sus partes (afluencia, migración 0022) |
+| `GET /public/areas/:id/km-history` | 5 | 30 temporadas × 31 días con partes (comparador de km, migración 0025) |
 | `PUT /admin/crowds` | 5 | observación nueva o corrección (escritura e historial en un mismo batch) |
 | `POST /admin/crowds/:obsId/withdraw` · `/restore` | 4 | — |
 | `GET /admin/crowds` | 3 | 500 observaciones (máximo) |
