@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import manualDoc from '../../data/school-holidays-es.json';
 import { isValidDate } from '../../src/core/dates';
-import { calendarDays, HOLIDAY_CALENDARS, manualSchoolPeriods, periodsFromOpenHolidays, type ManualCourse, type HolidayPeriod, type OpenHolidayItem } from '../../src/core/holidays';
+import { calendarDays, HOLIDAY_CALENDARS, manualPublicPeriods, manualSchoolPeriods, periodsFromOpenHolidays, type ManualCourse, type ManualPublicYear, type HolidayPeriod, type OpenHolidayItem } from '../../src/core/holidays';
 
 const it_ = (startDate: string, endDate: string, text: string, nationwide: boolean, codes: string[] = []): OpenHolidayItem =>
   ({ startDate, endDate, name: [{ language: 'ES', text }], nationwide, temporalScope: 'FullDay', ...(codes.length ? { subdivisions: codes.map((code) => ({ code, shortName: code.replace(/^[A-Z]{2}-/, '') })) } : {}) });
@@ -89,5 +89,26 @@ describe('cursos españoles a mano (data/school-holidays-es.json)', () => {
     expect(add.some((p) => p.calendarId === 'es-ct')).toBe(false);
     expect(add.filter((p) => p.calendarId === 'es-ar').map((p) => p.name)).toEqual(['Vacaciones de Navidad', 'Vacaciones de Semana Santa', 'Vacaciones de verano']);
     expect(add.every((p) => p.kind === 'school' && p.scope === 'all')).toBe(true);
+  });
+});
+
+describe('festivos españoles a mano (BOE)', () => {
+  const years = manualDoc.publicYears as ManualPublicYear[];
+  it('fechas válidas del año, calendarios españoles y fuente del BOE', () => {
+    for (const y of years) {
+      expect(y.url).toMatch(/^https:\/\/www\.boe\.es\//);
+      for (const h of y.holidays) {
+        expect(isValidDate(h.date) && h.date.startsWith(`${y.year}-`)).toBe(true);
+        expect(h.calendars.length).toBeGreaterThan(0);
+        for (const c of h.calendars) expect(HOLIDAY_CALENDARS.find((x) => x.id === c)?.country).toBe('ES');
+      }
+    }
+  });
+  it('solo para los calendarios sin ningún festivo de ese año en OpenHolidays', () => {
+    const oh = [{ calendarId: 'es-ct', kind: 'public' as const, start: '2027-01-01', end: '2027-01-01', name: 'Año Nuevo', scope: 'all' as const, parts: null }];
+    const add = manualPublicPeriods(years, oh);
+    expect(add.some((p) => p.calendarId === 'es-ct')).toBe(false);
+    expect(add.filter((p) => p.calendarId === 'es-md' && p.start.startsWith('2027-03')).map((p) => p.start)).toEqual(['2027-03-19', '2027-03-25', '2027-03-26']);
+    expect(add.some((p) => p.calendarId.startsWith('fr') || p.calendarId === 'ad')).toBe(false);
   });
 });

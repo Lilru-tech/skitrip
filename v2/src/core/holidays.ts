@@ -124,3 +124,18 @@ export function manualSchoolPeriods(courses: readonly ManualCourse[], fromOpenHo
   }
   return out;
 }
+
+/** Año de festivos españoles a mano (tabla del BOE por comunidad) mientras OpenHolidays no lo publica. */
+export interface ManualPublicYear { year: number; source: string; url: string; holidays: { date: string; name: string; calendars: string[] }[] }
+
+/** Festivos a mano de cada calendario y año, solo si OpenHolidays no trae ningún festivo de ese calendario ese año. */
+export function manualPublicPeriods(years: readonly ManualPublicYear[], fromOpenHolidays: readonly HolidayPeriod[]): HolidayPeriod[] {
+  const out: HolidayPeriod[] = [];
+  for (const y of years) {
+    for (const cal of HOLIDAY_CALENDARS) {
+      if (fromOpenHolidays.some((p) => p.calendarId === cal.id && p.kind === 'public' && p.start.startsWith(`${y.year}-`))) continue;
+      for (const h of y.holidays) if (h.calendars.includes(cal.id)) out.push({ calendarId: cal.id, kind: 'public', start: h.date, end: h.date, name: h.name, scope: 'all', parts: null });
+    }
+  }
+  return out;
+}
