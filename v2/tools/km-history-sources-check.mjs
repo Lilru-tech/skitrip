@@ -83,3 +83,21 @@ if (mode === 'discover') {
     await sleep(2000);
   }
 }
+
+if (mode === 'sample') {
+  // Una captura por URL y temporada reciente: descarga la copia original (sufijo id_) y muestra las líneas con km.
+  for (const u of URLS_DEFAULT.split('\n').map((s) => s.trim()).filter(Boolean)) {
+    const res = await cdx({ url: u, fl: 'timestamp', filter: 'statuscode:200', from: '2023', limit: '200' });
+    const ts = (res.rows ?? []).map((r) => r[0]).filter((t) => seasonOf(t)).at(-1);
+    if (!ts) { console.log(`## ${u}: sin captura de temporada desde 2023`); continue; }
+    try {
+      const r = await fetch(`https://web.archive.org/web/${ts}id_/${u}`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(60000) });
+      const html = await r.text();
+      const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+      const hits = [...text.matchAll(/.{0,70}\b\d{1,3}(?:[.,]\d+)?\s*(?:km|Km|KM)\b.{0,50}/g)].map((m) => m[0]).slice(0, 12);
+      console.log(`## ${u} @ ${ts}: HTTP ${r.status}, ${html.length} bytes, ${hits.length} menciones de km`);
+      for (const h of hits) console.log('    ', h);
+    } catch (e) { console.log(`## ${u} @ ${ts}: error ${e}`); }
+    await sleep(3000);
+  }
+}
