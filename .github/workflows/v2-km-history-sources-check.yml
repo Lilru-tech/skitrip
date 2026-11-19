@@ -10,9 +10,22 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  count:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+        working-directory: v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tools/km-history-sources-check.mjs count
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash

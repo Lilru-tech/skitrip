@@ -4,12 +4,36 @@
 const UA = 'SkiTrip-research/1.0 (+https://github.com/Lilru-tech/skitrip)';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const mode = process.argv[2] ?? 'discover';
+const URLS_DEFAULT = `
+www.esquiades.com/informacion-interes/estado-pistas/
+www.grandvalira.com/es/estacion/parte-nieve
+www.grandvalira.com/ca/estacio/estat-de-pistes
+www.grandvalira.com/es/parte-de-nieve
+www.palarinsal.com/es/estacion/parte-nieve
+www.ordinoarcalis.com/es/estacion/parte-nieve
+www.baqueira.es/estado-pistas
+www.baqueira.es/parte-de-nieve
+www.portdelcomte.net/pistes/
+www.cerler.com/partes/parteNieve
+www.formigal-panticosa.com/partes/parteNieve
+www.lamolina.cat/infoneu
+www.masella.com/parte-de-nieve/
+www.infonieve.es/estado-pistas/
+www.nevasport.com/partes/
+www.skiinfo.es/pirineo-catalan/parte-de-nieve.html
+www.skiinfo.es/andorra/parte-de-nieve.html
+www.skiinfo.es/pirineo-aragones/parte-de-nieve.html
+www.ax.ski/en/ouverture-pistes
+www.altiservice.com/font-romeu-pyrenees-2000/info-pistes
+`;
 
 async function cdx(params) {
-  const u = 'https://web.archive.org/cdx/search/cdx?' + new URLSearchParams({ output: 'json', ...params });
+  const sp = new URLSearchParams({ output: 'json' });
+  for (const [k, v] of Object.entries(params)) for (const x of [v].flat()) sp.append(k, x);
+  const u = 'https://web.archive.org/cdx/search/cdx?' + sp;
   for (let i = 0; i < 4; i++) {
     try {
-      const r = await fetch(u, { headers: { 'user-agent': UA } });
+      const r = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(45000) });
       if (r.status === 429 || r.status >= 500) { await sleep(5000 * (i + 1)); continue; }
       if (!r.ok) return { error: r.status };
       const t = await r.text();
@@ -38,16 +62,18 @@ function seasonOf(ts) { // ts = yyyymmddhhmmss → temporada «2019-20» si cae 
 
 if (mode === 'discover') {
   for (const d of DOMAINS) {
-    const res = await cdx({ url: d, matchType: 'domain', collapse: 'urlkey', fl: 'original', filter: 'statuscode:200', limit: '6000' });
+    const t0 = Date.now();
+    const res = await cdx({ url: d, matchType: 'domain', collapse: 'urlkey', fl: 'original', limit: '400',
+      filter: ['statuscode:200', 'original:.*(parte|estado|estat|pistes|pistas|neige|snow|nieve|ouverture|enneigement|report).*'] });
     if (res.error) { console.log(`## ${d}: error ${res.error}`); await sleep(2000); continue; }
     const urls = res.rows.map((r) => r[0]).filter((u) => KEYWORDS.test(u) && !/\.(jpg|png|gif|css|js|svg|webp|pdf|ico)(\?|$)/i.test(u));
-    console.log(`## ${d}: ${res.rows.length} urls archivadas, ${urls.length} candidatas`);
+    console.log(`## ${d}: ${res.rows.length} urls candidatas (${urls.length} tras filtro) en ${Date.now() - t0} ms`);
     for (const u of urls.slice(0, 40)) console.log('   ', u);
     await sleep(2000);
   }
 } else {
   // mode=count: URLs a contar en la variable de entorno URLS (una por línea)
-  for (const u of (process.env.URLS ?? '').split('\n').map((s) => s.trim()).filter(Boolean)) {
+  for (const u of (process.env.URLS || URLS_DEFAULT).split('\n').map((s) => s.trim()).filter(Boolean)) {
     const res = await cdx({ url: u, fl: 'timestamp,statuscode', filter: 'statuscode:200', from: '2010', limit: '20000' });
     if (res.error) { console.log(`## ${u}: error ${res.error}`); await sleep(2000); continue; }
     const days = new Map();
